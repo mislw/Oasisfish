@@ -6,7 +6,7 @@ This directory packages the current local `0.1.0-rc.5` dirty source snapshot as 
 docker build -f .\deploy\nas\Dockerfile -t deepseek-harness-local:0.1.0-rc.5 .
 ```
 
-The image uses `DSH_HOME=/home/node/.dsh`, runs as the `node` user, and listens inside the container on `0.0.0.0:3080`.
+The image uses `DSH_HOME=/home/node/.dsh`, runs as the `node` user, and listens inside the container on `0.0.0.0:3080`. Runtime `process.cwd()` is `/workspace`, which is the default workspace mount point and is separate from the built application under `/app`.
 
 Use persistent storage for Harness state and the default workspace:
 

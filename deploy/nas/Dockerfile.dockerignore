@@ -4,6 +4,11 @@
 node_modules
 **/node_modules
 
+.artifacts
+**/.artifacts
+artifacts
+**/artifacts
+
 coverage
 **/coverage
 lcov-report
