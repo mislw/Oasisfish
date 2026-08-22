@@ -52,6 +52,13 @@ snapshots
 *.cordis.snapshot.yml
 **/*.cordis.snapshot.yml
 
+# The checked-in reasoning stress source is part of tsconfig.host.json and
+# imports these two helpers during the production typecheck.
+!apps/web/tests/
+apps/web/tests/*
+!apps/web/tests/scaffold.ts
+!apps/web/tests/support.ts
+
 canvas
 canvas/**
 **/.canvas-temp
