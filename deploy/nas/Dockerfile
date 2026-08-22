@@ -3,7 +3,8 @@ FROM node:22.19-bookworm-slim
 RUN corepack enable && corepack prepare pnpm@11.7.0 --activate
 
 ENV DSH_HOME=/home/node/.dsh
-WORKDIR /workspace
+ENV DSH_CWD=/workspace
+WORKDIR /app
 
 COPY --chown=node:node . .
 RUN mkdir -p /home/node/.dsh /workspace \
@@ -17,4 +18,6 @@ ENV NODE_ENV=production
 
 EXPOSE 3080
 
-CMD ["pnpm", "dsh", "web", "--patch", "/workspace/deploy/nas/cordis.patch.yml"]
+HEALTHCHECK CMD ["node", "-e", "fetch('http://127.0.0.1:3080').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+
+CMD ["pnpm", "dsh", "web", "--patch", "/app/deploy/nas/cordis.patch.yml"]

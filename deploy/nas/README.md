@@ -8,16 +8,18 @@ docker build -f .\deploy\nas\Dockerfile -t deepseek-harness-local:0.1.0-rc.5 .
 
 The image uses `DSH_HOME=/home/node/.dsh`, runs as the `node` user, and listens inside the container on `0.0.0.0:3080`.
 
-Use persistent storage for Harness state:
+Use persistent storage for Harness state and the default workspace:
 
 ```powershell
 docker volume create dsh-home
+docker volume create dsh-workspace
 docker run --rm --name deepseek-harness `
   -v dsh-home:/home/node/.dsh `
+  -v dsh-workspace:/workspace `
   deepseek-harness-local:0.1.0-rc.5
 ```
 
-Only connect this service to the gateway from a private network segment. Do not publish port `3080` to the public internet; if host access is required, bind it only to a private interface or keep it behind the private gateway.
+Connect this service only through a private Compose network that the gateway can reach. Do not map container port `3080` to the host or expose it outside that private network.
 
 The deployment patch trusts only `agent.mislw.cn`:
 
