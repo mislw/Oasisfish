@@ -213,6 +213,56 @@ export interface LlmModelDiscoveryRequest {
   signal?: AbortSignal
 }
 
+/** Configuration-stage progress point reached by one provider connection probe. */
+export type LlmProviderProbeStage = 'endpoint' | 'authentication' | 'protocol' | 'model' | 'response'
+
+/**
+ * One connection test over a provider profile that configuration has not
+ * stored yet. The credential is request-local and must not be persisted or
+ * included in diagnostics.
+ */
+export interface LlmProviderProbeRequest {
+  /** Route name of the profile being edited, when one already exists. */
+  provider?: string
+  /** Provider endpoint to contact for this test. */
+  baseURL?: string
+  /** Wire protocol selected by the draft profile. */
+  api?: string
+  /** Credential for this test alone; the harness never stores it here. */
+  apiKey?: string
+  /** Exact model id to ask for during the probe. */
+  model: string
+  /** Caller cancellation; implementations must settle promptly after it aborts. */
+  signal?: AbortSignal
+}
+
+/** Sanitized result of testing one draft provider connection. */
+export type LlmProviderProbeResult =
+  | {
+    /** The provider returned a usable assistant response. */
+    ok: true
+    /** Successful probes always complete at the response stage. */
+    stage: 'response'
+    /** Exact model id exercised by the probe. */
+    model: string
+    /** Short assistant text suitable for configuration UI feedback. */
+    text: string
+    /** Total probe duration in milliseconds. */
+    elapsedMs: number
+  }
+  | {
+    /** The provider connection could not complete successfully. */
+    ok: false
+    /** Configuration stage that classified the failure. */
+    stage: LlmProviderProbeStage
+    /** Stable provider-neutral machine code. */
+    code: string
+    /** Sanitized user-facing failure summary. */
+    message: string
+    /** Total probe duration in milliseconds. */
+    elapsedMs: number
+  }
+
 /**
  * One model an endpoint reports about itself. Every field but the id is
  * optional because most provider listings disclose an id and nothing else;

@@ -266,3 +266,63 @@ describe('model discovery registry', () => {
     await expect(ctx.llm.discoverModels('llm-example', { provider: 'known-route' })).resolves.toEqual([])
   })
 })
+
+describe('provider probe registry', () => {
+  it('forwards an isolated draft and signal until its registration is disposed', async () => {
+    const ctx = await setup()
+    const controller = new AbortController()
+    const request = {
+      provider: 'relay-draft',
+      baseURL: 'https://gateway.example/v1',
+      api: 'openai-completions',
+      apiKey: 'sk-draft',
+      model: 'relay-model',
+      signal: controller.signal,
+    }
+    let receivedDraft: typeof request | undefined
+    const probe = vi.fn(async (received: typeof request) => {
+      receivedDraft = { ...received }
+      received.baseURL = 'https://mutated.example/v1'
+      return {
+        ok: true as const,
+        stage: 'response' as const,
+        model: received.model,
+        text: 'OK',
+        elapsedMs: 12,
+      }
+    })
+
+    const dispose = ctx.llm.registerProviderProbe('llm-pi-ai', probe)
+    await expect(ctx.llm.testProvider('llm-pi-ai', request)).resolves.toEqual({
+      ok: true,
+      stage: 'response',
+      model: 'relay-model',
+      text: 'OK',
+      elapsedMs: 12,
+    })
+    expect(probe).toHaveBeenCalledTimes(1)
+    expect(receivedDraft).toEqual({ ...request, signal: controller.signal })
+    expect(request.baseURL).toBe('https://gateway.example/v1')
+
+    dispose()
+    await expect(ctx.llm.testProvider('llm-pi-ai', request))
+      .rejects.toMatchObject({ code: 'NO_PROVIDER_PROBE' })
+  })
+
+  it('rejects unnamed, duplicate, and unknown probe namespaces', async () => {
+    const ctx = await setup()
+    const probe = async () => ({
+      ok: false as const,
+      stage: 'endpoint' as const,
+      code: 'UNREACHABLE',
+      message: 'Endpoint unavailable',
+      elapsedMs: 4,
+    })
+
+    expect(() => ctx.llm.registerProviderProbe('', probe)).toThrow(/non-empty settings namespace/)
+    ctx.llm.registerProviderProbe('llm-pi-ai', probe)
+    expect(() => ctx.llm.registerProviderProbe('llm-pi-ai', probe)).toThrow(/already registered/)
+    await expect(ctx.llm.testProvider('llm-absent', { model: 'relay-model' }))
+      .rejects.toMatchObject({ code: 'NO_PROVIDER_PROBE' })
+  })
+})

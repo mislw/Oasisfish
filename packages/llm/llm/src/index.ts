@@ -15,6 +15,8 @@ import type {
   LlmModelContext,
   LlmModelDiscoveryRequest,
   LlmModelInfo,
+  LlmProviderProbeRequest,
+  LlmProviderProbeResult,
   LlmResolvedModelInfo,
   LlmProviderInfo,
   ModelModality,
@@ -315,6 +317,10 @@ export class LlmRuntime extends Service {
     string,
     (request: LlmModelDiscoveryRequest) => Promise<readonly LlmDiscoveredModel[]>
   >()
+  private providerProbes = new Map<
+    string,
+    (request: LlmProviderProbeRequest) => Promise<LlmProviderProbeResult>
+  >()
 
   constructor(ctx: Context) {
     super(ctx, 'llm')
@@ -583,6 +589,57 @@ export class LlmRuntime extends Service {
       })
     }
     return models
+  }
+
+  /**
+   * Offer draft provider connection tests for one settings namespace.
+   * Registration is exclusive per namespace and is disposed with the fiber.
+   * @param settingsNs - namespace whose provider profiles this probe serves.
+   * @param probe - tests one request-local provider draft.
+   * @returns the disposer that withdraws the probe.
+   */
+  registerProviderProbe(
+    settingsNs: string,
+    probe: (request: LlmProviderProbeRequest) => Promise<LlmProviderProbeResult>,
+  ): () => void {
+    const dispose = this.ctx.effect(function* (this: LlmRuntime) {
+      if (settingsNs.length === 0) {
+        throw new LlmError('provider probe needs a non-empty settings namespace', 'INVALID_PROVIDER_PROBE')
+      }
+      if (this.providerProbes.has(settingsNs)) {
+        throw new LlmError(`provider probe for "${settingsNs}" is already registered`, 'DUPLICATE_PROVIDER_PROBE')
+      }
+      this.providerProbes.set(settingsNs, probe)
+      yield () => {
+        this.providerProbes.delete(settingsNs)
+      }
+    }.bind(this), 'llm.registerProviderProbe()')
+    return () => void dispose()
+  }
+
+  /**
+   * Test one request-local provider draft without reading or writing settings,
+   * credentials, or Session state.
+   * @param settingsNs - namespace whose registered probe owns the draft.
+   * @param request - endpoint, protocol, credential, model, and cancellation.
+   * @returns a sanitized connection result safe for configuration UI display.
+   */
+  async testProvider(
+    settingsNs: string,
+    request: LlmProviderProbeRequest,
+  ): Promise<LlmProviderProbeResult> {
+    const probe = this.providerProbes.get(settingsNs)
+    if (probe === undefined) {
+      throw new LlmError(`no provider probe is registered for "${settingsNs}"`, 'NO_PROVIDER_PROBE')
+    }
+    return probe({
+      ...request.provider === undefined ? {} : { provider: request.provider },
+      ...request.baseURL === undefined ? {} : { baseURL: request.baseURL },
+      ...request.api === undefined ? {} : { api: request.api },
+      ...request.apiKey === undefined ? {} : { apiKey: request.apiKey },
+      model: request.model,
+      ...request.signal === undefined ? {} : { signal: request.signal },
+    })
   }
 
   /**
