@@ -38,6 +38,10 @@ peerDependencyRules:
 # default and only allow scripts we need. esbuild (native binary) and lefthook
 # (git hooks) genuinely need theirs.
 allowBuilds:
+  # Downloads the pinned Chromium/Node desktop runtime used only by apps/desktop.
+  electron: true
+  # electron-builder carries its Squirrel backend transitively; the desktop app ships NSIS only.
+  electron-winstaller: false
   esbuild: true
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.

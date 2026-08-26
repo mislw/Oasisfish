@@ -1,0 +1,21 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "Self-contained Windows desktop distribution of DeepSeek Harness",
+  "version": "0.1.0-rc.5",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.mjs",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run tests"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "44.0.0",
+    "electron-builder": "26.15.3",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}
