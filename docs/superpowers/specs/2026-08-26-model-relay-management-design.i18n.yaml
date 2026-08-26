@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/superpowers/specs/2026-08-26-model-relay-management-design.md
+2026-08-26-model-relay-management-design.md: 8499d6997f22933a3ca10cf05325540564a8a250
+2026-08-26-model-relay-management-design.zh.md: 2898f9ff7818207630d309405607e54ebb1a50d7
