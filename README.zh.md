@@ -12,6 +12,12 @@ DeepSeek Harness 目前处于 _开发者预览_ 阶段，正在快速迭代。**
 
 ## 运行
 
+### 运行自包含 Windows 应用
+
+Windows 10/11 x64 桌面发行版内置 DeepSeek Harness、Node.js、pnpm、Python、pip、Git、Git Bash、PowerShell、OpenSSH、ripgrep、fd、jq、curl 和 7-Zip。安装后无需系统级开发运行时即可使用本地编码工具；模型与 API 调用仍需联网并提供凭据。
+
+从本仓库构建解包应用或 NSIS 安装包的方法见[桌面打包参考](apps/desktop/README.md)。
+
 ### 通过 `npm` 运行
 
 安装 `Node.js`，然后运行：

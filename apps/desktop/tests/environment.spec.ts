@@ -1,14 +1,14 @@
 import { delimiter, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildHarnessEnvironment } from '../src/environment.ts'
-import type { DesktopPaths } from '../src/paths.ts'
+import { resolveDesktopPaths, type DesktopPaths } from '../src/paths.ts'
 
 const paths: DesktopPaths = {
   resourcesRoot: 'C:\\Program Files\\DeepSeek Harness\\resources',
   runtimeRoot: 'C:\\Program Files\\DeepSeek Harness\\resources\\runtime',
   harnessRoot: 'C:\\Program Files\\DeepSeek Harness\\resources\\harness',
   nodeExecutable: 'C:\\Program Files\\DeepSeek Harness\\resources\\runtime\\node\\node.exe',
-  dshEntry: 'C:\\Program Files\\DeepSeek Harness\\resources\\harness\\lib\\bin.js',
+  dshEntry: 'C:\\Program Files\\DeepSeek Harness\\resources\\harness\\node_modules\\@deepseek-ai\\dsh\\lib\\bin.js',
   dataRoot: 'C:\\Users\\tester\\AppData\\Roaming\\DeepSeek Harness',
   logDirectory: 'C:\\Users\\tester\\AppData\\Roaming\\DeepSeek Harness\\logs',
 }
@@ -58,5 +58,20 @@ describe('buildHarnessEnvironment', () => {
       PIP_DISABLE_PIP_VERSION_CHECK: '1',
       GIT_CONFIG_NOSYSTEM: '1',
     })
+  })
+})
+
+describe('resolveDesktopPaths', () => {
+  it('loads the CLI from the dependency-only Harness deployment root', () => {
+    const resolved = resolveDesktopPaths(paths.resourcesRoot, paths.dataRoot)
+
+    expect(resolved.dshEntry).toBe(join(
+      paths.harnessRoot,
+      'node_modules',
+      '@deepseek-ai',
+      'dsh',
+      'lib',
+      'bin.js',
+    ))
   })
 })

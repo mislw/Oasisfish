@@ -22,7 +22,10 @@ export async function reserveLoopbackPort(): Promise<number> {
         reject(new Error('Loopback port reservation returned no TCP address.'))
         return
       }
-      server.close(error => error === undefined ? resolve(address.port) : reject(error))
+      server.close((error) => {
+        if (error === undefined) resolve(address.port)
+        else reject(error)
+      })
     })
   })
 }
@@ -34,7 +37,11 @@ export async function reserveLoopbackPort(): Promise<number> {
  */
 export async function waitForServer(url: string, options: WaitForServerOptions = {}): Promise<void> {
   const fetch = options.fetch ?? globalThis.fetch
-  const sleep = options.sleep ?? (async milliseconds => await new Promise(resolve => setTimeout(resolve, milliseconds)))
+  const sleep = options.sleep ?? (async (milliseconds) => {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, milliseconds)
+    })
+  })
   const now = options.now ?? Date.now
   const timeoutMs = options.timeoutMs ?? 30_000
   const intervalMs = options.intervalMs ?? 100

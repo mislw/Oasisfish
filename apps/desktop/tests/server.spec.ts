@@ -13,7 +13,10 @@ describe('reserveLoopbackPort', () => {
     })
 
     await new Promise<void>((resolve, reject) => {
-      server.close(error => error === undefined ? resolve() : reject(error))
+      server.close((error) => {
+        if (error === undefined) resolve()
+        else reject(error)
+      })
     })
   })
 })

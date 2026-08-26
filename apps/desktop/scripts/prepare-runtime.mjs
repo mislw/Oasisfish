@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto'
 import { createReadStream, createWriteStream } from 'node:fs'
 import { access, copyFile, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { delimiter, dirname, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import extract from 'extract-zip'
+import { makeWindowsPythonLauncherPortable } from './portable-launcher.mjs'
 import { readRuntimeManifest } from './runtime-manifest.mjs'
 
 const desktopRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -123,6 +124,16 @@ async function enablePip(stagingRoot) {
       PIP_NO_INDEX: '1',
     },
   })
+  const scriptsRoot = join(pythonRoot, 'Scripts')
+  const scripts = await readdir(scriptsRoot)
+  for (const script of scripts.filter(name => /^pip.*\.exe$/iu.test(name))) {
+    const path = join(scriptsRoot, script)
+    await writeFile(path, makeWindowsPythonLauncherPortable(await readFile(path)))
+  }
+  const pipEnvironment = { ...process.env }
+  delete pipEnvironment.Path
+  pipEnvironment.PATH = [pythonRoot, process.env.PATH ?? process.env.Path].filter(Boolean).join(delimiter)
+  run(join(scriptsRoot, 'pip.exe'), ['--version'], { env: pipEnvironment })
 }
 
 async function verifyRequiredFiles(manifest, stagingRoot) {
@@ -140,7 +151,7 @@ function verifyCommands(stagingRoot) {
     ['node', join(stagingRoot, 'node', 'node.exe'), ['--version']],
     ['pnpm', join(stagingRoot, 'node-global', 'pnpm.exe'), ['--version']],
     ['python', join(stagingRoot, 'python', 'python.exe'), ['--version']],
-    ['pip', join(stagingRoot, 'python', 'python.exe'), ['-m', 'pip', '--version']],
+    ['pip', join(stagingRoot, 'python', 'Scripts', 'pip.exe'), ['--version']],
     ['git', join(stagingRoot, 'git', 'cmd', 'git.exe'), ['--version']],
     ['bash', join(stagingRoot, 'git', 'bin', 'bash.exe'), ['--version']],
     ['pwsh', join(stagingRoot, 'powershell', 'pwsh.exe'), ['-NoLogo', '-NoProfile', '-Command', '$PSVersionTable.PSVersion.ToString()']],

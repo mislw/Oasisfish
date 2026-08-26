@@ -12,6 +12,12 @@ DeepSeek Harness is currently in _developer preview_ and is iterating rapidly. *
 
 ## Run
 
+### Run the self-contained Windows app
+
+For Windows 10/11 x64, the desktop distribution bundles DeepSeek Harness with Node.js, pnpm, Python, pip, Git, Git Bash, PowerShell, OpenSSH, ripgrep, fd, jq, curl, and 7-Zip. It can install and run local coding tools without system-wide developer runtimes; model and API calls still require network access and credentials.
+
+Build the unpacked app or NSIS installer from this repository as described in the [desktop packaging reference](apps/desktop/README.md).
+
 ### Run from `npm`
 
 Install `Node.js`, then run:

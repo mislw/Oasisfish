@@ -1,5 +1,7 @@
 # Windows Desktop App Design
 
+English | [中文](2026-08-26-windows-desktop-app-design.zh.md)
+
 ## Goal
 
 Ship a Windows 10/11 x64 installer that runs DeepSeek Harness on a clean machine without preinstalled developer tools. Model requests remain online, while installation and local coding tools work offline.

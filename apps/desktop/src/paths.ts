@@ -25,7 +25,7 @@ export function resolveDesktopPaths(resourcesRoot: string, dataRoot: string): De
     runtimeRoot,
     harnessRoot,
     nodeExecutable: join(runtimeRoot, 'node', 'node.exe'),
-    dshEntry: join(harnessRoot, 'lib', 'bin.js'),
+    dshEntry: join(harnessRoot, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
     dataRoot,
     logDirectory: join(dataRoot, 'logs'),
   }

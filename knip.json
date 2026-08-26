@@ -11,9 +11,11 @@
     "sandbox-exec",
     "tar",
     "taskkill",
+    "taskkill.exe",
     "where.exe"
   ],
   "ignoreWorkspaces": [
+    "apps/desktop-runtime",
     "vendor/*",
     "python/sdk-runtime"
   ],
@@ -31,6 +33,12 @@
         "scripts/**/*.ts",
         "scripts/**/*.mjs",
         "scripts/**/*.cjs"
+      ]
+    },
+    "apps/desktop": {
+      "entry": [
+        "scripts/after-pack.mjs",
+        "scripts/*.d.mts"
       ]
     },
     "examples": {

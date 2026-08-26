@@ -1,0 +1,58 @@
+# DeepSeek Harness Desktop
+
+[English](README.md) | 中文
+
+本文是 Windows 10/11 x64 自包含发行版的参考文档。安装后的应用内置 Harness Web UI 及本地编码运行时；模型与远程 API 请求仍需联网并使用用户提供的凭据。
+
+## 运行时行为
+
+Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web` 入口，等待 HTTP 就绪后，在沙箱化 BrowserWindow 中打开该来源。应用拒绝外部导航和新窗口。关闭应用时会终止完整的 Harness 进程树。
+
+只有 Harness 子进程会在 `PATH` 前端获得内置工具目录。桌面应用不会修改用户的全局环境。不可变应用文件保留在安装目录中；profile、设置、凭据、会话、缓存和日志保留在 Electron 的用户数据目录中。
+
+## 内置工具
+
+| 工具 | 版本 |
+|---|---:|
+| Node.js | 24.19.0 |
+| pnpm | 11.7.0 |
+| Python | 3.14.7 |
+| pip | 26.2.1 |
+| Git for Windows / Git Bash | 2.55.0.windows.5 / 5.3.15 |
+| PowerShell | 7.6.5 |
+| OpenSSH | 10.5p1 |
+| ripgrep | 15.2.0 |
+| fd | 10.4.2 |
+| jq | 1.8.2 |
+| curl | 8.21.0 |
+| 7-Zip | 26.02 |
+
+[`runtime-manifest.json`](runtime-manifest.json) 固定上游 URL、版本、SHA-256 校验和、解压规则及必需文件。打包流程会在 staging（暂存）前校验每个下载文件。
+
+## 构建
+
+在已安装依赖的仓库 checkout 中运行：
+
+```sh
+pnpm --filter @deepseek-ai/dsh-desktop run package:dir
+pnpm --filter @deepseek-ai/dsh-desktop run package
+```
+
+`package:dir` 将解包应用写入 `apps/desktop/release/win-unpacked/`。`package` 将 NSIS 安装包写入 `apps/desktop/release/`。本地缓存缺少上游运行时归档时，构建过程会按固定地址下载；安装后的应用无需联网即可启动 UI 或执行内置本地工具。
+
+## 验证
+
+```sh
+pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
+pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
+```
+
+staging 检查要求 Harness 入口、Web 前端、运行时 manifest 以及产品所需的每个可执行文件齐全。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
+
+## 用户数据与日志
+
+默认数据根目录为 `%APPDATA%\DeepSeek Harness`。`desktop-ready.json` 记录当前回环 URL 与 Harness PID，供诊断使用。启动过程和 Harness 输出写入 `logs\desktop.log`；日志轮转后，上一份文件保留为 `desktop.log.previous`。
+
+## 许可证与限制
+
+打包资源包含仓库[许可证](../../LICENSE)、[JavaScript 依赖通知](../../THIRD_PARTY_NOTICES.md)和[内置运行时通知](RUNTIME_NOTICES.md)。目前仅支持 Windows x64。安装程序不会配置模型凭据，离线安装无法完成模型或远程 API 请求。

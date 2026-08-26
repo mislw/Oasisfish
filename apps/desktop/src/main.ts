@@ -103,7 +103,9 @@ function createWindow(url: string): BrowserWindow {
   window.webContents.on('will-navigate', (event, navigationUrl) => {
     if (new URL(navigationUrl).origin !== allowedOrigin) event.preventDefault()
   })
-  window.once('ready-to-show', () => window.show())
+  window.once('ready-to-show', () => {
+    window.show()
+  })
   void window.loadURL(url)
   window.on('closed', () => {
     mainWindow = undefined
@@ -132,7 +134,9 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow?.restore()
     mainWindow?.focus()
   })
-  app.on('window-all-closed', () => app.quit())
+  app.on('window-all-closed', () => {
+    app.quit()
+  })
   app.on('before-quit', (event) => {
     if (quitting) return
     event.preventDefault()
@@ -140,7 +144,7 @@ if (!app.requestSingleInstanceLock()) {
     terminateHarness()
     app.quit()
   })
-  void app.whenReady().then(boot).catch((error) => {
+  void app.whenReady().then(boot).catch((error: unknown) => {
     const message = error instanceof Error ? error.stack ?? error.message : String(error)
     dialog.showErrorBox('DeepSeek Harness could not start', message)
     terminateHarness()

@@ -7,15 +7,22 @@
   "main": "dist/main.mjs",
   "scripts": {
     "build": "tsdown",
+    "harness:prepare": "node scripts/prepare-harness.mjs",
+    "icon:generate": "node scripts/generate-icon.mjs",
+    "package": "pnpm -w run build && pnpm run build && pnpm run icon:generate && pnpm run runtime:prepare && pnpm run harness:prepare && pnpm run stage:verify && electron-builder --win nsis --x64",
+    "package:dir": "pnpm -w run build && pnpm run build && pnpm run icon:generate && pnpm run runtime:prepare && pnpm run harness:prepare && pnpm run stage:verify && electron-builder --dir --win --x64",
     "runtime:prepare": "node scripts/prepare-runtime.mjs",
+    "smoke:unpacked": "node scripts/smoke-unpacked.mjs",
+    "stage:verify": "node scripts/verify-staged-runtime.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run tests"
+    "test": "vitest run --root ../.. apps/desktop/tests"
   },
   "license": "MIT",
   "devDependencies": {
     "electron": "44.0.0",
     "electron-builder": "26.15.3",
     "extract-zip": "2.0.1",
+    "sharp": "^0.35.3",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"

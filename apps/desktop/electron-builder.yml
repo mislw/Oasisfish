@@ -1,0 +1,35 @@
+appId: ai.deepseek.harness.desktop
+productName: DeepSeek Harness
+copyright: Copyright DeepSeek Harness contributors
+asar: true
+npmRebuild: false
+nodeGypRebuild: false
+directories:
+  output: release
+afterPack: scripts/after-pack.mjs
+files:
+  - dist/**
+  - package.json
+extraResources:
+  - from: build-resources/runtime
+    to: runtime
+  - from: ../../LICENSE
+    to: LICENSE
+  - from: ../../THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+  - from: RUNTIME_NOTICES.md
+    to: RUNTIME_NOTICES.md
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: DeepSeek-Harness-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DeepSeek Harness

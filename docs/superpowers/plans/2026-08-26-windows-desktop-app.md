@@ -1,5 +1,7 @@
 # Windows Desktop App Implementation Plan
 
+English | [中文](2026-08-26-windows-desktop-app.zh.md)
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build and verify a self-contained Windows 10/11 x64 Electron installer for DeepSeek Harness and its common scripting toolchain.
