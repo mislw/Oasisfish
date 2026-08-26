@@ -63,7 +63,7 @@
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
-          - button "获取可用模型"
+          - button "从上游获取"
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: probe-model

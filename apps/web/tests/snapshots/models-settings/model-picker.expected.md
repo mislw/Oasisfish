@@ -2,7 +2,7 @@
   - heading "选择要添加的模型" [level=2]
   - button "关闭":
     - img
-  - paragraph: 以下是模型提供方的可用模型，勾选要添加的模型。
+  - paragraph: 以下模型由当前 Base URL 使用所选协议和 API Key 返回，勾选要添加的模型。
   - button "全选"
   - list:
     - listitem:

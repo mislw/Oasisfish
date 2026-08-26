@@ -472,6 +472,13 @@ describe('capacity spellings', () => {
 })
 
 describe('endpoint interrogation', () => {
+  it('names endpoint model discovery as fetching from upstream', async () => {
+    await mountSection({ providers: { openai: { baseURL: 'https://proxy.example/v1' } } })
+    openEditor('openai')
+
+    expect(screen.getByRole('button', { name: 'Fetch from upstream' })).toBeTruthy()
+  })
+
   it('asks the endpoint the form shows, with a key that is not yet stored', async () => {
     const discover = vi.fn(() => Promise.resolve(ok({ models: [{ id: 'acme-large', contextWindow: 65_536 }] })))
     await mountSection({ discover })

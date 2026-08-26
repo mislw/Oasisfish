@@ -224,7 +224,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     const settingsDialog = page.getByRole('dialog', { name: '设置' })
     await settingsDialog.getByRole('button', { name: '编辑 minimax-cn' }).click()
     await settingsDialog.getByText('自定义设置').click()
-    await settingsDialog.getByRole('button', { name: '获取可用模型' }).click()
+    await settingsDialog.getByRole('button', { name: '从上游获取' }).click()
 
     const picker = page.getByRole('dialog', { name: '选择要添加的模型' })
     await picker.waitFor({ timeout: 10_000 })
@@ -280,7 +280,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     expect(await dialog.textContent()).not.toContain('sk-e2e-rejected')
 
     await dialog.getByRole('textbox', { name: 'API 密钥', exact: true }).fill('sk-e2e-relay')
-    await dialog.getByRole('button', { name: '获取可用模型' }).click()
+    await dialog.getByRole('button', { name: '从上游获取' }).click()
     const picker = page.getByRole('dialog', { name: '选择要添加的模型' })
     await picker.waitFor({ timeout: 10_000 })
     expect(await picker.getByText('acme-large', { exact: true }).count()).toBe(1)
