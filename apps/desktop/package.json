@@ -7,6 +7,7 @@
   "main": "dist/main.mjs",
   "scripts": {
     "build": "tsdown",
+    "runtime:prepare": "node scripts/prepare-runtime.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run tests"
   },
@@ -14,6 +15,7 @@
   "devDependencies": {
     "electron": "44.0.0",
     "electron-builder": "26.15.3",
+    "extract-zip": "2.0.1",
     "tsdown": "^0.22.2",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"

@@ -1,6 +1,10 @@
 CLAUDE.local.md
 .env
 node_modules/
+apps/desktop/.runtime-cache/
+apps/desktop/build-resources/
+apps/desktop/dist/
+apps/desktop/release/
 lib/
 *.tsbuildinfo
 pnpm-debug.log

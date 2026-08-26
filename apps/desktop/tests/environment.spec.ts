@@ -37,7 +37,10 @@ describe('buildHarnessEnvironment', () => {
       join(paths.runtimeRoot, 'git', 'usr', 'bin'),
       join(paths.runtimeRoot, 'git', 'mingw64', 'bin'),
       join(paths.runtimeRoot, 'powershell'),
-      join(paths.runtimeRoot, 'tools'),
+      join(paths.runtimeRoot, 'tools', 'ripgrep'),
+      join(paths.runtimeRoot, 'tools', 'fd'),
+      join(paths.runtimeRoot, 'tools', 'jq'),
+      join(paths.runtimeRoot, 'tools', 'sevenzip', 'x64'),
       inherited.PATH,
     ])
   })
