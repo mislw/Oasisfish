@@ -23,7 +23,7 @@ function mount({
   onboardingActive = true,
   rows = [
     { id: 'general', order: 0, label: 'General' },
-    { id: 'models', order: 10, label: 'Models' },
+    { id: 'models', order: 10, label: 'Models and Relays' },
     { id: 'agent-presets', order: 20, label: 'Agent presets' },
   ],
   steps = [
@@ -166,7 +166,7 @@ describe('SettingsPanel navigation', () => {
     mount()
     openPanel()
     expect(screen.getByRole('button', { name: 'General' }).getAttribute('aria-current')).toBe('true')
-    expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Models and Relays' }).getAttribute('aria-current')).toBeNull()
     expect(screen.getByTestId('section-general')).toBeTruthy()
   })
 
@@ -195,8 +195,8 @@ describe('SettingsPanel navigation', () => {
   it('switches the rendered section on nav click', () => {
     mount()
     openPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Models' }))
-    expect(screen.getByRole('button', { name: 'Models' }).getAttribute('aria-current')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: 'Models and Relays' }))
+    expect(screen.getByRole('button', { name: 'Models and Relays' }).getAttribute('aria-current')).toBe('true')
     expect(screen.getByTestId('section-models')).toBeTruthy()
     expect(screen.queryByTestId('section-general')).toBeNull()
   })
@@ -246,9 +246,9 @@ describe('SettingsPanel navigation', () => {
   it('falls back to the first row when the active entry unregisters', () => {
     const { bump } = mount()
     openPanel()
-    fireEvent.click(screen.getByRole('button', { name: 'Models' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Models and Relays' }))
     bump([{ id: 'general', order: 0, label: 'General' }])
-    expect(screen.queryByRole('button', { name: 'Models' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Models and Relays' })).toBeNull()
     expect(screen.getByTestId('section-general')).toBeTruthy()
   })
 

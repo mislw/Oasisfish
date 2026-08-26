@@ -786,7 +786,8 @@ describe('hand-declared providers', () => {
     // take the whole provider out of the picker. The composer's model picker
     // owns the choice, and a switch there records provider+model+effort together.
     const fields = () => [...document.querySelectorAll('input,select')]
-      .map(el => el.getAttribute('aria-label')).filter(Boolean)
+      .map(el => el.getAttribute('aria-label'))
+      .filter(label => label !== null && label !== en.defaultProvider && label !== en.defaultModel)
 
     mountCard()
     fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })

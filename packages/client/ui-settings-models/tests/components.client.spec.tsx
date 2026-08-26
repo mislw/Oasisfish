@@ -41,6 +41,7 @@ function capacityInputs(label: string): HTMLInputElement[] {
 const PiAiConfig = Schema.object({
   providers: Schema.dict(Schema.object({
     apiKeyEnv: Schema.string().role('credential-ref'),
+    api: Schema.string(),
     baseURL: Schema.string(),
     reasoning: Schema.union(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
     headers: Schema.dict(Schema.string()),
@@ -116,8 +117,8 @@ function wireNamespaces(): SettingsNamespaceView[] {
     {
       ns: 'llm-pi-ai',
       schema: JSON.parse(JSON.stringify(PiAiConfig.toJSON())) as unknown,
-      value: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY', baseURL: 'https://proxy', headers: { 'X-Team': 'a' } }, zombie: {} } },
-      user: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY', baseURL: 'https://proxy', headers: { 'X-Team': 'a' } }, zombie: {} } },
+      value: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY', api: 'openai-responses', baseURL: 'https://proxy', headers: { 'X-Team': 'a' } }, zombie: {} } },
+      user: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY', api: 'openai-responses', baseURL: 'https://proxy', headers: { 'X-Team': 'a' } }, zombie: {} } },
       applies: 'live',
       secrets: [],
       revision: 0,
@@ -142,12 +143,20 @@ function scriptedFace(overrides: {
   mutate?: ReturnType<typeof vi.fn>
   set?: ReturnType<typeof vi.fn>
   unset?: ReturnType<typeof vi.fn>
+  defaultSelection?: { provider: string; model: string }
+  selectDefaultModel?: ReturnType<typeof vi.fn>
 } = {}) {
   const update = overrides.update ?? vi.fn(() => Promise.resolve(ok(wireNamespaces()[2])))
   const replace = overrides.replace ?? vi.fn(() => Promise.resolve(ok(wireNamespaces()[2])))
   const mutate = overrides.mutate ?? vi.fn(() => Promise.resolve(ok(wireNamespaces()[2])))
   const set = overrides.set ?? vi.fn(() => Promise.resolve(ok({})))
   const unset = overrides.unset ?? vi.fn(() => Promise.resolve(ok({})))
+  let defaultSelection = overrides.defaultSelection
+    ?? { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
+  const selectDefaultModel = overrides.selectDefaultModel ?? vi.fn((payload) => {
+    defaultSelection = { ...payload }
+    return Promise.resolve(ok({ selected: defaultSelection }))
+  })
   const face = {
     llm: {
       providers: vi.fn(() => Promise.resolve(ok({
@@ -160,7 +169,16 @@ function scriptedFace(overrides: {
           { provider: 'plain', displayName: 'plain', settingsNs: 'llm-plain', settingsPath: ['profiles', 'plain'], active: false },
         ],
       }))),
-      models: vi.fn(() => Promise.resolve(ok({ groups: [], failures: [] }))),
+      models: vi.fn(() => Promise.resolve(ok({ groups: [
+        { id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' }] },
+        { id: 'openai', name: 'openai', models: [{ id: 'gpt-5', name: 'GPT-5' }, { id: 'gpt-5-mini', name: 'GPT-5 mini' }] },
+      ], failures: [] }))),
+      defaultModel: vi.fn(() => Promise.resolve(ok({ selected: defaultSelection }))),
+      selectDefaultModel,
+      testProvider: vi.fn(payload => Promise.resolve(ok({
+        probe: { ok: true, stage: 'response', model: payload.model, text: 'OK', elapsedMs: 1 },
+      }))),
+      discoverModels: vi.fn(() => Promise.resolve(ok({ models: [] }))),
     },
     settings: {
       describe: vi.fn(() => Promise.resolve(ok({ writable: true, hasDocument: false, namespaces: wireNamespaces() }))),
@@ -180,13 +198,13 @@ function scriptedFace(overrides: {
       unset,
     },
   }
-  return { face, update, replace, mutate, set, unset }
+  return { face, update, replace, mutate, set, unset, selectDefaultModel }
 }
 
 type WireFace = ConstructorParameters<typeof ModelsSettingsStore>[0]
 
 async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
-  const { face, update, replace, mutate, set, unset } = scripted
+  const { face, update, replace, mutate, set, unset, selectDefaultModel } = scripted
   const mirror = new SettingsDescribeMirror(face as never)
   const controller = new ModelsSettingsStore(face as unknown as WireFace, settingsSchema, mirror)
   await controller.load()
@@ -198,7 +216,7 @@ async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
     t,
   }
   const view = render(<ModelsSection {...injected} />)
-  return { view, face, update, replace, mutate, set, unset, controller, mirror }
+  return { view, face, update, replace, mutate, set, unset, selectDefaultModel, controller, mirror }
 }
 
 async function mountSection(overrides: Parameters<typeof scriptedFace>[0] = {}) {
@@ -236,13 +254,36 @@ describe('ModelsSection', () => {
     expect(document.body.textContent).toBe('')
   })
 
+  it('renders the models and relays page with default controls and safe provider summaries', async () => {
+    const { selectDefaultModel } = await mountSection()
+    expect(screen.getByRole('heading', { name: en.title })).toBeTruthy()
+    expect(screen.getByText('Endpoint: proxy')).toBeTruthy()
+    expect(screen.getByText('Protocol: openai-responses')).toBeTruthy()
+    expect(screen.getAllByText('2 models').length).toBeGreaterThan(0)
+    expect(screen.getByText(en.currentDefault)).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText(en.defaultProvider), { target: { value: 'openai' } })
+    fireEvent.change(screen.getByLabelText(en.defaultModel), { target: { value: 'gpt-5' } })
+    fireEvent.click(screen.getByRole('button', { name: en.setDefault }))
+    await waitFor(() => {
+      expect(selectDefaultModel).toHaveBeenCalledWith({ provider: 'openai', model: 'gpt-5' })
+    })
+  })
+
+  it('blocks deleting the provider that owns the current default', async () => {
+    await mountSection({ defaultSelection: { provider: 'openai', model: 'gpt-5' } })
+    const blocked = screen.getByRole<HTMLButtonElement>('button', { name: en.switchDefaultBeforeDelete })
+    expect(blocked.disabled).toBe(true)
+    expect(blocked.title).toBe(en.switchDefaultBeforeDelete)
+  })
+
   it('renders the unkeyed whole-section provider as an open setup card in the first-run posture', async () => {
     await mountFirstRun()
     // Nothing is reachable yet, and DeepSeek has no configured credential and
     // no stored apiKey → setup card.
-    expect(screen.getByText('DeepSeek')).toBeTruthy()
+    expect(screen.getAllByText('DeepSeek').length).toBeGreaterThan(0)
     expect(screen.getByLabelText(en.keyInput)).toBeTruthy()
-    expect(screen.getByText('openai')).toBeTruthy()
+    expect(screen.getAllByText('openai').length).toBeGreaterThan(0)
     expect(screen.queryByText('Active')).toBeNull()
     expect(screen.queryByText('Inactive')).toBeNull()
     expect(screen.getByText(en.add)).toBeTruthy()
@@ -315,6 +356,7 @@ describe('ModelsSection', () => {
       removable: false,
       apiKeyEnv: 'X',
       credential,
+      summary: { endpointHost: undefined, protocol: undefined, modelCount: 0 },
     })
     expect(needsSetup(row(undefined), false)).toBe(true)
     expect(needsSetup(row({ configured: true, writable: true }), false)).toBe(false)
@@ -1254,7 +1296,7 @@ describe('ModelsSection', () => {
       schema={settingsSchema}
       t={t}
     />)
-    await screen.findByText('DeepSeek')
+    expect((await screen.findAllByText('DeepSeek')).length).toBeGreaterThan(0)
   })
 
   it('removes by unsetting the profile path, never by rebuilding the section', async () => {
@@ -1264,7 +1306,7 @@ describe('ModelsSection', () => {
     await removeProviderProfile(
       face as unknown as Parameters<typeof removeProviderProfile>[0],
       controller,
-      { settingsNs: 'llm-plain', settingsPath: ['ghost-profile'] },
+      { provider: 'ghost', settingsNs: 'llm-plain', settingsPath: ['ghost-profile'] },
     )
     expect(mutate.mock.calls[0]?.[0]).toEqual({
       ns: 'llm-plain',
@@ -1281,7 +1323,7 @@ describe('ModelsSection', () => {
     const failure = await removeProviderProfile(
       face as unknown as Parameters<typeof removeProviderProfile>[0],
       controller,
-      { settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+      { provider: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
     )
     expect(failure).toBe('read-only')
     expect(controller.store.getSnapshot().rows).toBe(before)
@@ -1333,6 +1375,7 @@ describe('ModelsSection', () => {
       controller,
       {
         settingsNs: 'llm-pi-ai',
+        provider: 'openai',
         settingsPath: ['providers', 'openai'],
         credentialRef: 'OPENAI_API_KEY',
       },
@@ -1348,9 +1391,22 @@ describe('ModelsSection', () => {
     const failure = await removeProviderProfile(
       face as unknown as Parameters<typeof removeProviderProfile>[0],
       controller,
-      { settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+      { provider: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
     )
     expect(failure).toBe('connection lost')
+  })
+
+  it('refuses a direct removal of the current default provider', async () => {
+    const { face, controller, mutate } = await mountSection({
+      defaultSelection: { provider: 'openai', model: 'gpt-5' },
+    })
+    const failure = await removeProviderProfile(
+      face as unknown as Parameters<typeof removeProviderProfile>[0],
+      controller,
+      { provider: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+    )
+    expect(failure).toBe(en.switchDefaultBeforeDelete)
+    expect(mutate).not.toHaveBeenCalled()
   })
 })
 

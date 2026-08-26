@@ -12,7 +12,7 @@
  * re-renders from pushed invalidations or the post-apply reload.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
 import { Button, IconPlusOutline16, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -102,8 +102,12 @@ function renderProviderEditor({ target, ...props }: ProviderEditorRenderProps): 
 export async function removeProviderProfile(
   api: Pick<IApiClient, 'settings' | 'credentials'>,
   controller: ModelsSettingsStore,
-  target: { settingsNs: string; settingsPath: readonly string[]; credentialRef?: string },
+  target: { provider: string; settingsNs: string; settingsPath: readonly string[]; credentialRef?: string },
+  defaultBlockedMessage = 'Switch the default model before deleting',
 ): Promise<string | undefined> {
+  if (controller.store.getSnapshot().defaultSelection?.provider === target.provider) {
+    return defaultBlockedMessage
+  }
   try {
     if (target.credentialRef !== undefined) {
       const credential = await api.credentials.unset({ ref: target.credentialRef })
@@ -195,6 +199,15 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
   const [savedTarget, setSavedTarget] = useState<ProviderIdentity | undefined>(undefined)
   const [declaring, setDeclaring] = useState(false)
   const [dismissedSetup, setDismissedSetup] = useState<ReadonlySet<string>>(() => new Set())
+  const [defaultProvider, setDefaultProvider] = useState(state.defaultSelection?.provider ?? '')
+  const [defaultModel, setDefaultModel] = useState(state.defaultSelection?.model ?? '')
+  const [savingDefault, setSavingDefault] = useState(false)
+  const [defaultFailure, setDefaultFailure] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    setDefaultProvider(state.defaultSelection?.provider ?? '')
+    setDefaultModel(state.defaultSelection?.model ?? '')
+  }, [state.defaultSelection?.provider, state.defaultSelection?.model])
 
   const announceSaved = (target: ProviderIdentity): void => {
     // Announced only once the refreshed directory is in the snapshot the
@@ -233,7 +246,7 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
     if (deleteTarget === undefined || deleting) return
     setDeleting(true)
     setDeleteFailure(undefined)
-    void removeProviderProfile(api, controller, deleteTarget)
+    void removeProviderProfile(api, controller, deleteTarget, t('switchDefaultBeforeDelete'))
       .then((failure) => {
         if (failure !== undefined) {
           setDeleteFailure(failure)
@@ -280,11 +293,63 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
   // one whose schema names the protocols one may speak; without it mounted
   // there is nothing to declare and the entry point stays disabled.
   const protocols = protocolChoices(state.namespaces.get('llm-pi-ai'), schema)
+  const defaultGroup = state.groups.find(group => group.id === defaultProvider)
+  const defaultModels = defaultGroup?.models ?? []
+  const defaultUnavailable = state.catalogFailures.some(failure => failure.id === defaultProvider)
+  const defaultUnchanged = state.defaultSelection?.provider === defaultProvider
+    && state.defaultSelection.model === defaultModel
+
+  const saveDefault = (): void => {
+    if (savingDefault || defaultProvider.length === 0 || defaultModel.length === 0) return
+    setSavingDefault(true)
+    setDefaultFailure(undefined)
+    void controller.selectDefault({ provider: defaultProvider, model: defaultModel })
+      .then((failure) => { setDefaultFailure(failure) })
+      .finally(() => { setSavingDefault(false) })
+  }
 
   return (
     <div className={styles['section']}>
       <h2 className={styles['title']}>{t('title')}</h2>
       <p className={styles['intro']}>{t('intro')}</p>
+      <section className={styles['defaultRoute']} aria-label={t('defaultRoute')}>
+        <span className={styles['defaultRouteTitle']}>{t('defaultRoute')}</span>
+        <label className={styles['defaultField']}>
+          <span>{t('defaultProvider')}</span>
+          <select
+            aria-label={t('defaultProvider')}
+            value={defaultProvider}
+            disabled={savingDefault}
+            onChange={(event) => {
+              const provider = event.target.value
+              setDefaultProvider(provider)
+              setDefaultModel(state.groups.find(group => group.id === provider)?.models[0]?.id ?? '')
+            }}
+          >
+            {state.groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </select>
+        </label>
+        <label className={styles['defaultField']}>
+          <span>{t('defaultModel')}</span>
+          <select
+            aria-label={t('defaultModel')}
+            value={defaultModel}
+            disabled={savingDefault || defaultModels.length === 0}
+            onChange={(event) => { setDefaultModel(event.target.value) }}
+          >
+            {defaultModels.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}
+          </select>
+        </label>
+        <button
+          type="button"
+          className={styles['primaryButton']}
+          disabled={savingDefault || defaultUnavailable || defaultUnchanged || defaultModel.length === 0}
+          onClick={saveDefault}
+        >
+          {savingDefault ? t('settingDefault') : t('setDefault')}
+        </button>
+        {defaultFailure === undefined ? null : <p className={styles['error']}>{defaultFailure}</p>}
+      </section>
       {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
       {savedIdentity === undefined
         ? null
@@ -321,6 +386,7 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
           const credentialMissing = !credentialConfigured
             && row.apiKeyEnv !== undefined
             && row.credential?.configured === false
+          const ownsDefault = state.defaultSelection?.provider === row.entry.provider
           return (
             <li key={row.entry.provider} className={styles['rowCard']}>
               <div className={styles['rowHead']}>
@@ -332,6 +398,7 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
                   {row.entry.declared === true
                     ? <span className={styles['rowTag']}>{t('customTag')}</span>
                     : null}
+                  {ownsDefault ? <span className={styles['defaultBadge']}>{t('currentDefault')}</span> : null}
                   {credentialConfigured
                     ? (
                       <span
@@ -374,8 +441,11 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
                       <button
                         type="button"
                         className={styles['dangerButton']}
-                        aria-label={providerCopy(t('removeProvider'), target)}
-                        disabled={!state.writable}
+                        aria-label={ownsDefault
+                          ? t('switchDefaultBeforeDelete')
+                          : providerCopy(t('removeProvider'), target)}
+                        title={ownsDefault ? t('switchDefaultBeforeDelete') : undefined}
+                        disabled={!state.writable || ownsDefault}
                         onClick={() => {
                           setSavedTarget(undefined)
                           setDeleteFailure(undefined)
@@ -387,6 +457,11 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
                     )
                     : null}
                 </span>
+              </div>
+              <div className={styles['rowSummary']}>
+                <span>{`${t('endpoint')}: ${row.summary.endpointHost ?? t('unknown')}`}</span>
+                <span>{`${t('protocol')}: ${row.summary.protocol ?? t('unknown')}`}</span>
+                <span>{t('modelCount').replace('{count}', String(row.summary.modelCount))}</span>
               </div>
               {open
                 ? renderProviderEditor({

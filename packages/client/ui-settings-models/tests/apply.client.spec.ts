@@ -64,9 +64,9 @@ describe('ui-settings-models apply', () => {
     expect(entry.component).toBe(ModelsSection)
     expect(entry.options).toMatchObject({ id: 'models', order: 10 })
     // The nav label is a locale-following thunk; owners resolve at read time.
-    expect(resolveSlotLabel(entry.options.label)).toBe('模型')
+    expect(resolveSlotLabel(entry.options.label)).toBe('模型与中转站')
     const injected = (entry.inject as unknown as () => import('../src/client/ModelsSection.tsx').ModelsSectionInjected)()
-    expect(injected.t('nav')).toBe('模型')
+    expect(injected.t('nav')).toBe('模型与中转站')
     expect(injected.t('deleteTitle')).toBe('删除 {provider}？')
     expect(typeof injected.controller.load).toBe('function')
     expect(injected.hooks.snapshot).toBe(injected.controller.store)
@@ -103,11 +103,11 @@ describe('ui-settings-models apply', () => {
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     b.locale.setLocale('en')
-    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Models')
+    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Models and Relays')
     const injected = b.slots.entries('settings.section')[0]!.inject as unknown as () => import('../src/client/ModelsSection.tsx').ModelsSectionInjected
     expect(injected().t('deleteTitle')).toBe('Delete {provider}?')
     b.locale.setLocale('zh')
-    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('模型')
+    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('模型与中转站')
     expect(injected().t('deleteTitle')).toBe('删除 {provider}？')
   })
 
@@ -135,7 +135,7 @@ describe('ui-settings-models apply', () => {
     expect(b.slots.entries('settings.onboarding')).toHaveLength(2)
     // The locale path also recovers through the same ledger re-check.
     b.locale.setLocale('en')
-    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Models')
+    expect(resolveSlotLabel(b.slots.entries('settings.section')[0]!.options.label)).toBe('Models and Relays')
     b.locale.setLocale('zh')
   })
 
@@ -144,7 +144,7 @@ describe('ui-settings-models apply', () => {
     declare(b.slots)
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(b.locale.bind('settings.models')('nav')).toBe('模型')
+    expect(b.locale.bind('settings.models')('nav')).toBe('模型与中转站')
     await fiber.dispose()
     expect(b.slots.entries('settings.section')).toHaveLength(0)
     expect(b.slots.entries('settings.onboarding')).toHaveLength(0)
@@ -282,7 +282,17 @@ describe('pushed invalidations', () => {
       rpcId: 'apply-models-providers' as never,
       result: { ok: true as const, value: { providers: [] } },
     }))
-    const b = await bench(true, { describe }, { llm: { providers } })
+    const b = await bench(true, { describe }, { llm: {
+      providers,
+      models: vi.fn(() => Promise.resolve({
+        rpcId: 'apply-models-catalog' as never,
+        result: { ok: true as const, value: { groups: [], failures: [] } },
+      })),
+      defaultModel: vi.fn(() => Promise.resolve({
+        rpcId: 'apply-models-default' as never,
+        result: { ok: true as const, value: { selected: { provider: 'deepseek-official', model: 'deepseek-chat' } } },
+      })),
+    } })
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const entry = b.slots.entries('settings.section')
