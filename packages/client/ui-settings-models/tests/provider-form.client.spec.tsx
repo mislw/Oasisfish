@@ -8,6 +8,7 @@ import type { RpcResponse, SettingsNamespaceView } from '@deepseek-ai/dsh-api-re
 import { ModelsSection, providerCopy } from '../src/client/ModelsSection.tsx'
 import type { ModelsSectionInjected, ModelsSectionProps } from '../src/client/ModelsSection.tsx'
 import { CustomProviderCard } from '../src/client/CustomProviderCard.tsx'
+import { ProviderProbe } from '../src/client/ProviderProbe.tsx'
 import { formatCapacity, parseCapacity } from '../src/client/DeepSeekModelsEditor.tsx'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { ModelsSettingsStore, deriveKeyRef, protocolChoices } from '../src/client/store.ts'
@@ -74,6 +75,7 @@ function scriptedFace(options: {
   /** Routes the adapter reports as hand-declared; the rest come back as shipped. */
   declaredRoutes?: readonly string[]
   discover?: ReturnType<typeof vi.fn>
+  test?: ReturnType<typeof vi.fn>
   mutate?: ReturnType<typeof vi.fn>
   set?: ReturnType<typeof vi.fn>
 } = {}) {
@@ -82,6 +84,9 @@ function scriptedFace(options: {
   }
   const namespace = piAiNamespace(providers, options.userProviders ?? providers, options.baseProviders ?? {})
   const discover = options.discover ?? vi.fn(() => Promise.resolve(ok({ models: [] })))
+  const test = options.test ?? vi.fn(payload => Promise.resolve(ok({
+    probe: { ok: true, stage: 'response', model: payload.model, text: 'OK', elapsedMs: 12 },
+  })))
   const mutate = options.mutate ?? vi.fn(() => Promise.resolve(ok(namespace)))
   const set = options.set ?? vi.fn(() => Promise.resolve(ok({})))
   const face = {
@@ -97,6 +102,11 @@ function scriptedFace(options: {
         })),
       }))),
       models: vi.fn(() => Promise.resolve(ok({ groups: [], failures: [] }))),
+      defaultModel: vi.fn(() => Promise.resolve(ok({
+        selected: { provider: 'deepseek-official', model: 'deepseek-chat' },
+      }))),
+      selectDefaultModel: vi.fn(payload => Promise.resolve(ok({ selected: payload }))),
+      testProvider: test,
       discoverModels: discover,
     },
     settings: {
@@ -113,7 +123,7 @@ function scriptedFace(options: {
       unset: vi.fn(),
     },
   }
-  return { face, discover, mutate, set, namespace }
+  return { face, discover, test, mutate, set, namespace }
 }
 
 type WireFace = ConstructorParameters<typeof ModelsSettingsStore>[0]
@@ -154,6 +164,40 @@ async function mountSection(options: Parameters<typeof scriptedFace>[0] = {}) {
   render(<ModelsSection {...injected} />)
   return { ...scripted, controller }
 }
+
+describe('ProviderProbe', () => {
+  it('tests the current unsaved draft and clears the result when it changes', async () => {
+    const scripted = scriptedFace()
+    const target = {
+      settingsNs: 'llm-pi-ai',
+      provider: 'openai',
+      baseURL: 'https://draft.example/v1',
+      api: 'openai-responses',
+      apiKey: 'sk-draft',
+    }
+    const view = render(<ProviderProbe
+      api={scripted.face as never}
+      target={target}
+      models={[{ id: 'gpt-5' }]}
+      t={t}
+      disabled={false}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: en.testConnection }))
+    await waitFor(() => { expect(scripted.test).toHaveBeenCalled() })
+    expect(firstProbe(scripted.test)).toEqual({ ...target, model: 'gpt-5' })
+    expect(screen.getByText(en.testSucceeded)).toBeTruthy()
+
+    view.rerender(<ProviderProbe
+      api={scripted.face as never}
+      target={{ ...target, baseURL: 'https://changed.example/v1' }}
+      models={[{ id: 'gpt-5' }]}
+      t={t}
+      disabled={false}
+    />)
+    expect(screen.queryByText(en.testSucceeded)).toBeNull()
+  })
+})
 
 /** Open the editor of one configured row and expand its customized fold. */
 function openEditor(provider: string): void {

@@ -1,5 +1,5 @@
 /** Page-store join: directory × namespaces × credentials, with last-good rows on failure. */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RpcResponse } from '@deepseek-ai/dsh-api-remotes/client'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { settingsSchema } from './settings-schema.client.ts'
@@ -20,6 +20,12 @@ const DIRECTORY = [
   { provider: 'ghost', displayName: 'Ghost', settingsNs: '', settingsPath: [], active: true },
 ]
 
+const GROUPS = [{
+  id: 'openai',
+  name: 'OpenAI Relay',
+  models: [{ id: 'gpt-5', name: 'GPT-5' }, { id: 'gpt-5-mini', name: 'GPT-5 mini' }],
+}]
+
 const NAMESPACES = [
   {
     ns: 'llm-deepseek',
@@ -33,8 +39,16 @@ const NAMESPACES = [
   {
     ns: 'llm-pi-ai',
     schema: {},
-    value: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY' } } },
-    user: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY' } } },
+    value: { providers: { openai: {
+      apiKeyEnv: 'OPENAI_API_KEY',
+      baseURL: 'https://relay.example/v1?trace=private',
+      api: 'openai-responses',
+    } } },
+    user: { providers: { openai: {
+      apiKeyEnv: 'OPENAI_API_KEY',
+      baseURL: 'https://relay.example/v1?trace=private',
+      api: 'openai-responses',
+    } } },
     applies: 'live' as const,
     secrets: [],
     revision: 0,
@@ -43,6 +57,9 @@ const NAMESPACES = [
 
 function api(overrides: {
   providers?: () => Promise<RpcResponse<{ providers: typeof DIRECTORY }>>
+  models?: () => Promise<RpcResponse<{ groups: typeof GROUPS; failures: never[] }>>
+  defaultModel?: () => Promise<RpcResponse<{ selected: { provider: string; model: string } }>>
+  selectDefaultModel?: ReturnType<typeof vi.fn>
   describeSettings?: () => Promise<RpcResponse<{ writable: boolean; namespaces: typeof NAMESPACES }>>
   describeCredentials?: (refs: string[]) => Promise<RpcResponse<{ credentials: Record<string, unknown> }>>
 } = {}) {
@@ -50,7 +67,11 @@ function api(overrides: {
   const face = {
     llm: {
       providers: overrides.providers ?? (() => Promise.resolve(ok({ providers: DIRECTORY }))),
-      models: () => Promise.resolve(ok({ groups: [], failures: [] })),
+      models: overrides.models ?? (() => Promise.resolve(ok({ groups: GROUPS, failures: [] }))),
+      defaultModel: overrides.defaultModel ?? (() => Promise.resolve(ok({
+        selected: { provider: 'deepseek-official', model: 'deepseek-chat' },
+      }))),
+      selectDefaultModel: overrides.selectDefaultModel ?? vi.fn(payload => Promise.resolve(ok({ selected: payload }))),
     },
     settings: {
       describe: overrides.describeSettings ?? (() => Promise.resolve(ok({ writable: true, hasDocument: false, namespaces: NAMESPACES }))),
@@ -81,6 +102,9 @@ describe('ModelsSettingsStore', () => {
     expect(state.status).toBe('ready')
     expect(state.writable).toBe(true)
     expect(state.credentialError).toBeNull()
+    expect(state.defaultSelection).toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
+    expect(state.groups).toEqual(GROUPS)
+    expect(state.catalogFailures).toEqual([])
     expect(seenRefs).toEqual([['DEEPSEEK_API_KEY', 'OPENAI_API_KEY']])
     const byProvider = new Map(state.rows.map(row => [row.entry.provider, row]))
     expect(byProvider.get('deepseek-official')).toMatchObject({
@@ -94,7 +118,13 @@ describe('ModelsSettingsStore', () => {
       removable: true,
       apiKeyEnv: 'OPENAI_API_KEY',
       credential: { configured: true },
+      summary: {
+        endpointHost: 'relay.example',
+        protocol: 'openai-responses',
+        modelCount: 2,
+      },
     })
+    expect(JSON.stringify(byProvider.get('openai')?.summary)).not.toContain('trace=private')
     expect(byProvider.get('anthropic')).toMatchObject({ configured: false, removable: false })
     expect(byProvider.get('anthropic')?.apiKeyEnv).toBeUndefined()
     expect(byProvider.get('ghost')).toMatchObject({ configured: false, removable: false })
@@ -165,6 +195,37 @@ describe('ModelsSettingsStore', () => {
     release?.()
     await Promise.all([first, second])
     expect(store.store.getSnapshot().status).toBe('ready')
+  })
+
+  it('saves a new default through llm and refreshes the joined snapshot', async () => {
+    let selected = { provider: 'deepseek-official', model: 'deepseek-chat' }
+    const selectDefaultModel = vi.fn((payload: typeof selected) => {
+      selected = { ...payload }
+      return Promise.resolve(ok({ selected }))
+    })
+    const { face, mirror } = api({
+      defaultModel: () => Promise.resolve(ok({ selected })),
+      selectDefaultModel,
+    })
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
+    await store.load()
+
+    await expect(store.selectDefault({ provider: 'openai', model: 'gpt-5' })).resolves.toBeUndefined()
+    expect(selectDefaultModel).toHaveBeenCalledWith({ provider: 'openai', model: 'gpt-5' })
+    expect(store.store.getSnapshot().defaultSelection).toEqual({ provider: 'openai', model: 'gpt-5' })
+  })
+
+  it('keeps the prior snapshot when saving a default is refused', async () => {
+    const { face, mirror } = api({
+      selectDefaultModel: vi.fn(() => Promise.resolve(fail('default is read-only'))),
+    })
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
+    await store.load()
+    const before = store.store.getSnapshot()
+
+    await expect(store.selectDefault({ provider: 'openai', model: 'gpt-5' }))
+      .resolves.toBe('default is read-only')
+    expect(store.store.getSnapshot()).toBe(before)
   })
 })
 

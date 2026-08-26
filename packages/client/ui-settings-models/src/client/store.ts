@@ -7,12 +7,15 @@
  */
 
 import type {
-  ConfigurableProviderView, CredentialView, IApiClient, SettingsNamespaceView,
+  ConfigurableProviderView, CredentialView, IApiClient, ModelCatalogFailure,
+  ModelProviderGroup, ModelSelection, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { SettingsDescribeFace } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
+import { providerSummary } from './provider-summary.ts'
+import type { ProviderSummary } from './provider-summary.ts'
 
 /**
  * Any route key walks a dict schema to the same profile node, so the lookup
@@ -32,6 +35,8 @@ export interface ProviderRow {
   apiKeyEnv: string | undefined
   /** Credential state for {@link apiKeyEnv}, once described. */
   credential: CredentialView | undefined
+  /** Safe endpoint/protocol/catalog facts for the collapsed row. */
+  summary: ProviderSummary
 }
 
 /** Page snapshot. */
@@ -47,6 +52,12 @@ export interface ModelsSettingsState {
   rows: readonly ProviderRow[]
   /** Namespace views by ns, for the editor's schema/layers/secrets. */
   namespaces: ReadonlyMap<string, SettingsNamespaceView>
+  /** Default route used by future sessions. */
+  defaultSelection: ModelSelection | undefined
+  /** Live model groups available for default selection. */
+  groups: readonly ModelProviderGroup[]
+  /** Provider catalog failures that make a route unavailable for selection. */
+  catalogFailures: readonly ModelCatalogFailure[]
 }
 
 /**
@@ -109,6 +120,7 @@ export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
     status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
+    defaultSelection: undefined, groups: [], catalogFailures: [],
   })
 
   /** Latest load wins; an older response never overwrites a newer one. */
@@ -138,17 +150,27 @@ export class ModelsSettingsStore {
     let providers: ConfigurableProviderView[]
     let writable: boolean
     let views: readonly SettingsNamespaceView[]
+    let defaultSelection: ModelSelection
+    let groups: ModelProviderGroup[]
+    let catalogFailures: ModelCatalogFailure[]
     try {
-      const [providersResponse] = await Promise.all([
+      const [providersResponse, modelsResponse, defaultResponse] = await Promise.all([
         this.api.llm.providers({}),
+        this.api.llm.models({}),
+        this.api.llm.defaultModel({}),
         this.describeFace.ensure(),
       ])
       if (!providersResponse.result.ok) throw new Error(providersResponse.result.error.message)
+      if (!modelsResponse.result.ok) throw new Error(modelsResponse.result.error.message)
+      if (!defaultResponse.result.ok) throw new Error(defaultResponse.result.error.message)
       const mirrored = this.describeFace.getSnapshot()
       if (mirrored.view === undefined) {
         throw new Error(mirrored.error ?? 'settings are unavailable in this browser')
       }
       providers = providersResponse.result.value.providers
+      groups = modelsResponse.result.value.groups
+      catalogFailures = modelsResponse.result.value.failures
+      defaultSelection = defaultResponse.result.value.selected
       writable = mirrored.view.writable
       views = mirrored.view.namespaces
     } catch (error) {
@@ -160,6 +182,7 @@ export class ModelsSettingsStore {
       return
     }
     const namespaces = new Map(views.map(view => [view.ns, view]))
+    const groupsByProvider = new Map(groups.map(group => [group.id, group]))
     const rows: ProviderRow[] = providers.map((entry) => {
       const namespace = namespaces.get(entry.settingsNs)
       const configured = namespace !== undefined
@@ -174,6 +197,7 @@ export class ModelsSettingsStore {
         removable,
         apiKeyEnv: apiKeyEnvOf(namespace, entry.settingsPath, this.schema),
         credential: undefined,
+        summary: providerSummary(namespace, entry.settingsPath, this.schema, groupsByProvider.get(entry.provider)),
       }
     })
     const refs = [...new Set(rows.flatMap(row => row.apiKeyEnv === undefined ? [] : [row.apiKeyEnv]))]
@@ -204,7 +228,22 @@ export class ModelsSettingsStore {
           : {},
       }))
       s.namespaces = namespaces
+      s.defaultSelection = { ...defaultSelection }
+      s.groups = groups
+      s.catalogFailures = catalogFailures
     })
+  }
+
+  /** Save the default for future sessions, then refresh the joined snapshot. */
+  async selectDefault(selection: ModelSelection): Promise<string | undefined> {
+    try {
+      const response = await this.api.llm.selectDefaultModel(selection)
+      if (!response.result.ok) return response.result.error.message
+    } catch (error) {
+      return messageOf(error)
+    }
+    await this.load()
+    return undefined
   }
 }
 

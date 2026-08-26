@@ -28,6 +28,7 @@ import {
   DeepSeekModelsEditor, modelDrafts, validateDeepSeekModels,
 } from './DeepSeekModelsEditor.tsx'
 import { apiKeyFailure } from './apiKey.ts'
+import { ProviderProbe } from './ProviderProbe.tsx'
 import { EditorFooter } from './EditorFooter.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
 import { deriveKeyRef, messageOf, protocolChoices } from './store.ts'
@@ -471,7 +472,12 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                   defaultMaxTokens={typeof defaultMaxTokens === 'number' ? defaultMaxTokens : undefined}
                 />
               )
-              : <ModelListEditor {...catalogProps} probe={probe} probeBlocked={keyFailure} api={api} />}
+              : (
+                <>
+                  <ModelListEditor {...catalogProps} probe={probe} probeBlocked={keyFailure} api={api} />
+                  <ProviderProbe api={api} target={probe} models={models} t={t} disabled={disabled} />
+                </>
+              )}
           </div>
         </details>}
       </>
