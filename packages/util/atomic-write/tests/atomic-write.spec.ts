@@ -4,12 +4,22 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { withFileLock, writeFileAtomic } from '../src/index.ts'
 
-const state = vi.hoisted(() => ({ failLockCreateWithEPERM: false }))
+const state = vi.hoisted(() => ({
+  failLockCreateWithEPERM: false,
+  failRenameWithEPERM: false,
+}))
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
   return {
     ...actual,
+    rename: (async (oldPath: unknown, newPath: unknown) => {
+      if (state.failRenameWithEPERM) {
+        state.failRenameWithEPERM = false
+        throw Object.assign(new Error('EPERM: injected transient rename failure'), { code: 'EPERM' })
+      }
+      return actual.rename(oldPath as string, newPath as string)
+    }) as typeof actual.rename,
     writeFile: (async (path: unknown, ...rest: never[]) => {
       if (state.failLockCreateWithEPERM && String(path).endsWith('.lock')) {
         state.failLockCreateWithEPERM = false
@@ -22,6 +32,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 
 afterEach(() => {
   state.failLockCreateWithEPERM = false
+  state.failRenameWithEPERM = false
 })
 
 async function scratch(): Promise<string> {
@@ -56,6 +67,18 @@ describe('writeFileAtomic', () => {
     await writeFileAtomic(target, 'new', { mode: 0o600 })
     expect(await readFile(target, 'utf8')).toBe('new')
     if (process.platform !== 'win32') expect((await stat(target)).mode & 0o777).toBe(0o600)
+  })
+
+  it('retries a transient rename denial while replacing an existing file', async () => {
+    const dir = await scratch()
+    const target = join(dir, 'doc.yaml')
+    await writeFile(target, 'old')
+    state.failRenameWithEPERM = true
+
+    await writeFileAtomic(target, 'new', { mode: 0o600 })
+
+    expect(await readFile(target, 'utf8')).toBe('new')
+    expect((await readdir(dir)).filter(entry => entry.includes('.tmp'))).toEqual([])
   })
 
   it('replaces a symlinked target itself without writing through to the referent', async () => {
