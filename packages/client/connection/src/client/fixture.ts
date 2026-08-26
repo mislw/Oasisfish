@@ -1544,6 +1544,10 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
     // DeepSeek route so unrelated GUI journeys do not enter first-run setup.
     ['DEEPSEEK_API_KEY', true],
   ])
+  let fixtureDefaultModel: ModelSelection = {
+    provider: 'deepseek-official',
+    model: 'deepseek-chat',
+  }
   /**
    * Preset compositions the fixture serves. Held as state rather than
    * constants so the settings editor's save and delete are exercisable: the
@@ -3049,6 +3053,20 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         ],
       }),
       models: request => ok(request, { groups: fixtureModelGroups(), failures: [] }),
+      defaultModel: request => ok(request, { selected: { ...fixtureDefaultModel } }),
+      selectDefaultModel: (request) => {
+        fixtureDefaultModel = { ...request.payload }
+        return ok(request, { selected: { ...fixtureDefaultModel } })
+      },
+      testProvider: request => ok(request, {
+        probe: {
+          ok: true,
+          stage: 'response',
+          model: request.payload.model,
+          text: 'OK',
+          elapsedMs: 12,
+        },
+      }),
       // The fixture endpoint is imaginary, so the interrogation answers the
       // catalog it already serves — enough for a surface to exercise adopting
       // candidates without a reachable provider.
@@ -3226,6 +3244,9 @@ export class FixtureApiClient extends AbstractApiClient {
       case 'credentials.unset': return this.api.credentials.unset(request)
       case 'llm.providers': return this.api.llm.providers(request)
       case 'llm.models': return this.api.llm.models(request)
+      case 'llm.defaultModel': return this.api.llm.defaultModel(request)
+      case 'llm.selectDefaultModel': return this.api.llm.selectDefaultModel(request)
+      case 'llm.testProvider': return this.api.llm.testProvider(request, signal)
       case 'llm.discoverModels': return this.api.llm.discoverModels(request, signal)
     }
   }

@@ -6,8 +6,8 @@
 import { z } from 'zod'
 import type { RequestPayload, ResponseValue } from './rpc-map.ts'
 import type { Wire } from './rpc.schema.ts'
-import type { ConfigurableProviderView, DiscoveredModelView } from './llm.ts'
-import { modelCatalogFailureSchema, modelProviderGroupSchema } from './sessions.schema.ts'
+import type { ConfigurableProviderView, DiscoveredModelView, ProviderProbeView } from './llm.ts'
+import { modelCatalogFailureSchema, modelProviderGroupSchema, modelSelectionSchema } from './sessions.schema.ts'
 
 /** ConfigurableProviderView row of llm.providers. */
 export const configurableProviderViewSchema = z.object({
@@ -35,6 +35,55 @@ export const llmModelsValueSchema = z.object({
   groups: z.array(modelProviderGroupSchema),
   failures: z.array(modelCatalogFailureSchema),
 }) satisfies z.ZodType<Wire<ResponseValue<'llm.models'>>>
+
+/** llm.defaultModel request payload. */
+export const llmDefaultModelRequestSchema = z.object({}) satisfies z.ZodType<Wire<RequestPayload<'llm.defaultModel'>>>
+
+/** llm.defaultModel response value. */
+export const llmDefaultModelValueSchema = z.object({
+  selected: modelSelectionSchema,
+}) satisfies z.ZodType<Wire<ResponseValue<'llm.defaultModel'>>>
+
+/** llm.selectDefaultModel request payload. */
+export const llmSelectDefaultModelRequestSchema = modelSelectionSchema satisfies z.ZodType<Wire<RequestPayload<'llm.selectDefaultModel'>>>
+
+/** llm.selectDefaultModel response value. */
+export const llmSelectDefaultModelValueSchema = z.object({
+  selected: modelSelectionSchema,
+}) satisfies z.ZodType<Wire<ResponseValue<'llm.selectDefaultModel'>>>
+
+/** Sanitized result row returned by llm.testProvider. */
+export const providerProbeViewSchema = z.discriminatedUnion('ok', [
+  z.object({
+    ok: z.literal(true),
+    stage: z.literal('response'),
+    model: z.string().min(1),
+    text: z.string(),
+    elapsedMs: z.number().nonnegative(),
+  }),
+  z.object({
+    ok: z.literal(false),
+    stage: z.enum(['endpoint', 'authentication', 'protocol', 'model', 'response']),
+    code: z.string().min(1),
+    message: z.string(),
+    elapsedMs: z.number().nonnegative(),
+  }),
+]) satisfies z.ZodType<Wire<ProviderProbeView>>
+
+/** llm.testProvider request payload. */
+export const llmTestProviderRequestSchema = z.object({
+  settingsNs: z.string().min(1),
+  provider: z.string().min(1).optional(),
+  baseURL: z.string().min(1).optional(),
+  api: z.string().min(1).optional(),
+  apiKey: z.string().min(1).optional(),
+  model: z.string().min(1),
+}) satisfies z.ZodType<Wire<RequestPayload<'llm.testProvider'>>>
+
+/** llm.testProvider response value. */
+export const llmTestProviderValueSchema = z.object({
+  probe: providerProbeViewSchema,
+}) satisfies z.ZodType<Wire<ResponseValue<'llm.testProvider'>>>
 
 /** DiscoveredModelView row of llm.discoverModels. */
 export const discoveredModelViewSchema = z.object({

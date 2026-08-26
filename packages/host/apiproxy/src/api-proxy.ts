@@ -582,12 +582,9 @@ export interface ApiProxyDefaults {
    */
   defaultModelSelection: () => ModelSelection
   /**
-   * Record a selection as the new default. Either absent, or a closure that
-   * may itself decline — the gateway plugin always passes one, and it no-ops
-   * when the deployment mounts no settings provider or when the write races
-   * service teardown. A switch then stays process-local. A rejection is
-   * reported and swallowed: the switch already applies to its own session,
-   * and undoing it because storage failed would be the worse outcome.
+   * Record a selection as the new default for future sessions. The gateway
+   * plugin passes a closure that may no-op when the deployment mounts no
+   * settings provider or a write races service teardown.
    */
   saveDefaultModelSelection?: (selection: ModelSelection) => Promise<void>
   /** Default project directory for new sessions whose create request carries no cwd. */
@@ -2212,13 +2209,6 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
                 : { reasoningEffort: resolved.reasoningEffort },
             }
             selectionFor(found.agent).current = selected
-            try {
-              await defaults.saveDefaultModelSelection?.(selected)
-            } catch (error: unknown) {
-              ctx.logger.warn(
-                `api-proxy: the model switch applies to this session but was not saved as the default: ${String(error)}`,
-              )
-            }
             return ok(request, { selected: { ...selected } })
           } catch (error: unknown) {
             return err(request, {
@@ -3297,6 +3287,68 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
 
       async models(request) {
         return ok(request, await buildModelCatalog(ctx))
+      },
+
+      defaultModel(request) {
+        return Promise.resolve(ok(request, { selected: { ...defaults.defaultModelSelection() } }))
+      },
+
+      async selectDefaultModel(request) {
+        const { provider, model, reasoningEffort } = request.payload
+        let selected: ModelSelection
+        try {
+          const resolved = await ctx.llm.resolveCallConfig({
+            provider,
+            model,
+            ...reasoningEffort === undefined
+              ? {}
+              : { reasoningEffort: ReasoningEffortId(reasoningEffort) },
+          })
+          selected = {
+            provider: resolved.provider,
+            model: resolved.model,
+            ...resolved.reasoningEffort === undefined
+              ? {}
+              : { reasoningEffort: resolved.reasoningEffort },
+          }
+        } catch (error: unknown) {
+          return err(request, {
+            code: 'model-unavailable',
+            message: error instanceof Error ? error.message : String(error),
+            details: { provider, model },
+          })
+        }
+        try {
+          await defaults.saveDefaultModelSelection?.(selected)
+        } catch {
+          return err(request, {
+            code: 'internal',
+            message: 'Default model selection could not be saved.',
+            details: {},
+          })
+        }
+        return ok(request, { selected: { ...selected } })
+      },
+
+      async testProvider(request, signal) {
+        const { settingsNs, provider, baseURL, api, apiKey, model } = request.payload
+        try {
+          const probe = await ctx.llm.testProvider(settingsNs, {
+            ...provider === undefined ? {} : { provider },
+            ...baseURL === undefined ? {} : { baseURL },
+            ...api === undefined ? {} : { api },
+            ...apiKey === undefined ? {} : { apiKey },
+            model,
+            ...signal === undefined ? {} : { signal },
+          })
+          return ok(request, { probe })
+        } catch {
+          return err(request, {
+            code: 'provider-probe-failed',
+            message: 'Provider connection test is unavailable.',
+            details: { settingsNs, ...baseURL === undefined ? {} : { baseURL } },
+          })
+        }
       },
 
       async discoverModels(request, signal) {

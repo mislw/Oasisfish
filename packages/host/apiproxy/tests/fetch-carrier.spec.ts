@@ -278,6 +278,24 @@ function fakeApi(overrides: Partial<{ muxFrames: MuxFrame[]; hostFrames: HostFra
       async models(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { groups: [], failures: [] } } }
       },
+      async defaultModel(request) {
+        return {
+          rpcId: request.rpcId,
+          result: { ok: true, value: { selected: { provider: 'deepseek-official', model: 'deepseek-chat' } } },
+        }
+      },
+      async selectDefaultModel(request) {
+        return { rpcId: request.rpcId, result: { ok: true, value: { selected: { ...request.payload } } } }
+      },
+      async testProvider(request) {
+        return {
+          rpcId: request.rpcId,
+          result: {
+            ok: true,
+            value: { probe: { ok: true, stage: 'response', model: request.payload.model, text: 'OK', elapsedMs: 1 } },
+          },
+        }
+      },
       async discoverModels(request) {
         return { rpcId: request.rpcId, result: { ok: true, value: { models: [] } } }
       },
@@ -312,6 +330,28 @@ describe('unary round trip (handler ⇄ client, no network)', () => {
     const response = await client().sessions.list({})
     expect(response.result).toEqual({ ok: true, value: { items: [] } })
     expect(response.rpcId).toMatch(/[0-9a-f-]{36}/)
+  })
+
+  it('carries default selection and draft provider test values through both schema layers', async () => {
+    const c = client()
+    await expect(c.llm.defaultModel({})).resolves.toMatchObject({
+      result: { ok: true, value: { selected: { provider: 'deepseek-official', model: 'deepseek-chat' } } },
+    })
+    await expect(c.llm.selectDefaultModel({ provider: 'openai', model: 'gpt-5' })).resolves.toMatchObject({
+      result: { ok: true, value: { selected: { provider: 'openai', model: 'gpt-5' } } },
+    })
+    await expect(c.llm.testProvider({
+      settingsNs: 'llm-pi-ai',
+      baseURL: 'https://relay.example/v1',
+      api: 'openai-responses',
+      apiKey: 'sk-draft',
+      model: 'gpt-5',
+    })).resolves.toMatchObject({
+      result: {
+        ok: true,
+        value: { probe: { ok: true, stage: 'response', model: 'gpt-5', text: 'OK', elapsedMs: 1 } },
+      },
+    })
   })
 
   it('carries the tail-page projections block through the wire schema (Zod must not strip it)', async () => {

@@ -60,7 +60,14 @@ import {
 import {
   credentialsDescribeValueSchema, credentialsSetValueSchema, credentialsUnsetValueSchema,
 } from '../api/credentials.schema.ts'
-import { llmDiscoverModelsValueSchema, llmModelsValueSchema, llmProvidersValueSchema } from '../api/llm.schema.ts'
+import {
+  llmDefaultModelValueSchema,
+  llmDiscoverModelsValueSchema,
+  llmModelsValueSchema,
+  llmProvidersValueSchema,
+  llmSelectDefaultModelValueSchema,
+  llmTestProviderValueSchema,
+} from '../api/llm.schema.ts'
 import {
   subagentHistoryValueSchema,
   subagentInterruptValueSchema,
@@ -159,6 +166,9 @@ export interface IApiClient {
   llm: {
     providers(payload: RequestPayload<'llm.providers'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.providers'>>>
     models(payload: RequestPayload<'llm.models'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.models'>>>
+    defaultModel(payload: RequestPayload<'llm.defaultModel'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.defaultModel'>>>
+    selectDefaultModel(payload: RequestPayload<'llm.selectDefaultModel'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.selectDefaultModel'>>>
+    testProvider(payload: RequestPayload<'llm.testProvider'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.testProvider'>>>
     discoverModels(payload: RequestPayload<'llm.discoverModels'>, signal?: AbortSignal): Promise<RpcResponse<ResponseValue<'llm.discoverModels'>>>
   }
   /** client-response passthrough (rpcId is a backfill of the server-request's id — never minted here). */
@@ -221,6 +231,9 @@ const UNARY_VALUE_SCHEMAS: { [K in keyof RpcMethodMap]: z.ZodType<Wire<ResponseV
   'credentials.unset': credentialsUnsetValueSchema,
   'llm.providers': llmProvidersValueSchema,
   'llm.models': llmModelsValueSchema,
+  'llm.defaultModel': llmDefaultModelValueSchema,
+  'llm.selectDefaultModel': llmSelectDefaultModelValueSchema,
+  'llm.testProvider': llmTestProviderValueSchema,
   'llm.discoverModels': llmDiscoverModelsValueSchema,
 }
 
@@ -497,6 +510,9 @@ export abstract class AbstractApiClient implements IApiClient {
   readonly llm: IApiClient['llm'] = {
     providers: (payload, signal) => this.callUnary('llm.providers', payload, signal),
     models: (payload, signal) => this.callUnary('llm.models', payload, signal),
+    defaultModel: (payload, signal) => this.callUnary('llm.defaultModel', payload, signal),
+    selectDefaultModel: (payload, signal) => this.callUnary('llm.selectDefaultModel', payload, signal),
+    testProvider: (payload, signal) => this.callUnary('llm.testProvider', payload, signal),
     discoverModels: (payload, signal) => this.callUnary('llm.discoverModels', payload, signal),
   }
 

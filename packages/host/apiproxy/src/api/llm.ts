@@ -9,7 +9,7 @@
  */
 
 import type { RpcRequest, RpcResponse } from './rpc.ts'
-import type { ModelCatalogFailure, ModelProviderGroup } from './sessions.ts'
+import type { ModelCatalogFailure, ModelProviderGroup, ModelSelection } from './sessions.ts'
 
 /** Wire view of one configurable provider. */
 export interface ConfigurableProviderView {
@@ -48,6 +48,29 @@ export interface LlmApi {
    */
   models(request: RpcRequest<{}>): Promise<RpcResponse<{ groups: ModelProviderGroup[]; failures: ModelCatalogFailure[] }>>
 
+  /** Read the model selection used by new sessions that have no logged choice. */
+  defaultModel(request: RpcRequest<{}>): Promise<RpcResponse<{ selected: ModelSelection }>>
+
+  /** Validate and save the model selection used by future sessions. */
+  selectDefaultModel(request: RpcRequest<ModelSelection>): Promise<RpcResponse<{ selected: ModelSelection }>>
+
+  /**
+   * Test a request-local provider draft without storing its endpoint or
+   * credential. The result is sanitized by the owning adapter before it
+   * reaches this API.
+   */
+  testProvider(
+    request: RpcRequest<{
+      settingsNs: string
+      provider?: string
+      baseURL?: string
+      api?: string
+      apiKey?: string
+      model: string
+    }>,
+    signal?: AbortSignal,
+  ): Promise<RpcResponse<{ probe: ProviderProbeView }>>
+
   /**
    * Interrogate a provider endpoint the configuration surface is still
    * drafting, and return the models it advertises for the user to adopt.
@@ -75,6 +98,23 @@ export interface LlmApi {
     signal?: AbortSignal,
   ): Promise<RpcResponse<{ models: DiscoveredModelView[] }>>
 }
+
+/** Sanitized connection-test result for one draft provider profile. */
+export type ProviderProbeView =
+  | {
+    ok: true
+    stage: 'response'
+    model: string
+    text: string
+    elapsedMs: number
+  }
+  | {
+    ok: false
+    stage: 'endpoint' | 'authentication' | 'protocol' | 'model' | 'response'
+    code: string
+    message: string
+    elapsedMs: number
+  }
 
 /** Wire view of one model an interrogated endpoint advertises. */
 export interface DiscoveredModelView {

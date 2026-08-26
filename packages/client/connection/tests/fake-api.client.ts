@@ -222,6 +222,15 @@ export class FakeApiClient implements IApiClient {
   readonly llm: IApiClient['llm'] = {
     providers: payload => this.record('llm.providers', payload, Promise.resolve(ok({ providers: [] }))),
     models: payload => this.record('llm.models', payload, Promise.resolve(ok({ groups: [], failures: [] }))),
+    defaultModel: payload => this.record('llm.defaultModel', payload, Promise.resolve(ok({
+      selected: { provider: 'deepseek-official', model: 'deepseek-chat' },
+    }))),
+    selectDefaultModel: payload => this.record('llm.selectDefaultModel', payload, Promise.resolve(ok({
+      selected: { ...payload },
+    }))),
+    testProvider: payload => this.record('llm.testProvider', payload, Promise.resolve(ok({
+      probe: { ok: true, stage: 'response', model: payload.model, text: 'OK', elapsedMs: 1 },
+    }))),
     discoverModels: payload => this.record('llm.discoverModels', payload, Promise.resolve(ok({ models: [] }))),
   }
 

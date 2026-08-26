@@ -125,6 +125,9 @@ function scriptedApi(overrides: {
     llm: {
       providers: r => ok(r, { providers: [] }),
       models: r => ok(r, { groups: [], failures: [] }),
+      defaultModel: err,
+      selectDefaultModel: err,
+      testProvider: err,
       discoverModels: err,
       ...overrides.llm,
     },
@@ -752,6 +755,15 @@ describe('config unary surface', () => {
       llm: {
         providers: record('llm.providers', r => ok(r, { providers: [providerRow] })),
         models: record('llm.models', r => ok(r, { groups: [group], failures: [] })),
+        defaultModel: record('llm.defaultModel', r => ok(r, {
+          selected: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+        })),
+        selectDefaultModel: record('llm.selectDefaultModel', r => ok(r, {
+          selected: { provider: 'openai', model: 'gpt-5' },
+        })),
+        testProvider: record('llm.testProvider', r => ok(r, {
+          probe: { ok: true, stage: 'response', model: 'gpt-5', text: 'OK', elapsedMs: 12 },
+        })),
         discoverModels: record('llm.discoverModels', r => ok(r, { models: [{ id: 'acme-large', contextWindow: 65536 }] })),
       },
     })
@@ -778,6 +790,28 @@ describe('config unary surface', () => {
     expect(providers.result).toEqual({ ok: true, value: { providers: [providerRow] } })
     const models = await c.llm.models({})
     expect(models.result).toEqual({ ok: true, value: { groups: [group], failures: [] } })
+    const defaultModel = await c.llm.defaultModel({})
+    expect(defaultModel.result).toEqual({
+      ok: true,
+      value: { selected: { provider: 'deepseek-official', model: 'deepseek-v4-flash' } },
+    })
+    const selectedDefault = await c.llm.selectDefaultModel({ provider: 'openai', model: 'gpt-5' })
+    expect(selectedDefault.result).toEqual({
+      ok: true,
+      value: { selected: { provider: 'openai', model: 'gpt-5' } },
+    })
+    const tested = await c.llm.testProvider({
+      settingsNs: 'llm-pi-ai',
+      provider: 'openai',
+      baseURL: 'https://gateway.acme.example/v1',
+      api: 'openai-responses',
+      apiKey: 'probe-key',
+      model: 'gpt-5',
+    })
+    expect(tested.result).toEqual({
+      ok: true,
+      value: { probe: { ok: true, stage: 'response', model: 'gpt-5', text: 'OK', elapsedMs: 12 } },
+    })
     const discovered = await c.llm.discoverModels({
       settingsNs: 'llm-pi-ai',
       baseURL: 'https://gateway.acme.example/v1',
@@ -789,7 +823,8 @@ describe('config unary surface', () => {
     expect(seen.map(call => call.method)).toEqual([
       'settings.describe', 'settings.openDocument', 'settings.update', 'settings.replace', 'settings.mutate',
       'credentials.describe', 'credentials.set', 'credentials.unset',
-      'llm.providers', 'llm.models', 'llm.discoverModels',
+      'llm.providers', 'llm.models', 'llm.defaultModel', 'llm.selectDefaultModel', 'llm.testProvider',
+      'llm.discoverModels',
     ])
     expect(seen[2]?.payload).toEqual({ ns: 'llm-deepseek', patch: { baseURL: 'https://next' } })
     expect(seen[4]?.payload)
@@ -797,7 +832,15 @@ describe('config unary surface', () => {
     expect(seen[6]?.payload).toEqual({ ref: 'OPENAI_API_KEY', value: 'sk-x' })
     // The draft crosses whole, credential included: the host needs it for this
     // one interrogation and stores none of it.
-    expect(seen[10]?.payload).toEqual({
+    expect(seen[12]?.payload).toEqual({
+      settingsNs: 'llm-pi-ai',
+      provider: 'openai',
+      baseURL: 'https://gateway.acme.example/v1',
+      api: 'openai-responses',
+      apiKey: 'probe-key',
+      model: 'gpt-5',
+    })
+    expect(seen[13]?.payload).toEqual({
       settingsNs: 'llm-pi-ai',
       baseURL: 'https://gateway.acme.example/v1',
       api: 'openai-completions',

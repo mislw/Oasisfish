@@ -130,6 +130,86 @@ function registerTextOnly(ctx: Context): void {
 }
 
 describe('Web session model selection', () => {
+  it('reads and changes the shared default independently from a current session selection', async () => {
+    const { ctx, sessionId } = await harness()
+    let stored = { provider: 'deepseek-official', model: 'deepseek-chat' }
+    const saved: unknown[] = []
+    const api = createApiProxy(ctx, {
+      defaultModelSelection: () => stored,
+      saveDefaultModelSelection: (selection) => {
+        saved.push(selection)
+        stored = { provider: selection.provider, model: selection.model }
+        return Promise.resolve()
+      },
+      cwd: '/tmp',
+    })
+
+    expect(expectValue(await api.llm.defaultModel(request({}))).selected)
+      .toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
+    expectValue(await api.sessions.selectModel(request({
+      sessionId, provider: 'deepseek-official', model: 'private-preview',
+    })))
+    expect(saved).toEqual([])
+    expect(expectValue(await api.llm.defaultModel(request({}))).selected)
+      .toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
+
+    expect(expectValue(await api.llm.selectDefaultModel(request({
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
+    }))).selected).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
+    })
+    expect(saved).toEqual([{
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
+    }])
+
+    const refused = await api.llm.selectDefaultModel(request({ provider: 'missing', model: 'model' }))
+    expect(refused.result).toMatchObject({ ok: false, error: { code: 'model-unavailable' } })
+    expect(saved).toHaveLength(1)
+    await ctx.fiber.dispose()
+  })
+
+  it('forwards draft provider probes and never returns a thrown secret', async () => {
+    const { ctx } = await harness()
+    const signal = new AbortController().signal
+    const observed: unknown[] = []
+    const dispose = ctx.llm.registerProviderProbe('llm-pi-ai', async (draft) => {
+      observed.push(draft)
+      return { ok: true, stage: 'response', model: draft.model, text: 'OK', elapsedMs: 2 }
+    })
+    const api = createApiProxy(ctx, {
+      defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
+      cwd: '/tmp',
+    })
+
+    const tested = await api.llm.testProvider(request({
+      settingsNs: 'llm-pi-ai',
+      provider: 'openai',
+      baseURL: 'https://relay.example/v1',
+      api: 'openai-responses',
+      apiKey: 'sk-draft',
+      model: 'gpt-5',
+    }), signal)
+    expect(expectValue(tested).probe).toEqual({
+      ok: true, stage: 'response', model: 'gpt-5', text: 'OK', elapsedMs: 2,
+    })
+    expect(observed).toEqual([{
+      provider: 'openai',
+      baseURL: 'https://relay.example/v1',
+      api: 'openai-responses',
+      apiKey: 'sk-draft',
+      model: 'gpt-5',
+      signal,
+    }])
+
+    dispose()
+    const refused = await api.llm.testProvider(request({
+      settingsNs: 'llm-pi-ai', baseURL: 'https://relay.example/v1', apiKey: 'sk-draft', model: 'gpt-5',
+    }), signal)
+    expect(JSON.stringify(refused)).not.toContain('sk-draft')
+    expect(refused.result).toMatchObject({ ok: false, error: { code: 'provider-probe-failed' } })
+    await ctx.fiber.dispose()
+  })
+
   it('validates an ordered image batch before persisting any member', async () => {
     const { ctx, agent, sessionId } = await harness()
     const validateImage = vi.fn((_input: { data: Uint8Array }) => Promise.resolve())
@@ -412,39 +492,20 @@ describe('Web session model selection', () => {
     await ctx.fiber.dispose()
   })
 
-  it('saves an accepted selection as the default and survives a storage failure', async () => {
+  it('reports a default storage failure without changing the current session', async () => {
     const { ctx, sessionId } = await harness()
-    const saved: unknown[] = []
-    let reject = false
     const api = createApiProxy(ctx, {
       defaultModelSelection: () => ({ provider: 'deepseek-official', model: 'deepseek-chat' }),
-      saveDefaultModelSelection: (selection) => {
-        saved.push(selection)
-        return reject ? Promise.reject(new Error('read-only document')) : Promise.resolve()
-      },
+      saveDefaultModelSelection: () => Promise.reject(new Error('read-only document')),
       cwd: '/tmp',
     })
 
-    expectValue(await api.sessions.selectModel(request({
-      sessionId, provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
-    })))
-    expect(saved).toEqual([
-      { provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max' },
-    ])
-
-    // A refused selection never becomes anyone's default.
-    await api.sessions.selectModel(request({ sessionId, provider: 'missing', model: 'model' }))
-    expect(saved).toHaveLength(1)
-
-    // Storage failing is not the selection failing: the switch already applies
-    // to this session, so the call still succeeds.
-    reject = true
-    const stillAccepted = expectValue(await api.sessions.selectModel(request({
-      sessionId, provider: 'deepseek-official', model: 'deepseek-chat',
-    })))
-    expect(stillAccepted.selected).toEqual({ provider: 'deepseek-official', model: 'deepseek-chat', reasoningEffort: 'high' })
+    const refused = await api.llm.selectDefaultModel(request({
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
+    }))
+    expect(refused.result).toMatchObject({ ok: false, error: { code: 'internal' } })
     expect(expectValue(await api.sessions.models(request({ sessionId }))).current)
-      .toEqual({ provider: 'deepseek-official', model: 'deepseek-chat', reasoningEffort: 'high' })
+      .toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
     await ctx.fiber.dispose()
   })
 
