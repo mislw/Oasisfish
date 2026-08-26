@@ -140,6 +140,12 @@ pi-ai 依据提供方 id 与 baseURL 决定每个请求的形状：系统提示�
 
 多数列表只公布 id；`context_window`/`context_length` 与 `max_output_tokens`/`max_tokens` 在网关提供时会被读取，没有可用 id 的条目会被跳过而不是让整份列表失败，其余仍由采纳方补齐。回复在四兆字节上限下读取，且上限落在实际收到的字节上——端点是用户自己填的 URL，因此会先看声明长度，但绝不把它当作边界。端点不可达、凭据被拒、响应非 JSON、以及响应没有 `data` 数组，都会以 `DISCOVERY_FAILED` 失败，消息点名端点；仅当 401 或 403 时才点名凭据。读取响应体期间被取消会呈现为 `ABORTED`，与请求发出之前被取消一致。
 
+## 草稿连接测试
+
+插件还会注册 `ctx.llm.registerProviderProbe('llm-pi-ai', …)`，针对配置界面正在编辑的端点、协议、凭据、模型和取消 signal 发起一次真实生成。它会构建临时的单路由 profile 与 `PiAiAdapter`；该 profile 不会加入实时 adapter 注册表，不写入 settings 或 credentials，也不会产生 Session 事件。请求要求只回复 `OK`，输出上限为八个 token，通过 adapter 关闭 SDK 重试，并设置 15 秒整体时限。因此，即使测试成功，也可能消耗少量提供方额度。
+
+草稿中键入的凭据优先于已有路由的已存凭据；草稿密钥输入为空时，使用与模型发现相同的 `apiKeyEnv` 解析取得已存密钥。凭据会在提供方 I/O 前校验；即使端点在 assistant 文本中回显密钥，结果也会将其移除。失败会被分类为端点、鉴权、协议、模型或响应阶段，并只返回简短且已净化的消息；提供方响应体和凭据绝不会进入结果。
+
 ## 提供方／模型路由与回放
 
 每次解析产出一份**不可变**快照——profiles 加上一个持有各路由所建 `Provider` 的 `createModels()` 集合——每个操作都在自己第一个 `await` 之前整体捕获一份快照。配置变化会构造**新**集合，而不是改动正在被使用的那个：`Models.streamSimple()` 是惰性的，它在流首次被消费时才解析 provider，而那已在 credential await 之后，因此改动共享集合会让一个在旧配置下开始的请求在新配置下结束，或者撞上一个已不存在的 provider。这正是 seam 的每步调用冻结（`llm.prepareCall()`）能贯通到底的原因——回复途中切换模型会在下一步生效，绝不会影响在途的那一步。请求经 `Models.streamSimple()` 抵达提供方。保持 catalog 协议不变的 catalog 路由会**复用**已安装提供方，只替换其模型列表，因为该提供方持有本包无法重建的 API 实现——Bedrock 经由独立入口加载其 Smithy 模块——从零件重建会静默收窄可用提供方的范围。其余路由都由 `createProvider()` 基于 `supportedProtocols()` 背后的协议表构造，表中条目正是 pi-ai 自己的提供方工厂所用的同一批 factory。
