@@ -63,6 +63,21 @@
     },
     {
       "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "LlmProviderProbeStage",
+      "source": "packages/llm/llm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "LlmProviderProbeRequest",
+      "source": "packages/llm/llm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
+      "symbol": "LlmProviderProbeResult",
+      "source": "packages/llm/llm/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/llm-streaming.md",
       "symbol": "LlmDiscoveredModel",
       "source": "packages/llm/llm/src/types.ts"
     },

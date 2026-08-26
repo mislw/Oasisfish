@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
-import type { GenerateOptions, LlmConfigurableProvider, StreamChunk } from '@deepseek-ai/dsh-llm'
+import type {
+  GenerateOptions, LlmConfigurableProvider, LlmProviderProbeRequest, StreamChunk,
+} from '@deepseek-ai/dsh-llm'
 
 class NoopAdapter extends LlmAdapter {
 
@@ -271,7 +273,7 @@ describe('provider probe registry', () => {
   it('forwards an isolated draft and signal until its registration is disposed', async () => {
     const ctx = await setup()
     const controller = new AbortController()
-    const request = {
+    const request: LlmProviderProbeRequest = {
       provider: 'relay-draft',
       baseURL: 'https://gateway.example/v1',
       api: 'openai-completions',
@@ -279,8 +281,8 @@ describe('provider probe registry', () => {
       model: 'relay-model',
       signal: controller.signal,
     }
-    let receivedDraft: typeof request | undefined
-    const probe = vi.fn(async (received: typeof request) => {
+    let receivedDraft: LlmProviderProbeRequest | undefined
+    const probe = vi.fn(async (received: LlmProviderProbeRequest) => {
       receivedDraft = { ...received }
       received.baseURL = 'https://mutated.example/v1'
       return {

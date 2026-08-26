@@ -41,7 +41,7 @@ English | [中文](2026-08-26-model-relay-management.zh.md)
 
 Add tests that register one probe for `llm-pi-ai`, reject a duplicate registration, forward a detached draft request and signal, reject an unknown namespace with `NO_PROVIDER_PROBE`, and stop serving after disposal.
 
-```ts
+```ts ignore-check
 const dispose = runtime.registerProviderProbe('llm-pi-ai', async request => ({
   ok: true,
   stage: 'response',
@@ -114,7 +114,7 @@ git commit -m "feat(llm): add draft provider probes"
 
 Cover an OpenAI Chat Completions success returning `OK`, a Responses success, 401/403 as `authentication`, 404 model rejection as `model`, invalid JSON or malformed stream as `response`, unsupported protocol as `protocol`, unreachable endpoint as `endpoint`, caller abort as `ABORTED`, and typed-key precedence over the stored key.
 
-```ts
+```ts ignore-check
 const result = await testProvider({
   provider: 'probe-route',
   baseURL: server.url,
@@ -142,7 +142,7 @@ Use one user message containing `Reply with exactly OK.` and collect only assist
 
 - [ ] **Step 5: Register the probe beside model discovery**
 
-```ts
+```ts ignore-check
 ctx.llm.registerProviderProbe(NS, request => testProvider(request, {
   auth: { credentials: credentialStore, authContext },
   storedApiKey: () => storedApiKey(request.provider),
@@ -186,6 +186,11 @@ git commit -m "feat(llm-pi-ai): test draft provider connections"
 Assert exact request/response parsing for all three methods, verify `selectDefaultModel` refuses an unavailable provider/model before saving, and verify `testProvider` forwards the AbortSignal but never echoes `apiKey` in errors.
 
 ```ts
+import type { IApiClient } from '@deepseek-ai/dsh-host-apiproxy/client'
+import { expect } from 'vitest'
+
+declare const client: IApiClient
+
 const selected = await client.llm.selectDefaultModel({ provider: 'acme', model: 'large' })
 expect(selected.result).toEqual({ ok: true, value: { selected: { provider: 'acme', model: 'large' } } })
 ```

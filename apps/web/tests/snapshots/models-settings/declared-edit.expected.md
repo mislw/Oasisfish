@@ -4,9 +4,9 @@
     - button "通用设置":
       - img
       - text: 通用设置
-    - button "模型":
+    - button "模型与中转站":
       - img
-      - text: 模型
+      - text: 模型与中转站
     - button "插件":
       - img
       - text: 插件
@@ -17,21 +17,35 @@
   - button "关闭":
     - img
     - text: 关闭
-  - heading "模型" [level=2]
-  - paragraph: 填入各提供方的 API 密钥即可使用其模型。
+  - heading "模型与中转站" [level=2]
+  - paragraph: 配置模型提供方和中转站、测试连接，并选择新任务使用的默认模型。
+  - region "新任务默认模型":
+    - text: 新任务默认模型 默认提供方
+    - combobox "默认提供方":
+      - option "DeepSeek"
+      - option "minimax-cn"
+      - option "Acme Gateway" [selected]
+    - text: 默认模型
+    - combobox "默认模型":
+      - option "probe-model"
+      - option "acme-large" [selected]
+      - option "acme-small"
+    - button "设为默认" [disabled]
   - list:
     - listitem:
       - text: minimax-cn
       - img "API 密钥已配置"
       - button "编辑 minimax-cn": 编辑
       - button "删除 minimax-cn": 删除
+      - text: "端点: gateway.minimax.example 协议: 未知 0 个模型"
     - listitem:
-      - text: Acme Gateway 自定义
+      - text: Acme Gateway 自定义 当前默认
+      - img "API 密钥已配置"
       - button "编辑 Acme Gateway (acme-gateway)": 编辑
-      - button "删除 Acme Gateway (acme-gateway)": 删除
-      - text: Acme Gateway acme-gateway API 密钥
+      - button "先切换默认模型再删除" [disabled]: 删除
+      - text: "端点: 127.0.0.1:{{relay-port}} 协议: openai-completions 3 个模型 Acme Gateway acme-gateway API 密钥"
       - textbox "API 密钥":
-        - /placeholder: 输入 API 密钥，或留空使用环境认证
+        - /placeholder: 已配置——输入新值可替换
       - group:
         - text: 自定义设置 显示名称
         - textbox "显示名称":
@@ -39,8 +53,8 @@
           - text: Acme Gateway
         - text: API 地址
         - textbox "API 地址":
-          - /placeholder: https://gateway.acme.example/v1
-          - text: https://gateway.acme.example/v1
+          - /placeholder: http://127.0.0.1:{{relay-port}}/v1
+          - text: http://127.0.0.1:{{relay-port}}/v1
         - text: API 协议
         - combobox "API 协议":
           - option "openai-completions" [selected]
@@ -52,12 +66,34 @@
           - button "获取可用模型"
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
-            - text: acme-large
+            - text: probe-model
           - textbox "显示名称 1":
             - /placeholder: 显示名称
           - button "容量 1"
           - button "删除模型 1"
+          - textbox "模型 ID 2":
+            - /placeholder: 模型 ID
+            - text: acme-large
+          - textbox "显示名称 2":
+            - /placeholder: 显示名称
+          - button "容量 2"
+          - button "删除模型 2"
+          - textbox "模型 ID 3":
+            - /placeholder: 模型 ID
+            - text: acme-small
+          - textbox "显示名称 3":
+            - /placeholder: 显示名称
+          - button "容量 3"
+          - button "删除模型 3"
           - button "添加模型"
+        - region "测试连接":
+          - text: 测试模型
+          - combobox "测试模型":
+            - option "probe-model" [selected]
+            - option "acme-large"
+            - option "acme-small"
+          - button "测试连接"
+          - paragraph: 连接成功可能会消耗少量提供方额度。
       - button "取消"
       - button "保存"
   - button "添加提供方":

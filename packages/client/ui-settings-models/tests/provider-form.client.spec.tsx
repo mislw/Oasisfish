@@ -84,7 +84,7 @@ function scriptedFace(options: {
   }
   const namespace = piAiNamespace(providers, options.userProviders ?? providers, options.baseProviders ?? {})
   const discover = options.discover ?? vi.fn(() => Promise.resolve(ok({ models: [] })))
-  const test = options.test ?? vi.fn(payload => Promise.resolve(ok({
+  const test = options.test ?? vi.fn((payload: { model: string }) => Promise.resolve(ok({
     probe: { ok: true, stage: 'response', model: payload.model, text: 'OK', elapsedMs: 12 },
   })))
   const mutate = options.mutate ?? vi.fn(() => Promise.resolve(ok(namespace)))
@@ -105,7 +105,7 @@ function scriptedFace(options: {
       defaultModel: vi.fn(() => Promise.resolve(ok({
         selected: { provider: 'deepseek-official', model: 'deepseek-chat' },
       }))),
-      selectDefaultModel: vi.fn(payload => Promise.resolve(ok({ selected: payload }))),
+      selectDefaultModel: vi.fn((payload: { provider: string; model: string }) => Promise.resolve(ok({ selected: payload }))),
       testProvider: test,
       discoverModels: discover,
     },

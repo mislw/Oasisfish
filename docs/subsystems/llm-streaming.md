@@ -606,6 +606,64 @@ interface LlmModelDiscoveryRequest {
 }
 ```
 
+Connection testing uses the same draft ownership but returns only sanitized configuration feedback. Its request-local credential does not enter settings, diagnostics, or a Session log.
+
+```ts type-equiv
+/** Configuration-stage progress point reached by one provider connection probe. */
+type LlmProviderProbeStage = 'endpoint' | 'authentication' | 'protocol' | 'model' | 'response'
+```
+
+```ts type-equiv
+/**
+ * One connection test over a provider profile that configuration has not
+ * stored yet. The credential is request-local and must not be persisted or
+ * included in diagnostics.
+ */
+interface LlmProviderProbeRequest {
+  /** Route name of the profile being edited, when one already exists. */
+  provider?: string
+  /** Provider endpoint to contact for this test. */
+  baseURL?: string
+  /** Wire protocol selected by the draft profile. */
+  api?: string
+  /** Credential for this test alone; the harness never stores it here. */
+  apiKey?: string
+  /** Exact model id to ask for during the probe. */
+  model: string
+  /** Caller cancellation; implementations must settle promptly after it aborts. */
+  signal?: AbortSignal
+}
+```
+
+```ts type-equiv
+/** Sanitized result of testing one draft provider connection. */
+type LlmProviderProbeResult =
+  | {
+    /** The provider returned a usable assistant response. */
+    ok: true
+    /** Successful probes always complete at the response stage. */
+    stage: 'response'
+    /** Exact model id exercised by the probe. */
+    model: string
+    /** Short assistant text suitable for configuration UI feedback. */
+    text: string
+    /** Total probe duration in milliseconds. */
+    elapsedMs: number
+  }
+  | {
+    /** The provider connection could not complete successfully. */
+    ok: false
+    /** Configuration stage that classified the failure. */
+    stage: LlmProviderProbeStage
+    /** Stable provider-neutral machine code. */
+    code: string
+    /** Sanitized user-facing failure summary. */
+    message: string
+    /** Total probe duration in milliseconds. */
+    elapsedMs: number
+  }
+```
+
 ```ts type-equiv
 /**
  * One model an endpoint reports about itself. Every field but the id is
@@ -822,6 +880,24 @@ registerModelDiscovery( settingsNs: string, discover: (request: LlmModelDiscover
  * @returns the advertised models, deduplicated in endpoint order.
  */
 async discoverModels( settingsNs: string, request: LlmModelDiscoveryRequest, ): Promise<LlmDiscoveredModel[]>
+
+/**
+ * Offer draft provider connection tests for one settings namespace.
+ * Registration is exclusive per namespace and is disposed with the fiber.
+ * @param settingsNs - namespace whose provider profiles this probe serves.
+ * @param probe - tests one request-local provider draft.
+ * @returns the disposer that withdraws the probe.
+ */
+registerProviderProbe( settingsNs: string, probe: (request: LlmProviderProbeRequest) => Promise<LlmProviderProbeResult>, ): () => void
+
+/**
+ * Test one request-local provider draft without reading or writing settings,
+ * credentials, or Session state.
+ * @param settingsNs - namespace whose registered probe owns the draft.
+ * @param request - endpoint, protocol, credential, model, and cancellation.
+ * @returns a sanitized connection result safe for configuration UI display.
+ */
+async testProvider( settingsNs: string, request: LlmProviderProbeRequest, ): Promise<LlmProviderProbeResult>
 
 /**
  * Resolve the retry policy captured when one provider route was registered.

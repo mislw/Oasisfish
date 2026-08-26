@@ -153,7 +153,7 @@ function scriptedFace(overrides: {
   const unset = overrides.unset ?? vi.fn(() => Promise.resolve(ok({})))
   let defaultSelection = overrides.defaultSelection
     ?? { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
-  const selectDefaultModel = overrides.selectDefaultModel ?? vi.fn((payload) => {
+  const selectDefaultModel = overrides.selectDefaultModel ?? vi.fn((payload: { provider: string; model: string }) => {
     defaultSelection = { ...payload }
     return Promise.resolve(ok({ selected: defaultSelection }))
   })
@@ -175,7 +175,7 @@ function scriptedFace(overrides: {
       ], failures: [] }))),
       defaultModel: vi.fn(() => Promise.resolve(ok({ selected: defaultSelection }))),
       selectDefaultModel,
-      testProvider: vi.fn(payload => Promise.resolve(ok({
+      testProvider: vi.fn((payload: { model: string }) => Promise.resolve(ok({
         probe: { ok: true, stage: 'response', model: payload.model, text: 'OK', elapsedMs: 1 },
       }))),
       discoverModels: vi.fn(() => Promise.resolve(ok({ models: [] }))),

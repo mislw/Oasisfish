@@ -996,6 +996,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the advertised models, deduplicated in endpoint order.',
       },
       {
+        signature: 'registerProviderProbe( settingsNs: string, probe: (request: LlmProviderProbeRequest) => Promise<LlmProviderProbeResult>, ): () => void',
+        description: 'Offer draft provider connection tests for one settings namespace. Registration is exclusive per namespace and is disposed with the fiber.',
+        parameters: [{ name: 'settingsNs', description: 'namespace whose provider profiles this probe serves.' }, { name: 'probe', description: 'tests one request-local provider draft.' }],
+        returns: 'the disposer that withdraws the probe.',
+      },
+      {
+        signature: 'async testProvider( settingsNs: string, request: LlmProviderProbeRequest, ): Promise<LlmProviderProbeResult>',
+        description: 'Test one request-local provider draft without reading or writing settings, credentials, or Session state.',
+        parameters: [{ name: 'settingsNs', description: 'namespace whose registered probe owns the draft.' }, { name: 'request', description: 'endpoint, protocol, credential, model, and cancellation.' }],
+        returns: 'a sanitized connection result safe for configuration UI display.',
+      },
+      {
         signature: 'providerRetryPolicy(provider: string): ResolvedRetryPolicy',
         description: 'Resolve the retry policy captured when one provider route was registered.',
         parameters: [{ name: 'provider', description: 'registered provider route to inspect.' }],
@@ -3638,6 +3650,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface LlmProviderInfo {\n    id: string;\n    name: string;\n}',
   },
   {
+    name: 'LlmProviderProbeRequest',
+    declaration: 'export interface LlmProviderProbeRequest {\n    provider?: string;\n    baseURL?: string;\n    api?: string;\n    apiKey?: string;\n    model: string;\n    signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'LlmProviderProbeResult',
+    declaration: 'export type LlmProviderProbeResult = {\n    ok: true;\n    stage: \'response\';\n    model: string;\n    text: string;\n    elapsedMs: number;\n} | {\n    ok: false;\n    stage: LlmProviderProbeStage;\n    code: string;\n    message: string;\n    elapsedMs: number;\n};',
+  },
+  {
+    name: 'LlmProviderProbeStage',
+    declaration: 'export type LlmProviderProbeStage = \'endpoint\' | \'authentication\' | \'protocol\' | \'model\' | \'response\';',
+  },
+  {
     name: 'LlmReasoningEffortInfo',
     declaration: 'export interface LlmReasoningEffortInfo {\n    id: ReasoningEffortId;\n    name: string;\n    description?: string;\n}',
   },
@@ -3647,7 +3671,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmRuntime',
-    declaration: 'export class LlmRuntime extends Service {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
+    declaration: 'export class LlmRuntime extends Service {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest): Promise<LlmDiscoveredModel[]>;\n    registerProviderProbe(settingsNs: string, probe: (request: LlmProviderProbeRequest) => Promise<LlmProviderProbeResult>): () => void;\n    async testProvider(settingsNs: string, request: LlmProviderProbeRequest): Promise<LlmProviderProbeResult>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
   {
     name: 'LspHover',

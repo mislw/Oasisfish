@@ -41,7 +41,7 @@
 
 增加测试：为 `llm-pi-ai` 注册一个测试处理器、拒绝重复注册、转发独立的草稿请求与 signal、使用 `NO_PROVIDER_PROBE` 拒绝未知命名空间，并在 disposer 执行后停止服务。
 
-```ts
+```ts ignore-check
 const dispose = runtime.registerProviderProbe('llm-pi-ai', async request => ({
   ok: true,
   stage: 'response',
@@ -114,7 +114,7 @@ git commit -m "feat(llm): add draft provider probes"
 
 覆盖 OpenAI Chat Completions 成功返回 `OK`、Responses 成功、401/403 映射为 `authentication`、404 模型拒绝映射为 `model`、无效 JSON 或错误流映射为 `response`、不支持协议映射为 `protocol`、端点不可达映射为 `endpoint`、调用方取消映射为 `ABORTED`，以及输入密钥优先于已存密钥。
 
-```ts
+```ts ignore-check
 const result = await testProvider({
   provider: 'probe-route',
   baseURL: server.url,
@@ -142,7 +142,7 @@ expect(server.headers[0]?.authorization).toBe('Bearer sk-draft')
 
 - [ ] **步骤 5：在模型发现旁注册连接测试**
 
-```ts
+```ts ignore-check
 ctx.llm.registerProviderProbe(NS, request => testProvider(request, {
   auth: { credentials: credentialStore, authContext },
   storedApiKey: () => storedApiKey(request.provider),
@@ -186,6 +186,11 @@ git commit -m "feat(llm-pi-ai): test draft provider connections"
 断言三个方法的精确请求与响应解析，验证 `selectDefaultModel` 在保存前拒绝不可用的提供方或模型，并验证 `testProvider` 转发 AbortSignal 且错误中绝不回显 `apiKey`。
 
 ```ts
+import type { IApiClient } from '@deepseek-ai/dsh-host-apiproxy/client'
+import { expect } from 'vitest'
+
+declare const client: IApiClient
+
 const selected = await client.llm.selectDefaultModel({ provider: 'acme', model: 'large' })
 expect(selected.result).toEqual({ ok: true, value: { selected: { provider: 'acme', model: 'large' } } })
 ```

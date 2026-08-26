@@ -234,7 +234,11 @@ export class ModelsSettingsStore {
     })
   }
 
-  /** Save the default for future sessions, then refresh the joined snapshot. */
+  /**
+   * Save the default for future sessions, then refresh the joined snapshot.
+   * @param selection - exact provider and model route for future sessions.
+   * @returns a user-facing failure message, or undefined after a successful refresh.
+   */
   async selectDefault(selection: ModelSelection): Promise<string | undefined> {
     try {
       const response = await this.api.llm.selectDefaultModel(selection)

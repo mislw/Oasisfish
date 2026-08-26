@@ -11,7 +11,14 @@ export interface ProviderSummary {
   modelCount: number
 }
 
-/** Derive row-safe provider facts without retaining the complete endpoint. */
+/**
+ * Derive row-safe provider facts without retaining the complete endpoint.
+ * @param namespace - settings namespace containing the provider profile.
+ * @param path - profile path inside the namespace.
+ * @param schema - schema operations used to read the profile value.
+ * @param group - live catalog group used when the profile has no model override.
+ * @returns provider facts safe to render outside an editor.
+ */
 export function providerSummary(
   namespace: SettingsNamespaceView | undefined,
   path: readonly string[],

@@ -53,7 +53,7 @@ const responsesOkEvents = [
   }),
 ]
 
-function options(storedApiKey: string | undefined = undefined) {
+function options(storedApiKey?: string) {
   return {
     auth: memoryAuth(),
     storedApiKey: () => Promise.resolve(storedApiKey),

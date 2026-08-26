@@ -1,9 +1,8 @@
-// Web e2e scenario: switching models in the composer is how this deployment's
-// default is chosen. The gesture writes the shared `agent-default-model` settings section, a
-// session created afterwards starts from it, and a session that already logged
-// a route keeps deriving from its own log — the tier order the gateway
-// resolves on every read.
-// Zero model calls: the switch is settings/llm-domain traffic only, so there
+// Web e2e scenario: the Models and Relays page writes the deployment's shared
+// default through `llm.selectDefaultModel`. A session created afterwards starts
+// from it, while a session that already logged a route keeps deriving from its
+// own log.
+// Zero model calls: the selection is settings/llm-domain traffic only, so there
 // is no fixture and a stray stream would fail loud because the adapter registry is empty. Both
 // routes are declared host-side (not through the UI, which has its own
 // scenario) through the pi-ai adapter the shipped tree already mounts: a
@@ -31,7 +30,7 @@ const START_MODEL = 'origin-large'
 const ROUTE = 'acme-gateway'
 const MODEL = 'acme-large'
 
-describe('web e2e: the composer model switch is the default for later sessions', () => {
+describe('web e2e: the Models and Relays default applies to later sessions', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
@@ -94,7 +93,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     await scaffold?.close()
   })
 
-  it('writes the switched model as the default and leaves a logged session alone', async () => {
+  it('writes the selected default and leaves a logged session alone', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-default-model'))
     // A session that has already run a turn, spelled as the fact a turn
     // leaves behind: its own logged route.
@@ -104,14 +103,15 @@ describe('web e2e: the composer model switch is the default for later sessions',
       reason: 'initial',
     })
 
-    const trigger = page.getByRole('button', { name: /^选择模型/ })
-    await trigger.waitFor({ timeout: 15_000 })
-    await trigger.click()
-    await page.getByRole('menuitem', { name: /模型/ }).click()
-    await page.getByRole('menuitemradio', { name: 'Acme Large' }).click()
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    const settings = page.getByRole('dialog', { name: '设置' })
+    await settings.getByRole('button', { name: '模型与中转站' }).click()
+    await settings.getByLabel('默认提供方', { exact: true }).selectOption(ROUTE)
+    await settings.getByLabel('默认模型', { exact: true }).selectOption(MODEL)
+    await settings.getByRole('button', { name: '设为默认', exact: true }).click()
 
-    // The switch is what sets the default: the shared Agent-route settings section
-    // now names it, beside the provider profiles the Models page writes.
+    // The dedicated control writes the shared Agent-route settings section
+    // beside the provider profiles managed on the same page.
     await expect.poll(
       async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
       { timeout: 10_000 },
@@ -119,6 +119,7 @@ describe('web e2e: the composer model switch is the default for later sessions',
     const document = await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8')
     expect(document).toContain(`provider: ${ROUTE}`)
     expect(document).toContain(`model: ${MODEL}`)
+    await page.keyboard.press('Escape')
 
     // A session created after the switch starts from it...
     expect(await currentOf(await createSession('default-model-after')))

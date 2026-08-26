@@ -14,6 +14,7 @@
 // reference-free profile from a page-managed key before the credential and
 // settings unsets reach the wire.
 import { readFile } from 'node:fs/promises'
+import { createServer, type Server } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import type { Browser, Page } from 'playwright'
@@ -35,13 +36,51 @@ const NATIVE_DELETE_EXPECTED = join(SNAPSHOT_DIR, 'native-delete.expected.md')
 const DELETE_EXPECTED = join(SNAPSHOT_DIR, 'delete.expected.md')
 const MODE = webSnapshotMode()
 
+function normalizeRelayPort(snapshot: string): string {
+  return snapshot.replace(/127\.0\.0\.1:\d+/g, '127.0.0.1:{{relay-port}}')
+}
+
 describe('web e2e: Models settings page configures a dormant provider', () => {
   let scaffold: WebScaffold
   let browser: Browser
   let page: Page
   let tripwire: ReturnType<typeof watchConsole>
+  let relay: Server
+  let relayBaseUrl: string
 
   beforeAll(async () => {
+    relay = createServer((request, response) => {
+      const authorized = request.headers.authorization === 'Bearer sk-e2e-relay'
+      if (!authorized) {
+        response.writeHead(401, { 'content-type': 'application/json' })
+        response.end('{"error":{"message":"unauthorized"}}')
+        return
+      }
+      if (request.method === 'GET' && request.url?.endsWith('/models') === true) {
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({
+          data: [
+            { id: 'acme-large', object: 'model' },
+            { id: 'acme-small', object: 'model' },
+          ],
+        }))
+        return
+      }
+      request.resume()
+      request.on('end', () => {
+        response.writeHead(200, { 'content-type': 'text/event-stream' })
+        response.end([
+          'data: {"choices":[{"delta":{"role":"assistant","content":"OK"}}]}',
+          'data: {"choices":[{"delta":{"content":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}',
+          'data: [DONE]',
+          '',
+        ].join('\n\n'))
+      })
+    })
+    await new Promise<void>(resolve => relay.listen(0, '127.0.0.1', resolve))
+    const address = relay.address()
+    if (address === null || typeof address === 'string') throw new Error('relay fixture did not bind a TCP port')
+    relayBaseUrl = `http://127.0.0.1:${String(address.port)}/v1`
     scaffold = await launchWebScaffold({})
     browser = await chromium.launch()
     // The scenario asserts the shipped Chinese copy, so the browser asks for it.
@@ -54,6 +93,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
   afterAll(async () => {
     await browser?.close()
     await scaffold?.close()
+    await new Promise<void>(resolve => relay?.close(() => { resolve() }))
   })
 
   it('opens the add card over the dormant directory vocabulary', async () => {
@@ -61,8 +101,8 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await page.getByRole('button', { name: '设置', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '设置' })
     await dialog.waitFor({ timeout: 10_000 })
-    await dialog.getByRole('button', { name: '模型' }).click()
-    await dialog.getByText('填入各提供方的 API 密钥即可使用其模型。').waitFor({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: '模型与中转站' }).click()
+    await dialog.getByText('配置模型提供方和中转站、测试连接，并选择新任务使用的默认模型。').waitFor({ timeout: 10_000 })
     // The dormant pi-ai adapter contributes its whole installed catalog; no
     // provider is configured yet, so the page is one add button.
     const add = dialog.getByRole('button', { name: '添加提供方' })
@@ -70,7 +110,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     // The button enables once the dormant catalog lands in the join.
     await expect.poll(async () => add.isEnabled(), { timeout: 10_000 }).toBe(true)
     await add.click()
-    const pick = dialog.getByLabel('提供方')
+    const pick = dialog.getByLabel('提供方', { exact: true })
     await pick.waitFor({ timeout: 10_000 })
     await expect.poll(async () => pick.locator('option').count(), { timeout: 10_000 }).toBeGreaterThan(30)
     const options = await pick.locator('option').allTextContents()
@@ -106,7 +146,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-models-native-auth'))
     const dialog = page.getByRole('dialog', { name: '设置' })
     await dialog.getByRole('button', { name: '保存', exact: true }).click()
-    const row = dialog.getByText('minimax-cn', { exact: true }).first()
+    const row = dialog.locator('li').filter({ hasText: 'minimax-cn' }).first()
     await row.waitFor({ timeout: 10_000 })
     await dialog.getByText('已保存 minimax-cn。', { exact: true }).waitFor({ timeout: 10_000 })
     expect(await dialog.getByRole('img', { name: 'API 密钥已配置' }).count()).toBe(0)
@@ -215,7 +255,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await settingsDialog.getByRole('button', { name: '取消', exact: true }).click()
   }, 60_000)
 
-  it('declares a route the adapter does not ship', async () => {
+  it('declares and probes a relay the adapter does not ship', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-models-declare'))
     const dialog = page.getByRole('dialog', { name: '设置' })
     const declare = dialog.getByRole('button', { name: '添加自定义提供方' })
@@ -223,16 +263,36 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await declare.click()
     await dialog.getByLabel('Provider ID').fill('acme-gateway')
     await dialog.getByLabel('显示名称').fill('Acme Gateway')
-    await dialog.getByLabel('API 地址').fill('https://gateway.acme.example/v1')
+    await dialog.getByLabel('API 地址').fill(relayBaseUrl)
+    await dialog.getByLabel('API 协议').selectOption('openai-completions')
+    await dialog.getByRole('textbox', { name: 'API 密钥', exact: true }).fill('sk-e2e-rejected')
     // No reasoning effort on a provider card at all: effort is a per-model
     // capability, the models under one provider disagree about it, and a
     // switch in the composer already records provider+model+effort together.
     expect(await dialog.getByLabel('推理强度').count()).toBe(0)
     await dialog.getByRole('button', { name: '添加模型' }).click()
-    await dialog.getByLabel('模型 ID 1').fill('acme-large')
+    await dialog.getByLabel('模型 ID 1').fill('probe-model')
+    await dialog.getByRole('button', { name: '测试连接', exact: true }).click()
+    const rejected = dialog.getByRole('status')
+    await rejected.getByText('Provider rejected the credential.', { exact: true }).waitFor({ timeout: 10_000 })
+    expect(await rejected.getByText(/鉴权$/).count()).toBe(1)
+    expect(await rejected.textContent()).not.toContain('sk-e2e-rejected')
+    expect(await dialog.textContent()).not.toContain('sk-e2e-rejected')
+
+    await dialog.getByRole('textbox', { name: 'API 密钥', exact: true }).fill('sk-e2e-relay')
+    await dialog.getByRole('button', { name: '获取可用模型' }).click()
+    const picker = page.getByRole('dialog', { name: '选择要添加的模型' })
+    await picker.waitFor({ timeout: 10_000 })
+    expect(await picker.getByText('acme-large', { exact: true }).count()).toBe(1)
+    expect(await picker.getByText('acme-small', { exact: true }).count()).toBe(1)
+    await picker.getByRole('button', { name: '添加所选' }).click()
+    await dialog.getByLabel('测试模型').selectOption('acme-large')
+    await dialog.getByRole('button', { name: '测试连接', exact: true }).click()
+    await dialog.getByRole('status').getByText('连接成功', { exact: true }).waitFor({ timeout: 10_000 })
+    expect(await dialog.textContent()).not.toContain('sk-e2e-relay')
     await dialog.getByRole('button', { name: '创建提供方', exact: true }).click()
 
-    const row = dialog.getByText('Acme Gateway', { exact: true }).first()
+    const row = dialog.locator('li').filter({ hasText: 'Acme Gateway' }).first()
     await row.waitFor({ timeout: 10_000 })
     const document = await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8')
     expect(document).toContain('acme-gateway:')
@@ -243,8 +303,36 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await expect.poll(async () => rowCard('Acme Gateway').getByText('自定义').count(), { timeout: 10_000 }).toBe(1)
     expect(await rowCard('minimax-cn').getByText('自定义').count()).toBe(0)
 
-    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
+    const snapshot = normalizeRelayPort(await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd))
     await compareOrRefreshGolden(DECLARED_EXPECTED, snapshot, MODE)
+    expect(tripwire.pageErrors).toEqual([])
+  }, 60_000)
+
+  it('sets the relay as the default for new tasks and restores it after reload', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-models-default'))
+    let dialog = page.getByRole('dialog', { name: '设置' })
+    await dialog.getByLabel('默认提供方', { exact: true }).selectOption('acme-gateway')
+    await dialog.getByLabel('默认模型', { exact: true }).selectOption('acme-large')
+    await dialog.getByRole('button', { name: '设为默认', exact: true }).click()
+    await expect.poll(
+      async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
+      { timeout: 10_000 },
+    ).toContain('agent-default-model:')
+    const document = await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8')
+    expect(document).toContain('provider: acme-gateway')
+    expect(document).toContain('model: acme-large')
+
+    await page.reload({ waitUntil: 'load' })
+    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    dialog = page.getByRole('dialog', { name: '设置' })
+    await dialog.getByRole('button', { name: '模型与中转站' }).click()
+    await expect.poll(async () => dialog.getByLabel('默认提供方', { exact: true }).inputValue(), { timeout: 10_000 })
+      .toBe('acme-gateway')
+    expect(await dialog.getByLabel('默认模型', { exact: true }).inputValue()).toBe('acme-large')
+    const blocked = dialog.getByRole('button', { name: '先切换默认模型再删除' })
+    expect(await blocked.isDisabled()).toBe(true)
+    expect(await blocked.getAttribute('title')).toBe('先切换默认模型再删除')
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
@@ -261,7 +349,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     expect(await protocol.inputValue()).toBe('openai-completions')
     const name = dialog.getByLabel('显示名称', { exact: true })
     expect(await name.inputValue()).toBe('Acme Gateway')
-    const snapshot = await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd)
+    const snapshot = normalizeRelayPort(await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd))
     await compareOrRefreshGolden(DECLARED_EDIT_EXPECTED, snapshot, MODE)
 
     await protocol.selectOption('anthropic-messages')
@@ -272,7 +360,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     // it under the new name: an unserviceable profile would have been refused
     // at the write instead, and a rename that did not re-register would leave
     // the old label on the row.
-    await dialog.getByText('Acme 网关', { exact: true }).first().waitFor({ timeout: 10_000 })
+    await dialog.locator('li').filter({ hasText: 'Acme 网关' }).first().waitFor({ timeout: 10_000 })
     // The status line names the route as the refreshed directory reports it;
     // the target captured when the card opened still carries the old name.
     await dialog.getByText('已保存 Acme 网关 (acme-gateway)。', { exact: true }).waitFor({ timeout: 10_000 })

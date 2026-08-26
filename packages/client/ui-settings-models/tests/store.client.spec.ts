@@ -71,7 +71,8 @@ function api(overrides: {
       defaultModel: overrides.defaultModel ?? (() => Promise.resolve(ok({
         selected: { provider: 'deepseek-official', model: 'deepseek-chat' },
       }))),
-      selectDefaultModel: overrides.selectDefaultModel ?? vi.fn(payload => Promise.resolve(ok({ selected: payload }))),
+      selectDefaultModel: overrides.selectDefaultModel
+        ?? vi.fn((payload: { provider: string; model: string }) => Promise.resolve(ok({ selected: payload }))),
     },
     settings: {
       describe: overrides.describeSettings ?? (() => Promise.resolve(ok({ writable: true, hasDocument: false, namespaces: NAMESPACES }))),

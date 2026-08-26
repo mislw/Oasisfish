@@ -4,9 +4,9 @@
     - button "通用设置":
       - img
       - text: 通用设置
-    - button "模型":
+    - button "模型与中转站":
       - img
-      - text: 模型
+      - text: 模型与中转站
     - button "插件":
       - img
       - text: 插件
@@ -17,8 +17,16 @@
   - button "关闭":
     - img
     - text: 关闭
-  - heading "模型" [level=2]
-  - paragraph: 填入各提供方的 API 密钥即可使用其模型。
+  - heading "模型与中转站" [level=2]
+  - paragraph: 配置模型提供方和中转站、测试连接，并选择新任务使用的默认模型。
+  - region "新任务默认模型":
+    - text: 新任务默认模型 默认提供方
+    - combobox "默认提供方":
+      - option "DeepSeek" [selected]
+    - text: 默认模型
+    - combobox "默认模型":
+      - option "DeepSeek-V4-Flash" [selected]
+    - button "设为默认" [disabled]
   - list
   - text: 提供方
   - combobox "提供方":

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/superpowers/plans/2026-08-26-model-relay-management.md
-2026-08-26-model-relay-management.md: 7d96b7f519483ed15c862106f753e3f3c2d5dcd4
-2026-08-26-model-relay-management.zh.md: 647c203666e0f20ddbdc6f4e65bb91a4ce3b942f
+2026-08-26-model-relay-management.md: 7c3c60f042398ce813bb0814182de0b5402ba0af
+2026-08-26-model-relay-management.zh.md: d1cf7587646b765a482586c2007e4715ba1559ac
