@@ -7648,6 +7648,25 @@ importers:
         specifier: workspace:^
         version: link:../skill
 
+  packages/skill/skill-search:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-scope':
+        specifier: workspace:^
+        version: link:../../core/scope
+      '@deepseek-ai/dsh-skill':
+        specifier: workspace:^
+        version: link:../skill
+
   packages/skill/tool-skill:
     dependencies:
       '@deepseek-ai/schemastery':
