@@ -279,6 +279,9 @@ importers:
       '@deepseek-ai/dsh-tool-skill':
         specifier: workspace:^
         version: link:../../packages/skill/tool-skill
+      '@deepseek-ai/dsh-tool-skill-search':
+        specifier: workspace:^
+        version: link:../../packages/skill/tool-skill-search
       '@deepseek-ai/dsh-tool-str-replace-editor':
         specifier: workspace:^
         version: link:../../packages/fs/tool-str-replace-editor
@@ -1627,6 +1630,12 @@ importers:
       '@deepseek-ai/dsh-skill-filesystem':
         specifier: workspace:^
         version: link:../../skill/skill-filesystem
+      '@deepseek-ai/dsh-skill-search':
+        specifier: workspace:^
+        version: link:../../skill/skill-search
+      '@deepseek-ai/dsh-skill-search-local':
+        specifier: workspace:^
+        version: link:../../skill/skill-search-local
       '@deepseek-ai/dsh-spill-local':
         specifier: workspace:^
         version: link:../../spill/spill-local

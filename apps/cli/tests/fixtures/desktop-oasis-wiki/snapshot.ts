@@ -1,9 +1,13 @@
 import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { Context } from '@deepseek-ai/cordis'
 import { agentEvents, Inbox, type Agent } from '@deepseek-ai/dsh-agent'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { CallId, createToolResultMessage } from '@deepseek-ai/dsh-llm'
 import { boot, loadOverlayPatches } from '@deepseek-ai/dsh-app-boot'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import { DeterministicFixtureEmbedder, LocalSkillSearchProvider, openSkillSearchStore } from '@deepseek-ai/dsh-skill-search-local'
 import type {} from '@deepseek-ai/dsh-skill'
 import type {} from '@deepseek-ai/dsh-tools'
 
@@ -15,6 +19,23 @@ const ctx = await boot('desktop-oasis-wiki-snapshot', rootConfigPath, [
   ...loadOverlayPatches('desktop-oasis-wiki-snapshot', basePatchPath),
   ...loadOverlayPatches('desktop-oasis-wiki-snapshot', overlayPath),
 ])
+const cacheRoot = await mkdtemp(join(tmpdir(), 'desktop-oasis-wiki-rag-'))
+const store = await openSkillSearchStore(join(cacheRoot, 'skill-search.sqlite'))
+const searchProvider = new LocalSkillSearchProvider(store, new DeterministicFixtureEmbedder(32), {
+  providerName: 'snapshot-local',
+  chunkTargetCodePoints: 800,
+  chunkMaxCodePoints: 1200,
+  chunkOverlapCodePoints: 120,
+  lexicalCandidates: 50,
+  vectorCandidates: 50,
+  rrfK: 60,
+  headingBoost: 0.1,
+  pathBoost: 0.05,
+  mmrLambda: 0.6,
+  defaultResultCount: 5,
+  maxResultCount: 10,
+})
+ctx.skillSearch.registerProvider(() => searchProvider)
 
 function loadedSkill(value: unknown) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -69,14 +90,60 @@ try {
     signal: new AbortController().signal,
   })
   const value = result.isError ? undefined : result.value
+  const searchArgs = { name: 'oasis-wiki', query: 'UGCAskQ DataTable', limit: 1 }
+  const searchCallId = CallId('desktop-oasis-wiki-search')
+  const call = session.append('tool/call', {
+    turn: 1,
+    step: 1,
+    callId: searchCallId,
+    name: 'skill_search',
+    arguments: JSON.stringify(searchArgs),
+  })
+  const search = await ctx.tools.execute({
+    callId: searchCallId,
+    name: 'skill_search',
+    arguments: searchArgs,
+    agent,
+    signal: new AbortController().signal,
+  })
+  session.append('tool/result', {
+    turn: 1,
+    step: 1,
+    message: createToolResultMessage({ callId: searchCallId, content: search.content, isError: search.isError }),
+    ...search.error?.info === undefined ? {} : { error: search.error.info },
+    ...search.meta === undefined ? {} : { meta: search.meta },
+  }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
   const catalogText = Array.isArray(catalog)
     ? catalog.map(part => part.type === 'text' ? part.text : '').join('\n')
     : catalog ?? ''
+  const transcript: Record<string, unknown>[] = []
+  for (const event of session.events) {
+    if (event.type === 'tool/call') {
+      transcript.push({ type: event.type, ...event.data })
+      continue
+    }
+    if (event.type !== 'tool/result') continue
+    const block = event.data.message.content[0]
+    if (block?.type !== 'tool-result') throw new Error('desktop Oasis Wiki snapshot expected one tool result block')
+    transcript.push({
+      type: event.type,
+      turn: event.data.turn,
+      step: event.data.step,
+      callId: block.toolCallId,
+      isError: block.isError,
+      content: block.content,
+      ...event.data.meta === undefined ? {} : { meta: event.data.meta },
+    })
+  }
   process.stdout.write(`${JSON.stringify({
     catalogIncludesSkill: catalogText.includes('`oasis-wiki`'),
     summary: summary ?? null,
     loaded: value === undefined ? null : loadedSkill(value),
+    search: search.isError ? null : search.value,
+    transcript,
   })}\n`)
 } finally {
+  await searchProvider.dispose()
+  await rm(cacheRoot, { recursive: true, force: true })
   await ctx.fiber.dispose()
 }

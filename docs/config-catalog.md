@@ -2043,6 +2043,86 @@ export interface Config {
 
 Source: [`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
 
+<a id="deepseek-aidsh-skill-search"></a>
+
+## `@deepseek-ai/dsh-skill-search`
+
+Requires: `skills`
+
+```ts config-catalog
+/** Skill search registry configuration. */
+export interface Config {
+  /** Explicit searchable corpora. */
+  readonly corpora?: SkillCorpusSpec[]
+}
+
+/** Deployment-owned declaration of searchable Skill resources. */
+export interface SkillCorpusSpec {
+  /** Skill name resolved through `ctx.skills`. */
+  readonly skill: string
+  /** Optional winning Skill provider required by this declaration. */
+  readonly provider?: string
+  /** Relative resource roots included in this corpus. */
+  readonly roots: string[]
+  /** Accepted lower-case file extensions including the leading dot. */
+  readonly extensions: string[]
+  /** Maximum bytes accepted from one file. */
+  readonly maxFileBytes: number
+  /** Maximum aggregate source bytes accepted by the corpus. */
+  readonly maxCorpusBytes: number
+  /** Maximum chunks retained for the corpus. */
+  readonly maxChunks: number
+}
+```
+
+Source: [`packages/skill/skill-search/src/index.ts:141`](../packages/skill/skill-search/src/index.ts)
+
+<a id="deepseek-aidsh-skill-search-local"></a>
+
+## `@deepseek-ai/dsh-skill-search-local`
+
+Requires: `skillSearch`
+
+```ts config-catalog
+/** Local provider database, model, indexing, and ranking configuration. */
+export interface Config {
+  /** Unique provider name within one scope layer. */
+  providerName?: string
+  /** Mutable SQLite database path. */
+  databasePath: string
+  /** Immutable local Transformers.js model root. */
+  modelRoot: string
+  /** Optional manifest path; defaults to `model-manifest.json` under {@link modelRoot}. */
+  manifestFile?: string
+  /** Preferred Unicode code-point count per chunk. */
+  chunkTargetCodePoints?: number
+  /** Hard Unicode code-point maximum per chunk. */
+  chunkMaxCodePoints?: number
+  /** Prose overlap copied from the preceding chunk. */
+  chunkOverlapCodePoints?: number
+  /** Maximum documents embedded in one model call. */
+  embeddingBatchSize?: number
+  /** Maximum SQLite BM25 candidates. */
+  lexicalCandidates?: number
+  /** Maximum exact-cosine candidates. */
+  vectorCandidates?: number
+  /** Reciprocal-rank fusion denominator constant. */
+  rrfK?: number
+  /** Bounded score added for an exact heading query match. */
+  headingBoost?: number
+  /** Bounded score added for an exact relative-path query match. */
+  pathBoost?: number
+  /** Relevance weight used by maximal marginal relevance. */
+  mmrLambda?: number
+  /** Result count used when the caller omits `limit`. */
+  defaultResultCount?: number
+  /** Maximum result count accepted from any caller; cannot exceed 10. */
+  maxResultCount?: number
+}
+```
+
+Source: [`packages/skill/skill-search-local/src/index.ts:27`](../packages/skill/skill-search-local/src/index.ts)
+
 <a id="deepseek-aidsh-spill-local"></a>
 
 ## `@deepseek-ai/dsh-spill-local`
@@ -3289,6 +3369,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-tool-ask-user` — requires `tools` · `userQuestions` ([`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts))
 - `@deepseek-ai/dsh-tool-call-timeout-policy` — requires `tools` ([`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts))
 - `@deepseek-ai/dsh-tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
+- `@deepseek-ai/dsh-tool-skill-search` — requires `tools` · `skillSearch` ([`packages/skill/tool-skill-search/src/index.ts`](../packages/skill/tool-skill-search/src/index.ts))
 - `@deepseek-ai/dsh-tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@deepseek-ai/dsh-user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@deepseek-ai/dsh-workspace` — requires `storageDomain` · `sessionPersistence` ([`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts))

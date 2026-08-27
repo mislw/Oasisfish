@@ -342,6 +342,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Merges provider skill catalogs; tool-skill renders the session-prefix catalog and loads complete skill bodies.',
   },
   {
+    key: 'skillSearch',
+    pkg: 'skill-search',
+    title: 'Skill knowledge search seam',
+    mode: 'seam',
+    implementations: ['skill-search-local'],
+    consumers: ['tool-skill-search'],
+    note: 'Resolves explicitly declared Skill corpora and dispatches retrieval to a scoped provider; the local provider owns indexing and ranking while tool-skill-search exposes model-facing queries.',
+  },
+  {
     key: 'agents',
     pkg: 'agent',
     title: 'Agent service',

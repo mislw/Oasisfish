@@ -112,11 +112,11 @@ describe('LocalSkillSearchProvider', () => {
     let modelDisposed = false
     const embedder: SkillSearchEmbedder = {
       identity: { id: 'blocking-fixture', revision: '1', dimensions: 2 },
-      embedDocuments: (_texts, signal) => new Promise((resolve, reject) => {
+      embedDocuments: (_texts, signal) => new Promise((_, reject) => {
         markStarted()
         signal.addEventListener('abort', () => {
           observedAbort = true
-          reject(signal.reason)
+          reject(signal.reason instanceof Error ? signal.reason : new Error('fixture provider was aborted'))
         }, { once: true })
       }),
       embedQuery: () => Promise.resolve(Float32Array.of(1, 0)),
@@ -128,7 +128,7 @@ describe('LocalSkillSearchProvider', () => {
     const { ctx, provider } = await setup(embedder)
     const caller = new AbortController()
     const search = ctx.skillSearch.search({ name: 'fixture-skill', query: '复活' }, { signal: caller.signal })
-    const searchOutcome = search.then(value => ({ value }), error => ({ error }))
+    const searchOutcome = search.then(value => ({ value }), (error: unknown) => ({ error }))
     await started
     const disposal = provider.dispose()
     await new Promise(resolve => setTimeout(resolve, 20))

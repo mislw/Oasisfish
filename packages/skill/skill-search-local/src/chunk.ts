@@ -111,6 +111,53 @@ function materialize(document: DiscoveredDocument, block: SourceBlock): SourceCh
   }
 }
 
+function splitOversizedBlock(block: SourceBlock, maxCodePoints: number): SourceBlock[] {
+  if (codePoints(block.text) <= maxCodePoints) return [block]
+  const lines = block.text.split('\n')
+  const split: SourceBlock[] = []
+  let pending: string[] = []
+  let pendingStart = block.startLine
+
+  const flush = (endLine: number): void => {
+    if (pending.length === 0) return
+    split.push({
+      headings: [...block.headings],
+      startLine: pendingStart,
+      endLine,
+      text: pending.join('\n'),
+      overlapEligible: block.overlapEligible,
+    })
+    pending = []
+  }
+
+  lines.forEach((line, index) => {
+    const lineNumber = block.startLine + index
+    if (codePoints(line) > maxCodePoints) {
+      flush(lineNumber - 1)
+      const points = Array.from(line)
+      for (let offset = 0; offset < points.length; offset += maxCodePoints) {
+        split.push({
+          headings: [...block.headings],
+          startLine: lineNumber,
+          endLine: lineNumber,
+          text: points.slice(offset, offset + maxCodePoints).join(''),
+          overlapEligible: false,
+        })
+      }
+      pendingStart = lineNumber + 1
+      return
+    }
+    const candidate = pending.length === 0 ? line : `${pending.join('\n')}\n${line}`
+    if (pending.length > 0 && codePoints(candidate) > maxCodePoints) {
+      flush(lineNumber - 1)
+      pendingStart = lineNumber
+    }
+    pending.push(line)
+  })
+  flush(block.endLine)
+  return split
+}
+
 /**
  * Divide one Markdown or text document into heading-consistent source chunks.
  * @param document - Decoded source document.
@@ -136,40 +183,39 @@ export function chunkDocument(document: DiscoveredDocument, options: ChunkOption
     pending = undefined
   }
 
-  for (const block of blocks) {
-    if (codePoints(block.text) > options.maxCodePoints) {
-      throw new Error(`source block at ${document.path}:${block.startLine} exceeds maxCodePoints`)
-    }
-    const sameHeading = pending !== undefined
-      && pending.headings.length === block.headings.length
-      && pending.headings.every((heading, index) => heading === block.headings[index])
-    const combined = pending === undefined ? block.text : `${pending.text}\n\n${block.text}`
-    if (!sameHeading) {
-      flush()
-    } else if (codePoints(combined) > options.targetCodePoints) {
-      const previous = pending
-      flush()
-      if (previous !== undefined && previous.overlapEligible && block.overlapEligible && options.overlapCodePoints > 0) {
-        const available = Math.max(0, options.maxCodePoints - codePoints(block.text) - 2)
-        const overlapLength = Math.min(options.overlapCodePoints, available)
-        const overlap = Array.from(previous.text).slice(-overlapLength).join('')
-        if (overlap !== '') {
-          pending = {
-            headings: [...block.headings],
-            startLine: previous.endLine,
-            endLine: block.endLine,
-            text: `${overlap}\n\n${block.text}`,
-            overlapEligible: true,
+  for (const sourceBlock of blocks) {
+    for (const block of splitOversizedBlock(sourceBlock, options.maxCodePoints)) {
+      const sameHeading = pending !== undefined
+        && pending.headings.length === block.headings.length
+        && pending.headings.every((heading, index) => heading === block.headings[index])
+      const combined = pending === undefined ? block.text : `${pending.text}\n\n${block.text}`
+      if (!sameHeading) {
+        flush()
+      } else if (codePoints(combined) > options.targetCodePoints) {
+        const previous = pending
+        flush()
+        if (previous !== undefined && previous.overlapEligible && block.overlapEligible && options.overlapCodePoints > 0) {
+          const available = Math.max(0, options.maxCodePoints - codePoints(block.text) - 2)
+          const overlapLength = Math.min(options.overlapCodePoints, available)
+          const overlap = Array.from(previous.text).slice(-overlapLength).join('')
+          if (overlap !== '') {
+            pending = {
+              headings: [...block.headings],
+              startLine: previous.endLine,
+              endLine: block.endLine,
+              text: `${overlap}\n\n${block.text}`,
+              overlapEligible: true,
+            }
+            continue
           }
-          continue
         }
       }
-    }
-    if (pending === undefined) {
-      pending = { ...block, headings: [...block.headings] }
-    } else {
-      pending.text = combined
-      pending.endLine = block.endLine
+      if (pending === undefined) {
+        pending = { ...block, headings: [...block.headings] }
+      } else {
+        pending.text = combined
+        pending.endLine = block.endLine
+      }
     }
   }
   flush()

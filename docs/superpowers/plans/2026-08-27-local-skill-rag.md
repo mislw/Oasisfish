@@ -52,7 +52,7 @@ English | [中文](2026-08-27-local-skill-rag.zh.md)
 
 Test global and scoped provider precedence, duplicate names within one layer, provider disposal, cancellation forwarding, unknown Skill, non-model-invocable Skill, undeclared corpus, unsupported resource base, and successful directory corpus resolution.
 
-```ts
+```ts ignore-check
 const result = await scoped.ctx.skillSearch.search(
   { name: 'fixture-skill', query: '角色复活', limit: 5 },
   { cwd: fixtureRoot, scope, signal: AbortSignal.timeout(1_000) },
@@ -133,9 +133,7 @@ Use `mdast-util-from-markdown`, `mdast-util-gfm`, and `micromark-extension-gfm` 
 
 Assert Unicode normalization, lower-cased Latin word tokens, CJK unigrams, overlapping CJK bigrams, punctuation removal, deterministic spacing, and no mutation of source excerpts.
 
-```ts
-expect(lexicalTokenStream('角色 Respawn 复活')).toBe('角 色 角色 respawn 复 活 复活')
-```
+Expected output: `lexicalTokenStream('角色 Respawn 复活')` returns `'角 色 角色 respawn 复 活 复活'`.
 
 - [ ] **Step 7: Run focused verification and commit**
 

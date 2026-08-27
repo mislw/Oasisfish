@@ -86,6 +86,9 @@
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
 
+- id: tool-skill-search
+  name: '@deepseek-ai/dsh-tool-skill-search'
+
 # ── goals ───────────────────────────────────────────────────────────────────
 
 # Only the model-facing tool. The goal SERVICE, its session driver, and the

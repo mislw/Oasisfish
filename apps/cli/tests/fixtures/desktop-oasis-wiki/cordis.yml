@@ -4,3 +4,7 @@
 
 - id: session-telemetry-otel
   disabled: true
+
+- insert:
+    - id: tool-skill-search-snapshot
+      name: '@deepseek-ai/dsh-tool-skill-search'

@@ -226,6 +226,16 @@ interface Config {
 }
 ```
 
+## Declared corpus search
+
+`ctx.skillSearch` resolves the winning Skill through `ctx.skills`, requires it to remain model-invocable, and dispatches only an explicitly declared corpus to a supporting provider. A declaration names the Skill, optional owning Skill provider, relative roots, accepted extensions, and file, corpus, and chunk limits. The directory provider rejects absolute roots, parent traversal, reparse points, and resolved paths outside the Skill resource directory; undeclared resources, scripts, tests, and assets are not indexed.
+
+`dsh-skill-search-local` parses Markdown and text into heading-aware, line-addressable chunks, keeps original excerpts separate from lexical and embedding inputs, and stores a transactional SQLite FTS5/vector index. Chinese lexical search uses normalized Latin words plus CJK unigrams and bigrams. Each query fuses bounded BM25 and exact-cosine candidate lists with reciprocal-rank fusion, applies heading and path boosts, then selects diverse results with maximal marginal relevance. A refresh commits changed and removed documents only after the complete changed batch is parsed and embedded; cancellation or failure leaves the last complete index readable.
+
+The local provider disables Transformers.js remote model access and loads only the configured immutable model directory. It does not call a chat provider, reuse relay credentials, or send source or query text over the network. Its database path is mutable deployment state. Provider disposal aborts owned work, waits for active SQLite operations, and releases the model after the store becomes idle.
+
+`dsh-tool-skill-search` registers `skill_search` in the calling agent scope. The tool accepts a Skill name, query, and optional result limit from 1 through 10, and returns ranked original excerpts with relative POSIX paths, heading trails, and one-based line ranges. Calls and results use the ordinary durable `tool/call` and `tool/result` events, so passages used by a later model request remain reconstructable from the Session log; retrieval adds no synthetic context message.
+
 ## Session catalog and tool contract
 
 `dsh-tool-skill` injects the initial durable user-role `<system-reminder>` at the first `agent/pre-step` of a live session that observes a non-empty complete view. The catalog contains sorted skill `name` and normalized, XML-escaped `description` only; it omits bodies, paths, sources, providers, and routing hints. Discovery forwards the step's abort signal through `SkillLookupOptions`. `catalogDescriptionMaxLength` is the consumer config for the description bound, with default `500` and integer minimum `3`.
@@ -305,6 +315,31 @@ async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition
 ```
 
 Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)
+
+<a id="ctxskillsearch--skillsearchregistry"></a>
+
+### `ctx.skillSearch` — `SkillSearchRegistry`
+
+Layered registry that resolves Skills before delegating declared corpora to providers.
+
+```ts cordis-catalog
+/**
+ * Register a provider in the calling context's scope layer.
+ * @param create - Synchronous provider factory receiving its disposal signal.
+ * @returns exact Cordis effect disposer.
+ */
+registerProvider(create: (control: SkillSearchProviderControl) => SkillSearchProvider): () => void
+
+/**
+ * Resolve a model-invocable Skill and search its explicit corpus.
+ * @param request - Skill name, query, and optional result limit.
+ * @param options - cwd, scope, and cancellation inherited from the caller.
+ * @returns provider-ranked source passages.
+ */
+async search(request: SkillSearchRequest, options: SkillSearchOptions = {}): Promise<SkillSearchResult>
+```
+
+Source: [`packages/skill/skill-search/src/index.ts`](../../packages/skill/skill-search/src/index.ts)
 
 <a id="skills-events"></a>
 

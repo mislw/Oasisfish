@@ -52,7 +52,7 @@
 
 覆盖全局/作用域 Provider 优先级、同层重名、Provider 注销、取消信号传递、未知 Skill、禁止模型调用的 Skill、未声明语料、不支持的资源基址以及成功的目录语料解析。
 
-```ts
+```ts ignore-check
 const result = await scoped.ctx.skillSearch.search(
   { name: 'fixture-skill', query: '角色复活', limit: 5 },
   { cwd: fixtureRoot, scope, signal: AbortSignal.timeout(1_000) },
@@ -133,9 +133,7 @@ git commit -m "feat(skill): define skill search capability"
 
 断言 Unicode 规范化、小写 Latin 单词 token、CJK 单字、重叠双字、移除标点、确定性空格和不修改源摘录。
 
-```ts
-expect(lexicalTokenStream('角色 Respawn 复活')).toBe('角 色 角色 respawn 复 活 复活')
-```
+期望输出：`lexicalTokenStream('角色 Respawn 复活')` 返回 `'角 色 角色 respawn 复 活 复活'`。
 
 - [ ] **步骤 7：聚焦验证并提交**
 

@@ -226,6 +226,16 @@ interface Config {
 }
 ```
 
+## 已声明语料检索
+
+`ctx.skillSearch` 通过 `ctx.skills` 解析胜出的 Skill，要求它仍可由模型调用，并且只把显式声明的语料交给支持该语料的提供方。声明包含 Skill 名称、可选的 Skill 提供方、相对根目录、允许的扩展名，以及文件、语料和分块上限。目录提供方拒绝绝对根目录、父级穿越、reparse point 和解析后位于 Skill 资源目录之外的路径；未声明的资源、脚本、测试和美术资产不会进入索引。
+
+`dsh-skill-search-local` 把 Markdown 和文本解析为携带标题链与行号的分块，将原始摘录与词法、Embedding 输入分开保存，并维护事务化的 SQLite FTS5/向量索引。中文词法检索使用规范化 Latin 单词以及 CJK 单字和双字词。每次查询通过 reciprocal-rank fusion 融合有界的 BM25 与精确余弦候选列表，应用标题和路径加权，再以 maximal marginal relevance 选择多样化结果。刷新只有在完整的变更批次完成解析和 Embedding 后才提交新增、变更和删除文档；取消或失败会保留上一版完整索引供读取。
+
+本地提供方禁用 Transformers.js 远程模型访问，只加载已配置的不可变模型目录。它不会调用聊天提供方、复用中转站凭据，也不会通过网络发送原文或查询文本。数据库路径属于可变的部署状态。提供方 dispose（资源释放）会中止自身工作，等待活跃 SQLite 操作结束，并在存储空闲后释放模型。
+
+`dsh-tool-skill-search` 在调用 agent 的作用域中注册 `skill_search`。该工具接收 Skill 名称、查询和可选的 1 至 10 条结果上限，并返回带相对 POSIX 路径、标题链及从 1 开始的行区间的原始摘录。调用与结果使用普通的持久 `tool/call` 和 `tool/result` 事件，因此后续模型请求使用的片段仍可从 Session 日志重建；检索不会额外注入合成上下文消息。
+
 ## 会话目录与工具约定
 
 `dsh-tool-skill` 在存活会话中第一个观察到非空完整视图的 `agent/pre-step` 注入初始的持久 user-role `<system-reminder>`。目录只包含已排序的 skill `name` 和规范化、经 XML 转义的 `description`；不包含正文、路径、来源、提供方或路由提示。发现通过 `SkillLookupOptions` 转发该步骤的 abort signal。`catalogDescriptionMaxLength` 是消费方用于 description 上限的配置，默认值为 `500`，整数最小值为 `3`。
@@ -305,6 +315,31 @@ async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition
 ```
 
 Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)
+
+<a id="ctxskillsearch--skillsearchregistry"></a>
+
+### `ctx.skillSearch` — `SkillSearchRegistry`
+
+Layered registry that resolves Skills before delegating declared corpora to providers.
+
+```ts cordis-catalog
+/**
+ * Register a provider in the calling context's scope layer.
+ * @param create - Synchronous provider factory receiving its disposal signal.
+ * @returns exact Cordis effect disposer.
+ */
+registerProvider(create: (control: SkillSearchProviderControl) => SkillSearchProvider): () => void
+
+/**
+ * Resolve a model-invocable Skill and search its explicit corpus.
+ * @param request - Skill name, query, and optional result limit.
+ * @param options - cwd, scope, and cancellation inherited from the caller.
+ * @returns provider-ranked source passages.
+ */
+async search(request: SkillSearchRequest, options: SkillSearchOptions = {}): Promise<SkillSearchResult>
+```
+
+Source: [`packages/skill/skill-search/src/index.ts`](../../packages/skill/skill-search/src/index.ts)
 
 <a id="skills-events"></a>
 

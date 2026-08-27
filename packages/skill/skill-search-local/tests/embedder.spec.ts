@@ -72,7 +72,7 @@ describe('TransformersJsEmbedder', () => {
     })).rejects.toThrow('SHA-256')
 
     const fixture = new DeterministicFixtureEmbedder(4)
-    const [vector] = await fixture.embedQuery('角色复活', new AbortController().signal).then(value => [value])
+    const vector = await fixture.embedQuery('角色复活', new AbortController().signal)
     const norm = Math.sqrt([...vector].reduce((sum, component) => sum + component * component, 0))
     expect(norm).toBeCloseTo(1)
   })

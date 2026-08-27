@@ -52,9 +52,9 @@ describe('tool-skill-search', () => {
     expect(schema?.parameters).toEqual({
       type: 'object',
       properties: {
-        name: { type: 'string', description: expect.any(String) },
-        query: { type: 'string', description: expect.any(String) },
-        limit: { type: 'integer', description: expect.any(String) },
+        name: { type: 'string', description: 'Exact loaded Skill name.' },
+        query: { type: 'string', description: 'Natural-language question, API name, or exact symbol to find.' },
+        limit: { type: 'integer', description: 'Maximum passages to return, from 1 through 10. Defaults to 5.' },
       },
       required: ['name', 'query'],
     })
@@ -67,7 +67,11 @@ describe('tool-skill-search', () => {
     })
     expect(result.isError).toBe(false)
     expect(receivedLimit()).toBe(5)
-    expect(result.content).toEqual([{ type: 'text', text: expect.stringContaining('references/respawn.md:10-12') }])
+    expect(result.content).toHaveLength(1)
+    const content = result.content[0]
+    expect(content?.type).toBe('text')
+    if (content?.type !== 'text') throw new Error('skill_search result must contain text')
+    expect(content.text).toContain('references/respawn.md:10-12')
     expect(JSON.stringify(result)).not.toContain('C:\\absolute')
     expect(ctx.tools.get('skill_search')?.presentCall?.({ name: 'fixture-skill', query: '角色复活' })).toEqual({
       card: 'generic', title: 'Search fixture-skill', kind: 'search', rawInput: '角色复活',
@@ -100,7 +104,10 @@ describe('tool-skill-search', () => {
       arguments: { name: 'fixture-skill', query: '不存在', limit: 5 },
     })
     expect(empty.isError).toBe(false)
-    expect(empty.content[0]).toEqual({ type: 'text', text: expect.stringContaining('narrower or synonymous query') })
+    const emptyContent = empty.content[0]
+    expect(emptyContent?.type).toBe('text')
+    if (emptyContent?.type !== 'text') throw new Error('empty skill_search result must contain text')
+    expect(emptyContent.text).toContain('narrower or synonymous query')
   })
 
   it('preserves structured Skill search error codes in tool diagnostics', async () => {
@@ -112,6 +119,9 @@ describe('tool-skill-search', () => {
       arguments: { name: 'fixture-skill', query: '复活' },
     })
     expect(result.isError).toBe(true)
-    expect(result.content[0]).toEqual({ type: 'text', text: expect.stringContaining('MODEL_UNAVAILABLE') })
+    const errorContent = result.content[0]
+    expect(errorContent?.type).toBe('text')
+    if (errorContent?.type !== 'text') throw new Error('failed skill_search result must contain text')
+    expect(errorContent.text).toContain('MODEL_UNAVAILABLE')
   })
 })

@@ -237,6 +237,24 @@
     - id: skill
       name: '@deepseek-ai/dsh-skill'
 
+    # Search corpus declarations are deployment-owned. The desktop supervisor
+    # exposes its immutable bundled Skill root through this environment value;
+    # other launches receive an empty opt-in list.
+    - id: skill-search
+      name: '@deepseek-ai/dsh-skill-search'
+      config:
+        corpora: !!js "process.env.DSH_BUNDLED_SKILL_DIR ? [{ skill: 'oasis-wiki', provider: 'filesystem', roots: ['references'], extensions: ['.md', '.txt'], maxFileBytes: 1048576, maxCorpusBytes: 16777216, maxChunks: 20000 }] : []"
+
+    # The local provider loads only when a deployment supplies both immutable
+    # model resources and a mutable cache directory. Source launches therefore
+    # keep the service available without attempting a model download.
+    - id: skill-search-local
+      name: '@deepseek-ai/dsh-skill-search-local'
+      disabled: !!js "!process.env.DSH_SKILL_SEARCH_MODEL_DIR || !process.env.DSH_SKILL_SEARCH_CACHE_DIR"
+      config:
+        databasePath: !!js "`${process.env.DSH_SKILL_SEARCH_CACHE_DIR}/skill-search.sqlite`"
+        modelRoot: !!js process.env.DSH_SKILL_SEARCH_MODEL_DIR ?? ''
+
     - id: skill-filesystem
       name: '@deepseek-ai/dsh-skill-filesystem'
 
