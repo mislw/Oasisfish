@@ -14,6 +14,12 @@ Only the Harness child process receives the bundled tool directories at the fron
 
 The installed resources include Oasis Wiki `1.260827.1` as the default domain Skill. The supervisor sets `DSH_BUNDLED_SKILL_DIR` to the packaged `skills` directory, so the standard agent catalog can advertise and load `oasis-wiki` without a separate installation or network request. Project and user Skill roots have higher precedence than the bundled root, allowing an explicitly installed update to replace the packaged fallback without modifying application files. [`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) records the source repository, source path, version, and exact revision of the snapshot.
 
+## Bundled local retrieval model
+
+The application packages `Xenova/bge-small-zh-v1.5` at revision `75c43b069aac4d136ba6bc1122f995fedcfd2781` for local Oasis Skill retrieval. The supervisor sets `DSH_SKILL_SEARCH_MODEL_DIR` to the immutable model resources and `DSH_SKILL_SEARCH_CACHE_DIR` to a mutable directory below the desktop user-data cache. Source text, queries, embeddings, and the SQLite index remain local; this retrieval path does not use relay credentials or an embedding API.
+
+[`model-manifest.json`](bundled-models/bge-small-zh-v1.5/model-manifest.json) pins the model identity, Transformers.js version, and SHA-256 digest of every required model file. Staging, unpacked smoke, and startup-path verification reject missing files, modified bytes, and reparse points before the model is used.
+
 ## Bundled tools
 
 | Tool | Version |
@@ -51,7 +57,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-The staging check requires the Harness entry, Web frontend, runtime manifest, and every executable needed by the product. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog and loads it through the real `skill` tool. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness, closes Electron, and requires both processes to exit.
+The staging check requires the Harness entry, Web frontend, runtime manifest, every executable needed by the product, and the hash-verified local retrieval model. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog, loads it through the real `skill` tool, and searches its declared references through `skill_search`. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness, closes Electron, and requires both processes to exit.
 
 ## User data and logs
 
@@ -59,4 +65,4 @@ The default data root is `%APPDATA%\DeepSeek Harness`. `desktop-ready.json` reco
 
 ## Licenses and limits
 
-The packaged resources include the repository [license](../../LICENSE), [JavaScript dependency notices](../../THIRD_PARTY_NOTICES.md), and [bundled runtime notices](RUNTIME_NOTICES.md). Only Windows x64 is supported. The installer does not configure model credentials, and offline installations cannot complete model or remote API requests.
+The packaged resources include the repository [license](../../LICENSE), [JavaScript dependency notices](../../THIRD_PARTY_NOTICES.md), [bundled runtime notices](RUNTIME_NOTICES.md), and the local retrieval model's MIT license. Only Windows x64 is supported. The installer does not configure chat-model credentials; local Skill retrieval remains available offline, while chat-model and remote API requests require the corresponding network access and credentials.

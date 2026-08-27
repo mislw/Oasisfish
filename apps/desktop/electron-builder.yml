@@ -15,6 +15,8 @@ extraResources:
     to: runtime
   - from: bundled-skills
     to: skills
+  - from: bundled-models
+    to: models
   - from: ../../LICENSE
     to: LICENSE
   - from: ../../THIRD_PARTY_NOTICES.md

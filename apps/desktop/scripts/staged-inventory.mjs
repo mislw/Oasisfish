@@ -30,6 +30,14 @@ export const PACKAGED_REQUIRED_FILES = Object.freeze([
   'skills/oasis-wiki/SKILL.md',
   'skills/oasis-wiki/VERSION',
   'skills/oasis-wiki.provenance.json',
+  'models/bge-small-zh-v1.5/model-manifest.json',
+  'models/bge-small-zh-v1.5/LICENSE',
+  'models/bge-small-zh-v1.5/config.json',
+  'models/bge-small-zh-v1.5/onnx/model_quantized.onnx',
+  'models/bge-small-zh-v1.5/special_tokens_map.json',
+  'models/bge-small-zh-v1.5/tokenizer_config.json',
+  'models/bge-small-zh-v1.5/tokenizer.json',
+  'models/bge-small-zh-v1.5/vocab.txt',
 ])
 
 /** Verify that every file required by the packaged desktop product exists. */

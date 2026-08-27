@@ -14,6 +14,12 @@ Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-o
 
 安装资源包含 Oasis Wiki `1.260827.1`，作为默认领域 Skill。监督器将 `DSH_BUNDLED_SKILL_DIR` 指向打包后的 `skills` 目录，因此标准 agent（智能体）目录无需单独安装或联网，即可公布并加载 `oasis-wiki`。项目与用户 Skill 根目录的优先级高于内置根目录，因此显式安装的更新可以覆盖安装包中的兜底版本，而无需修改应用文件。[`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) 记录该快照的源仓库、源路径、版本与精确 revision。
 
+## 内置本地检索模型
+
+应用内置 revision 为 `75c43b069aac4d136ba6bc1122f995fedcfd2781` 的 `Xenova/bge-small-zh-v1.5`，用于本地 Oasis Skill 检索。监督器将 `DSH_SKILL_SEARCH_MODEL_DIR` 指向不可变模型资源，并将 `DSH_SKILL_SEARCH_CACHE_DIR` 指向桌面应用用户数据缓存下的可变目录。源文本、查询、Embedding 和 SQLite 索引均保留在本地；该检索路径不使用中转站凭据或 Embedding API。
+
+[`model-manifest.json`](bundled-models/bge-small-zh-v1.5/model-manifest.json) 固定模型标识、Transformers.js 版本及每个必需模型文件的 SHA-256 摘要。staging、解包冒烟测试与启动路径验证会在使用模型前拒绝缺失文件、被修改的字节和 reparse point（重解析点）。
+
 ## 内置工具
 
 | 工具 | 版本 |
@@ -51,7 +57,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-staging 检查要求 Harness 入口、Web 前端、运行时 manifest 以及产品所需的每个可执行文件齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，并通过真实 `skill` 工具加载它。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
+staging 检查要求 Harness 入口、Web 前端、运行时 manifest、产品所需的每个可执行文件，以及已通过 hash 验证的本地检索模型齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，通过真实 `skill` 工具加载它，并通过 `skill_search` 检索其声明的参考资料。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
 
 ## 用户数据与日志
 
@@ -59,4 +65,4 @@ staging 检查要求 Harness 入口、Web 前端、运行时 manifest 以及产�
 
 ## 许可证与限制
 
-打包资源包含仓库[许可证](../../LICENSE)、[JavaScript 依赖通知](../../THIRD_PARTY_NOTICES.md)和[内置运行时通知](RUNTIME_NOTICES.md)。目前仅支持 Windows x64。安装程序不会配置模型凭据，离线安装无法完成模型或远程 API 请求。
+打包资源包含仓库[许可证](../../LICENSE)、[JavaScript 依赖通知](../../THIRD_PARTY_NOTICES.md)、[内置运行时通知](RUNTIME_NOTICES.md)和本地检索模型的 MIT 许可证。目前仅支持 Windows x64。安装程序不会配置对话模型凭据；本地 Skill 检索在离线状态下仍可用，对话模型与远程 API 请求则需要相应的网络访问和凭据。

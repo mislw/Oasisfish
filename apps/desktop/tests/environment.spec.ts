@@ -50,6 +50,8 @@ describe('buildHarnessEnvironment', () => {
 
     expect(environment).toMatchObject({
       DSH_BUNDLED_SKILL_DIR: join(paths.resourcesRoot, 'skills'),
+      DSH_SKILL_SEARCH_MODEL_DIR: join(paths.resourcesRoot, 'models', 'bge-small-zh-v1.5'),
+      DSH_SKILL_SEARCH_CACHE_DIR: join(paths.dataRoot, 'cache', 'skill-search'),
       DSH_HOME: join(paths.dataRoot, 'dsh'),
       XDG_CONFIG_HOME: join(paths.dataRoot, 'config'),
       XDG_DATA_HOME: join(paths.dataRoot, 'data'),

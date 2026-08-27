@@ -33,6 +33,19 @@ describe('verifyStagedProduct', () => {
     ]))
   })
 
+  it('requires the pinned local embedding model in the packaged product', () => {
+    expect(PACKAGED_REQUIRED_FILES).toEqual(expect.arrayContaining([
+      'models/bge-small-zh-v1.5/model-manifest.json',
+      'models/bge-small-zh-v1.5/LICENSE',
+      'models/bge-small-zh-v1.5/config.json',
+      'models/bge-small-zh-v1.5/onnx/model_quantized.onnx',
+      'models/bge-small-zh-v1.5/special_tokens_map.json',
+      'models/bge-small-zh-v1.5/tokenizer_config.json',
+      'models/bge-small-zh-v1.5/tokenizer.json',
+      'models/bge-small-zh-v1.5/vocab.txt',
+    ]))
+  })
+
   it('rejects an incomplete desktop product with every missing relative path', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-desktop-incomplete-'))
     temporaryDirectories.push(root)

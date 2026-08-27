@@ -14,5 +14,6 @@ DeepSeek Harness Desktop bundles the following unmodified or minimally repackage
 | fd | 10.4.2 | Apache-2.0 or MIT in `runtime/tools/fd/LICENSE-APACHE` and `runtime/tools/fd/LICENSE-MIT` |
 | jq | 1.8.2 | MIT; source and license: `jqlang/jq` |
 | 7-Zip command-line tools | 26.02 | LGPL and bundled restrictions in `runtime/tools/sevenzip/License.txt` |
+| BGE small zh v1.5 ONNX model | `75c43b069aac4d136ba6bc1122f995fedcfd2781` | MIT in `models/bge-small-zh-v1.5/LICENSE` |
 
-The exact download URLs and SHA-256 checksums used to assemble this runtime are recorded in `runtime/manifest.json`.
+The exact download URLs and SHA-256 checksums used to assemble the command-line runtime are recorded in `runtime/manifest.json`. The local retrieval model identity and file checksums are recorded in `models/bge-small-zh-v1.5/model-manifest.json`.
