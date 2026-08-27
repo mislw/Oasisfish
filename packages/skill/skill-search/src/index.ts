@@ -196,6 +196,7 @@ function validateCorpus(spec: SkillCorpusSpec): void {
 
 /** Layered registry that resolves Skills before delegating declared corpora to providers. */
 export class SkillSearchRegistry extends Service {
+  static inject = ['skills']
   static Config: Schema<Config> = z.object({
     corpora: z.array(z.object({
       skill: z.string().required(),

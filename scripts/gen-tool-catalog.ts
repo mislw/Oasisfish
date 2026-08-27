@@ -56,6 +56,8 @@ import * as ToolSchedule from '@deepseek-ai/dsh-schedule'
 import Lsp from '@deepseek-ai/dsh-lsp'
 import * as ToolLsp from '@deepseek-ai/dsh-tool-lsp'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
+import SkillSearchRegistry from '@deepseek-ai/dsh-skill-search'
+import * as ToolSkillSearch from '@deepseek-ai/dsh-tool-skill-search'
 import * as ToolSessionQuery from '@deepseek-ai/dsh-tool-session-query'
 import * as ToolTasks from '@deepseek-ai/dsh-tool-jobs'
 import type TeamService from '@deepseek-ai/dsh-experimental-agent-team'
@@ -437,6 +439,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
       })
       await ctx.plugin(ToolSkill)
     },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-skill-search',
+    dir: 'tool-skill-search',
+    source: 'packages/skill/tool-skill-search/src/index.ts',
+    requires: ['ctx.tools', 'ctx.skillSearch', 'ctx.skills'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(SkillRegistry)
+      await ctx.plugin(SkillSearchRegistry)
+      await ctx.plugin(ToolSkillSearch)
+    },
+    note: 'Searches one explicitly declared Skill corpus and returns relative source citations with line ranges.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-session-query',

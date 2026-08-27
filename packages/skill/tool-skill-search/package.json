@@ -1,12 +1,12 @@
 {
-  "name": "@deepseek-ai/dsh-skill-search-local",
-  "description": "Directory-backed local Skill corpus search provider for the DeepSeek Harness",
+  "name": "@deepseek-ai/dsh-tool-skill-search",
+  "description": "Model-facing Skill corpus search tool for the DeepSeek Harness",
   "version": "0.1.1-rc.2",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
-    "directory": "packages/skill/skill-search-local"
+    "directory": "packages/skill/tool-skill-search"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -20,22 +20,18 @@
   "files": ["lib/index.js", "lib/invariant.js", "lib/types/**/*.d.ts"],
   "license": "MIT",
   "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/dsh-skill-search": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
-  },
-  "dependencies": {
-    "@huggingface/transformers": "4.2.0",
-    "@deepseek-ai/schemastery": "workspace:^",
-    "mdast-util-from-markdown": "^2.0.3",
-    "mdast-util-gfm": "^3.1.0",
-    "micromark-extension-gfm": "^3.0.0"
+    "@deepseek-ai/dsh-system-prompt": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
+    "@deepseek-ai/dsh-llm": "workspace:^",
     "@deepseek-ai/dsh-skill": "workspace:^",
-    "@deepseek-ai/dsh-skill-filesystem": "workspace:^",
     "@deepseek-ai/dsh-skill-search": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/dsh-tools": "workspace:^"
   }
 }

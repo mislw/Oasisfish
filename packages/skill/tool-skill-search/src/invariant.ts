@@ -1,22 +1,16 @@
-/**
- * Package-owned invariant companion for `@deepseek-ai/dsh-skill-search-local`.
- * @module @deepseek-ai/dsh-skill-search-local/invariant
- */
+/** Package-owned invariant companion for `@deepseek-ai/dsh-tool-skill-search`. @module @deepseek-ai/dsh-tool-skill-search/invariant */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { InvariantInstaller } from '@deepseek-ai/dsh-invariants'
 
-const PACKAGE_NAME = '@deepseek-ai/dsh-skill-search-local'
+const PACKAGE_NAME = '@deepseek-ai/dsh-tool-skill-search'
 
 /** Cordis companion plugin name. */
-export const name = 'skill-search-local-invariant'
+export const name = 'tool-skill-search-invariant'
 /** Service required before the companion can reserve package ownership. */
 export const inject = ['invariants']
 
-/**
- * No runtime invariant: `ctx.skillSearch` owns provider selection and the SQLite
- * transaction tests own last-complete-index publication.
- */
+/** No runtime invariant: the core tool registry owns registration, execution, and disposal relations. */
 const install: InvariantInstaller = () => {}
 
 /**
