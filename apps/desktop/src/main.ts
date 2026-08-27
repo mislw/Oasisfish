@@ -55,6 +55,7 @@ async function startHarness(paths: DesktopPaths, port: number): Promise<string> 
   const child = spawn(paths.nodeExecutable, [
     paths.dshEntry,
     'web',
+    '--no-open',
     '--host',
     '127.0.0.1',
     '--port',

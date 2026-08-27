@@ -6,7 +6,7 @@
 
 ## 运行时行为
 
-Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web` 入口，等待 HTTP 就绪后，在沙箱化 BrowserWindow 中打开该来源。应用拒绝外部导航和新窗口。关闭应用时会终止完整的 Harness 进程树。
+Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-open` 入口，等待 HTTP 就绪后，只在沙箱化 BrowserWindow 中打开该来源，不会将其交给系统浏览器。应用拒绝外部导航和新窗口。关闭应用时会终止完整的 Harness 进程树。
 
 只有 Harness 子进程会在 `PATH` 前端获得内置工具目录。桌面应用不会修改用户的全局环境。不可变应用文件保留在安装目录中；profile、设置、凭据、会话、缓存和日志保留在 Electron 的用户数据目录中。
 
@@ -47,7 +47,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-staging 检查要求 Harness 入口、Web 前端、运行时 manifest 以及产品所需的每个可执行文件齐全。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
+staging 检查要求 Harness 入口、Web 前端、运行时 manifest 以及产品所需的每个可执行文件齐全。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
 
 ## 用户数据与日志
 

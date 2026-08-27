@@ -132,7 +132,11 @@ export async function smokeUnpacked(unpackedRoot) {
   const tools = await verifyBundledTools(join(resourcesRoot, 'runtime'))
   const userData = await mkdtemp(join(tmpdir(), 'dsh-desktop-unpacked-'))
   const child = spawn(executable, [], {
-    env: { ...process.env, DSH_DESKTOP_USER_DATA: userData },
+    env: {
+      ...process.env,
+      BROWSER: process.execPath,
+      DSH_DESKTOP_USER_DATA: userData,
+    },
     stdio: 'ignore',
     windowsHide: false,
   })
@@ -146,6 +150,10 @@ export async function smokeUnpacked(unpackedRoot) {
     if (!response.ok) throw new Error(`Desktop HTTP request returned ${String(response.status)}.`)
     await new Promise(resolveDelay => setTimeout(resolveDelay, 2_000))
     if (!isProcessAlive(harnessPid)) throw new Error('Harness exited after the desktop reported readiness.')
+    const desktopLog = await readFile(join(userData, 'logs', 'desktop.log'), 'utf8')
+    if (desktopLog.includes('dsh web: opening the default browser')) {
+      throw new Error('Desktop startup attempted to open the Web UI in the default browser.')
+    }
 
     const close = spawnSync('taskkill.exe', ['/pid', String(child.pid)], {
       encoding: 'utf8',

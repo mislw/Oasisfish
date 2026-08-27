@@ -10,7 +10,7 @@ Status: implemented
 
 ## Decision
 
-**Windows x64 产品采用 Electron 监督器承载现有 Web 应用。** Electron 保留一个由操作系统分配的回环端口，使用内置 Node.js 可执行文件启动打包后的 `dsh web` 入口，等待 HTTP 就绪，并在沙箱化 BrowserWindow 中只加载该来源。应用拒绝外部导航和新窗口，强制单实例运行，将启动诊断写入用户数据目录，并在退出前终止 Harness 进程树。
+**Windows x64 产品采用 Electron 监督器承载现有 Web 应用。** Electron 保留一个由操作系统分配的回环端口，使用内置 Node.js 可执行文件启动打包后的 `dsh web --no-open` 入口，等待 HTTP 就绪，并只在沙箱化 BrowserWindow 中加载该来源，不会交接给系统浏览器。应用拒绝外部导航和新窗口，强制单实例运行，将启动诊断写入用户数据目录，并在退出前终止 Harness 进程树。
 
 **发行版携带经过校验的私有编码运行时。** [`apps/desktop/runtime-manifest.json`](../../../../apps/desktop/runtime-manifest.json) 固定 Node.js、pnpm、Python、pip、Git for Windows、PowerShell、ripgrep、fd、jq 和 7-Zip 的上游 URL 与 SHA-256 校验和。Git for Windows 同时提供 Git Bash、curl 和 OpenSSH。运行时准备过程校验归档哈希、解压结果、必需文件和可执行文件版本。Python 入口启动器使用 distlib 的 `<launcher_dir>` 形式，使 pip 在搬移后仍能解析相邻的打包解释器。
 
@@ -18,7 +18,7 @@ Status: implemented
 
 **Harness 部署使用显式 workspace 依赖闭包。** `apps/desktop-runtime/package.json` 是仅含依赖的部署根目录。仓库闭包校验器会跟踪应用 workspace 依赖，并要求该根目录显式声明每个 workspace 对等依赖。pnpm 部署 hoisted（提升式）生产树，staging 会将包链接实体化为独立文件；electron-builder 的普通 `extraResources` 遍历会过滤 `node_modules`，因此 `afterPack` 钩子负责复制并清点完整 Harness 目录。
 
-**发布验证直接作用于打包目录。** staging 清单要求产品入口和工具可执行文件齐全。`smoke:unpacked` 会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求 HTTP 就绪且 Harness 持续存活，请求应用关闭，并要求 Electron 与 Harness 进程退出。模型与远程 API 请求仍是在线操作，并需要用户提供凭据。
+**发布验证直接作用于打包目录。** staging 清单要求产品入口和工具可执行文件齐全。`smoke:unpacked` 会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求 HTTP 就绪、未交接给默认浏览器且 Harness 持续存活，请求应用关闭，并要求 Electron 与 Harness 进程退出。模型与远程 API 请求仍是在线操作，并需要用户提供凭据。
 
 ## Alternatives considered
 

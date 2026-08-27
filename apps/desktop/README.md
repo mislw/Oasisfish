@@ -6,7 +6,7 @@ This reference describes the self-contained Windows 10/11 x64 distribution. The 
 
 ## Runtime behavior
 
-Electron starts the bundled `dsh web` entry on an operating-system-assigned `127.0.0.1` port, waits for HTTP readiness, and then opens that origin in a sandboxed BrowserWindow. External navigation and new windows are denied. Closing the application terminates the complete Harness process tree.
+Electron starts the bundled `dsh web --no-open` entry on an operating-system-assigned `127.0.0.1` port, waits for HTTP readiness, and then opens that origin only in a sandboxed BrowserWindow without handing it to the system browser. External navigation and new windows are denied. Closing the application terminates the complete Harness process tree.
 
 Only the Harness child process receives the bundled tool directories at the front of `PATH`. The desktop application does not modify the user's global environment. Immutable application files remain under the installation directory; profiles, settings, credentials, sessions, caches, and logs remain under Electron's per-user data directory.
 
@@ -47,7 +47,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-The staging check requires the Harness entry, Web frontend, runtime manifest, and every executable needed by the product. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response, confirms the Harness remains alive after readiness, closes Electron, and requires both processes to exit.
+The staging check requires the Harness entry, Web frontend, runtime manifest, and every executable needed by the product. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness, closes Electron, and requires both processes to exit.
 
 ## User data and logs
 

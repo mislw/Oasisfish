@@ -10,7 +10,7 @@ Running DeepSeek Harness on a clean Windows machine otherwise requires the user 
 
 ## Decision
 
-**The Windows x64 product is an Electron supervisor over the existing Web application.** Electron reserves an operating-system-assigned loopback port, starts the packaged `dsh web` entry with the bundled Node.js executable, waits for HTTP readiness, and loads only that origin in a sandboxed BrowserWindow. The application rejects external navigation and new windows, enforces a single instance, writes startup diagnostics below the user data directory, and terminates the Harness process tree before quitting.
+**The Windows x64 product is an Electron supervisor over the existing Web application.** Electron reserves an operating-system-assigned loopback port, starts the packaged `dsh web --no-open` entry with the bundled Node.js executable, waits for HTTP readiness, and loads that origin only in a sandboxed BrowserWindow without a system-browser handoff. The application rejects external navigation and new windows, enforces a single instance, writes startup diagnostics below the user data directory, and terminates the Harness process tree before quitting.
 
 **The distribution carries a verified private coding runtime.** [`apps/desktop/runtime-manifest.json`](../../../../apps/desktop/runtime-manifest.json) pins upstream URLs and SHA-256 checksums for Node.js, pnpm, Python, pip, Git for Windows, PowerShell, ripgrep, fd, jq, and 7-Zip. Git for Windows also supplies Git Bash, curl, and OpenSSH. Runtime preparation validates the archive hash, extraction result, required files, and executable versions. Python entry-point launchers use distlib's `<launcher_dir>` form so pip resolves the adjacent packaged interpreter after relocation.
 
@@ -18,7 +18,7 @@ Running DeepSeek Harness on a clean Windows machine otherwise requires the user 
 
 **The Harness deployment has an explicit workspace dependency closure.** `apps/desktop-runtime/package.json` is the dependency-only deploy root. The repository closure verifier follows application workspace dependencies and requires every workspace peer at that root. pnpm deploys a hoisted production tree, staging materializes package links into independent files, and electron-builder's `afterPack` hook copies and inventories the complete Harness directory because its ordinary `extraResources` traversal filters `node_modules`.
 
-**Release verification operates on the packaged directory.** The staging inventory requires product entry points and tool executables. `smoke:unpacked` rejects reparse points, executes every bundled tool, starts the packaged application, requires HTTP readiness and continued Harness liveness, requests application shutdown, and requires the Electron and Harness processes to exit. Model and remote API requests remain online operations and require user-provided credentials.
+**Release verification operates on the packaged directory.** The staging inventory requires product entry points and tool executables. `smoke:unpacked` rejects reparse points, executes every bundled tool, starts the packaged application, requires HTTP readiness without a default-browser handoff and continued Harness liveness, requests application shutdown, and requires the Electron and Harness processes to exit. Model and remote API requests remain online operations and require user-provided credentials.
 
 ## Alternatives considered
 
