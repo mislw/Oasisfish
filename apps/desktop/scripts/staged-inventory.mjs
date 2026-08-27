@@ -27,6 +27,9 @@ export const STAGED_REQUIRED_FILES = Object.freeze([
 export const PACKAGED_REQUIRED_FILES = Object.freeze([
   ...STAGED_REQUIRED_FILES,
   'RUNTIME_NOTICES.md',
+  'skills/oasis-wiki/SKILL.md',
+  'skills/oasis-wiki/VERSION',
+  'skills/oasis-wiki.provenance.json',
 ])
 
 /** Verify that every file required by the packaged desktop product exists. */

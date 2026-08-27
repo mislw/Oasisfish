@@ -25,6 +25,14 @@ describe('verifyStagedProduct', () => {
     expect(PACKAGED_REQUIRED_FILES).toContain('RUNTIME_NOTICES.md')
   })
 
+  it('requires the bundled Oasis Wiki skill and its provenance in the packaged product', () => {
+    expect(PACKAGED_REQUIRED_FILES).toEqual(expect.arrayContaining([
+      'skills/oasis-wiki/SKILL.md',
+      'skills/oasis-wiki/VERSION',
+      'skills/oasis-wiki.provenance.json',
+    ]))
+  })
+
   it('rejects an incomplete desktop product with every missing relative path', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-desktop-incomplete-'))
     temporaryDirectories.push(root)

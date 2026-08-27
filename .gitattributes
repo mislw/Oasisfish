@@ -8,6 +8,9 @@
 
 *.pdf binary
 
+# Pinned product resources retain upstream formatting without local whitespace rewrites.
+apps/desktop/bundled-skills/oasis-wiki/** -whitespace
+
 # Pairing records are generated from the three confirmed owner-blob pairs.
 # The worktree-local installer registers the fail-closed driver command.
 *.i18n.yaml merge=dsh-translation-pairing

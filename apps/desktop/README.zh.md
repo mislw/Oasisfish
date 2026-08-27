@@ -10,6 +10,10 @@ Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-o
 
 只有 Harness 子进程会在 `PATH` 前端获得内置工具目录。桌面应用不会修改用户的全局环境。不可变应用文件保留在安装目录中；profile、设置、凭据、会话、缓存和日志保留在 Electron 的用户数据目录中。
 
+## 内置 Skill
+
+安装资源包含 Oasis Wiki `1.260827.1`，作为默认领域 Skill。监督器将 `DSH_BUNDLED_SKILL_DIR` 指向打包后的 `skills` 目录，因此标准 agent（智能体）目录无需单独安装或联网，即可公布并加载 `oasis-wiki`。项目与用户 Skill 根目录的优先级高于内置根目录，因此显式安装的更新可以覆盖安装包中的兜底版本，而无需修改应用文件。[`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) 记录该快照的源仓库、源路径、版本与精确 revision。
+
 ## 内置工具
 
 | 工具 | 版本 |
@@ -47,7 +51,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-staging 检查要求 Harness 入口、Web 前端、运行时 manifest 以及产品所需的每个可执行文件齐全。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
+staging 检查要求 Harness 入口、Web 前端、运行时 manifest 以及产品所需的每个可执行文件齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，并通过真实 `skill` 工具加载它。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
 
 ## 用户数据与日志
 

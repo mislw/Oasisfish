@@ -16,9 +16,11 @@ Status: implemented
 
 **内置工具只对 Harness 进程树可见。** 监督器将安装后的工具目录前置到子进程 `PATH`，设置私有 Python 与 Harness 数据位置，并保持用户全局环境不变。产品资源是不可变安装文件；设置、凭据、profile、会话、缓存和日志保留在 Electron 的用户数据根目录中。
 
+**产品将 Oasis Wiki 作为默认领域 Skill。** [`apps/desktop/bundled-skills/oasis-wiki`](../../../../apps/desktop/bundled-skills/oasis-wiki) 是 Oasis Companion 正式发行版的版本化快照，[`oasis-wiki.provenance.json`](../../../../apps/desktop/bundled-skills/oasis-wiki.provenance.json) 记录其来源。electron-builder 将该根目录复制到不可变安装资源中，监督器只通过 `DSH_BUNDLED_SKILL_DIR` 将它提供给 Harness。文件系统 Skill 提供方将项目与用户根目录排在内置资源之前，因此显式本地更新可以覆盖安装包兜底版本，无需在首次启动时复制文件，也无需修改安装目录。快照路径会关闭 Git 空白诊断，避免为满足本地格式检查而改写导入的发布 blob；发布评审会把每个 staged blob 与固定的来源提交逐一比较。
+
 **Harness 部署使用显式 workspace 依赖闭包。** `apps/desktop-runtime/package.json` 是仅含依赖的部署根目录。仓库闭包校验器会跟踪应用 workspace 依赖，并要求该根目录显式声明每个 workspace 对等依赖。pnpm 部署 hoisted（提升式）生产树，staging 会将包链接实体化为独立文件；electron-builder 的普通 `extraResources` 遍历会过滤 `node_modules`，因此 `afterPack` 钩子负责复制并清点完整 Harness 目录。
 
-**发布验证直接作用于打包目录。** staging 清单要求产品入口和工具可执行文件齐全。`smoke:unpacked` 会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求 HTTP 就绪、未交接给默认浏览器且 Harness 持续存活，请求应用关闭，并要求 Electron 与 Harness 进程退出。模型与远程 API 请求仍是在线操作，并需要用户提供凭据。
+**发布验证作用于组装应用与打包应用。** assembled snapshot（组装快照）会启动已发布的插件树，要求标准 agent（智能体）目录公布 `oasis-wiki`，并通过真实 `skill` 工具加载正文。打包清单除产品入口与工具可执行文件外，还要求 Skill 入口、版本和来源记录存在。`smoke:unpacked` 会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求 HTTP 就绪、未交接给默认浏览器且 Harness 持续存活，请求应用关闭，并要求 Electron 与 Harness 进程退出。模型与远程 API 请求仍是在线操作，并需要用户提供凭据。
 
 ## Alternatives considered
 
@@ -30,6 +32,8 @@ Status: implemented
 
 **把内置工具加入用户全局 `PATH`。** 不采用，因为应用负责这些精确版本，不应在 Harness 进程树之外替换或遮蔽用户的开发环境。
 
+**首次启动时下载 Oasis Wiki 或将它复制到用户数据目录。** 不采用，因为启动过程要么依赖网络，要么会产生一个可变副本，使其版本与所有权脱离已安装产品。不可变兜底版本加上优先级更高的项目与用户根目录，既保留离线启动，也保留显式本地更新。
+
 ## Consequences
 
-NSIS 安装包和解包目录无需预装开发运行时，即可在 Windows x64 上启动 Harness UI 并执行内置本地编码工具。安装包体积明显增大，发布流程需要负责上游版本、校验和、许可证及 Windows 兼容性更新。回环服务器仍作为本地子进程运行，而不是成为 Electron renderer 代码，从而保留现有插件装配和 Web 行为。全新虚拟机安装仍是发布验收活动，不由打包目录冒烟测试替代。
+NSIS 安装包和解包目录无需预装开发运行时或单独安装 Skill，即可在 Windows x64 上启动 Harness UI、执行内置本地编码工具并加载 Oasis Wiki。安装包体积明显增大，发布流程除运行时更新外，还需负责固定的 Skill 快照及来源记录。回环服务器仍作为本地子进程运行，而不是成为 Electron renderer 代码，从而保留现有插件装配和 Web 行为。全新虚拟机安装仍是发布验收活动，不由打包目录冒烟测试替代。

@@ -10,6 +10,10 @@ Electron starts the bundled `dsh web --no-open` entry on an operating-system-ass
 
 Only the Harness child process receives the bundled tool directories at the front of `PATH`. The desktop application does not modify the user's global environment. Immutable application files remain under the installation directory; profiles, settings, credentials, sessions, caches, and logs remain under Electron's per-user data directory.
 
+## Bundled Skill
+
+The installed resources include Oasis Wiki `1.260827.1` as the default domain Skill. The supervisor sets `DSH_BUNDLED_SKILL_DIR` to the packaged `skills` directory, so the standard agent catalog can advertise and load `oasis-wiki` without a separate installation or network request. Project and user Skill roots have higher precedence than the bundled root, allowing an explicitly installed update to replace the packaged fallback without modifying application files. [`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) records the source repository, source path, version, and exact revision of the snapshot.
+
 ## Bundled tools
 
 | Tool | Version |
@@ -47,7 +51,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-The staging check requires the Harness entry, Web frontend, runtime manifest, and every executable needed by the product. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness, closes Electron, and requires both processes to exit.
+The staging check requires the Harness entry, Web frontend, runtime manifest, and every executable needed by the product. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog and loads it through the real `skill` tool. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness, closes Electron, and requires both processes to exit.
 
 ## User data and logs
 

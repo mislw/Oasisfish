@@ -13,6 +13,8 @@ files:
 extraResources:
   - from: build-resources/runtime
     to: runtime
+  - from: bundled-skills
+    to: skills
   - from: ../../LICENSE
     to: LICENSE
   - from: ../../THIRD_PARTY_NOTICES.md

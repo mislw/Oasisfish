@@ -49,6 +49,7 @@ describe('buildHarnessEnvironment', () => {
     const environment = buildHarnessEnvironment({}, paths)
 
     expect(environment).toMatchObject({
+      DSH_BUNDLED_SKILL_DIR: join(paths.resourcesRoot, 'skills'),
       DSH_HOME: join(paths.dataRoot, 'dsh'),
       XDG_CONFIG_HOME: join(paths.dataRoot, 'config'),
       XDG_DATA_HOME: join(paths.dataRoot, 'data'),
