@@ -57,6 +57,10 @@ allowBuilds:
   # The Python runtime deploy includes the reviewed workspace postinstall that
   # restores the executable bit on node-pty's macOS spawn helper.
   '@deepseek-ai/dsh-subprocess-local@file:packages/subprocess/subprocess-local': true
+  # Transformers.js feature extraction uses the reviewed native ONNX Runtime CPU backend.
+  onnxruntime-node: true
+  # Desktop icon generation already uses sharp; Transformers.js may also resolve it for image processors.
+  sharp: true
 
 minimumReleaseAgeExclude:
   # Fresh pi-ai releases carry the model catalog updates that are the whole
