@@ -16,7 +16,7 @@ Skill 知识检索是一项由三个插件角色构成的显式本地能力。`d
 
 本地提供方把原始摘录、支持 CJK 的 FTS5 词项和规范化 Embedding 存入一个事务化 SQLite 索引。刷新会在提交前准备完整的变更批次，因此取消、解析失败或模型失败会保留上一版完整 revision。检索通过 reciprocal-rank fusion 融合有界的 BM25 与精确余弦排序，应用有界的标题和路径加权，并使用 maximal marginal relevance 减少重复结果。语料字节和分块上限限制了受支持数据集，因此精确余弦足以满足需求。
 
-桌面版内置固定 revision 的量化 ONNX 模型，并禁用 Transformers.js 远程模型加载。原文、查询文本、token、Embedding 与索引均留在本地，绝不会复用提供方或中转站凭据。首次查询会在桌面用户数据目录中创建或刷新索引；后续启动复用兼容的已提交数据。
+桌面版内置固定 revision 的量化 ONNX 模型，并禁用 Transformers.js 远程模型加载。`modelRoot` 直接指向包含 manifest 及其声明文件的目录；manifest 中的 `modelId` 保持为持久模型身份，不会再次追加到该路径。原文、查询文本、token、Embedding 与索引均留在本地，绝不会复用提供方或中转站凭据。首次查询会在桌面用户数据目录中创建或刷新索引；后续启动复用兼容的已提交数据。
 
 `skill_search` 是显式工具，不会在每次模型请求前自动注入检索内容。它的调用与结果使用普通的 Session `tool/call` 与 `tool/result` 事件，其中包含相对路径和从 1 开始的行区间。模型可以先加载 Skill，在 API 或事实问题需要参考资料时执行检索并引用返回原文，无需新增 agent-loop 路径或合成上下文事件。
 

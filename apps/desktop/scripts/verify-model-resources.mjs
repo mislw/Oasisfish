@@ -19,16 +19,17 @@ const APPROVED_MODEL_MANIFEST = Object.freeze({
   modelId: 'Xenova/bge-small-zh-v1.5',
   upstreamModelId: 'BAAI/bge-small-zh-v1.5',
   revision: '75c43b069aac4d136ba6bc1122f995fedcfd2781',
+  dimensions: 512,
   license: 'MIT',
   transformersJsVersion: '4.2.0',
-  files: Object.freeze({
-    'config.json': 'd4193ead3a810fd694fa8a31d7fc72fbaebc0668b603e398734bf2f6538ff42f',
-    'onnx/model_quantized.onnx': '15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc',
-    'special_tokens_map.json': 'b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3',
-    'tokenizer_config.json': 'e6f3b96db926a37d4039995fbf5ad17de158dfb8f6343d607e4dbaad18d75f5a',
-    'tokenizer.json': '48cea5d44424912a6fd1ea647bf4fe50b55ab8b1e5879c3275f80e339e8fae26',
-    'vocab.txt': '45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c',
-  }),
+  files: Object.freeze([
+    Object.freeze({ path: 'config.json', sha256: 'd4193ead3a810fd694fa8a31d7fc72fbaebc0668b603e398734bf2f6538ff42f' }),
+    Object.freeze({ path: 'onnx/model_quantized.onnx', sha256: '15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc' }),
+    Object.freeze({ path: 'special_tokens_map.json', sha256: 'b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3' }),
+    Object.freeze({ path: 'tokenizer_config.json', sha256: 'e6f3b96db926a37d4039995fbf5ad17de158dfb8f6343d607e4dbaad18d75f5a' }),
+    Object.freeze({ path: 'tokenizer.json', sha256: '48cea5d44424912a6fd1ea647bf4fe50b55ab8b1e5879c3275f80e339e8fae26' }),
+    Object.freeze({ path: 'vocab.txt', sha256: '45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c' }),
+  ]),
 })
 
 /** Read and require the one approved local embedding model manifest. */
@@ -71,11 +72,12 @@ async function sha256(path) {
 export async function verifyModelResources(root) {
   const manifestPath = await requireRegularFileWithoutReparsePoint(root, 'model-manifest.json')
   const manifest = await readModelManifest(manifestPath)
+  const hashes = new Map(manifest.files.map(file => [file.path, file.sha256]))
   await requireRegularFileWithoutReparsePoint(root, 'LICENSE')
   for (const relativePath of MODEL_RESOURCE_FILES) {
     const path = await requireRegularFileWithoutReparsePoint(root, relativePath)
     const actual = await sha256(path)
-    const expected = manifest.files[relativePath]
+    const expected = hashes.get(relativePath)
     if (actual !== expected) {
       throw new Error(`SHA-256 mismatch for ${relativePath}: expected ${expected}, received ${actual}.`)
     }

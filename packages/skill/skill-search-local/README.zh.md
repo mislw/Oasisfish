@@ -6,7 +6,7 @@
 
 ## Plugin
 
-插件要求显式配置 `databasePath` 和 `modelRoot`。注册前会校验模型清单、禁止远程模型下载并检查 SQLite FTS5；这些资源不可用时插件加载失败。Provider 只接受目录型 Skill 资源。
+插件要求显式配置 `databasePath` 和 `modelRoot`。`modelRoot` 必须直接指向包含 `model-manifest.json` 及该 manifest 所列全部文件的目录；其中的 `modelId` 用于持久模型身份，不是需要再次追加的路径片段。注册前会校验模型清单、禁止远程模型下载并检查 SQLite FTS5；这些资源不可用时插件加载失败。Provider 只接受目录型 Skill 资源。
 
 索引刷新会比较文档元数据和 SHA-256，只为变化的 chunk 生成向量，并在一个事务中发布源记录、词法记录、向量、删除项和模型身份。发现、分块、向量生成、取消或写入失败时，最后一个完整 revision 保持不变。
 

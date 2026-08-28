@@ -51,7 +51,7 @@ describe('TransformersJsEmbedder', () => {
     const vectors = await embedder.embedDocuments(['a', 'b'], new AbortController().signal)
 
     expect(module.env).toMatchObject({ allowRemoteModels: false, localModelPath: root })
-    expect(pipeline).toHaveBeenCalledWith('feature-extraction', 'fixture/model', {
+    expect(pipeline).toHaveBeenCalledWith('feature-extraction', root, {
       local_files_only: true,
       device: 'cpu',
       dtype: 'q8',

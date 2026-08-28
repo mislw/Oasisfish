@@ -4,9 +4,10 @@ export interface ModelResourceManifest {
   modelId: 'Xenova/bge-small-zh-v1.5'
   upstreamModelId: 'BAAI/bge-small-zh-v1.5'
   revision: '75c43b069aac4d136ba6bc1122f995fedcfd2781'
+  dimensions: 512
   license: 'MIT'
   transformersJsVersion: '4.2.0'
-  files: Readonly<Record<string, string>>
+  files: ReadonlyArray<Readonly<{ path: string; sha256: string }>>
 }
 
 export const MODEL_RESOURCE_FILES: readonly string[]

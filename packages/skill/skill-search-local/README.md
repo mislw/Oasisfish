@@ -6,7 +6,7 @@ Directory-backed local provider for `ctx.skillSearch`. It confines discovery to 
 
 ## Plugin
 
-The plugin requires explicit `databasePath` and `modelRoot` values. It verifies the model manifest before registration, disables remote model downloads, checks SQLite FTS5 support, and fails plugin loading when those resources are unavailable. The provider accepts only directory-backed Skill resources.
+The plugin requires explicit `databasePath` and `modelRoot` values. `modelRoot` is the directory that directly contains `model-manifest.json` and every file named by that manifest; its `modelId` records persistent model identity rather than another path segment. The plugin verifies the manifest before registration, disables remote model downloads, checks SQLite FTS5 support, and fails plugin loading when those resources are unavailable. The provider accepts only directory-backed Skill resources.
 
 Index refresh compares document metadata and SHA-256 values, embeds only changed chunks, and publishes source rows, lexical rows, vectors, removals, and model identity in one transaction. A failed discovery, chunking, embedding, cancellation, or write leaves the last complete revision intact.
 

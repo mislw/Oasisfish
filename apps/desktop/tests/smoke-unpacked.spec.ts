@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   resolveUnpackedRootArgument,
+  smokeUnpacked,
   verifyBundledTools,
 } from '../scripts/smoke-unpacked.mjs'
 
@@ -31,4 +32,22 @@ describe('unpacked desktop smoke checks', () => {
       'C:\\release\\win-unpacked',
     )
   })
+
+  it('runs real Oasis Skill search and reuses its persisted index after restart', async () => {
+    const unpackedRoot = fileURLToPath(new URL('../release/win-unpacked', import.meta.url))
+
+    const result = await smokeUnpacked(unpackedRoot)
+
+    expect(result.search).toMatchObject({
+      skill: 'oasis-wiki',
+      query: '如何用 UGCAskQ 读取 DataTable？',
+      count: 1,
+    })
+    const hit = result.search.hits[0]
+    expect(hit?.path).toMatch(/^references\//u)
+    expect(typeof hit?.startLine).toBe('number')
+    expect(typeof hit?.endLine).toBe('number')
+    expect(result.restartSearch).toEqual(result.search)
+    expect(result.cacheReused).toBe(true)
+  }, 720_000)
 })

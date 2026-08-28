@@ -29,7 +29,7 @@ export interface Config {
   providerName?: string
   /** Mutable SQLite database path. */
   databasePath: string
-  /** Immutable local Transformers.js model root. */
+  /** Immutable directory containing `model-manifest.json` and every file it names. */
   modelRoot: string
   /** Optional manifest path; defaults to `model-manifest.json` under {@link modelRoot}. */
   manifestFile?: string

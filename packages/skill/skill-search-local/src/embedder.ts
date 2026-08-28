@@ -42,6 +42,7 @@ export interface SkillSearchEmbedder {
 
 /** Immutable local model loader configuration. */
 export interface TransformersJsEmbedderOptions {
+  /** Immutable directory containing the model manifest and its declared files. */
   readonly modelRoot: string
   readonly batchSize: number
   readonly manifestFile?: string
@@ -159,7 +160,7 @@ export class TransformersJsEmbedder implements SkillSearchEmbedder {
     const transformers = module ?? await loadTransformers()
     transformers.env.allowRemoteModels = false
     transformers.env.localModelPath = root
-    const extractor = await transformers.pipeline('feature-extraction', manifest.modelId, {
+    const extractor = await transformers.pipeline('feature-extraction', root, {
       local_files_only: true,
       device: 'cpu',
       dtype: 'q8',

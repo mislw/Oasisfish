@@ -1,12 +1,17 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
+import { DatabaseSync } from 'node:sqlite'
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { PACKAGED_REQUIRED_FILES, verifyStagedProduct } from './staged-inventory.mjs'
+import { verifyModelResources } from './verify-model-resources.mjs'
 
 const startupTimeoutMs = 60_000
 const shutdownTimeoutMs = 15_000
+const rpcTimeoutMs = 600_000
+const searchQuery = '如何用 UGCAskQ 读取 DataTable？'
+let rpcSequence = 0
 
 const toolChecks = Object.freeze([
   { name: 'node', artifact: 'node', executable: ['node', 'node.exe'], args: ['--version'], pattern: /v([^\s]+)/ },
@@ -121,16 +126,75 @@ async function terminateProcessTree(pid) {
   })
 }
 
-/** Exercise a packaged Electron directory through startup, HTTP readiness, and shutdown. */
-export async function smokeUnpacked(unpackedRoot) {
-  const productRoot = resolve(unpackedRoot)
-  const resourcesRoot = join(productRoot, 'resources')
-  const executable = join(productRoot, 'DeepSeek Harness.exe')
-  await verifyStagedProduct(resourcesRoot, PACKAGED_REQUIRED_FILES)
-  const reparsePoints = await countReparsePoints(resourcesRoot)
-  if (reparsePoints !== 0) throw new Error(`Packaged resources contain ${String(reparsePoints)} reparse points.`)
-  const tools = await verifyBundledTools(join(resourcesRoot, 'runtime'))
-  const userData = await mkdtemp(join(tmpdir(), 'dsh-desktop-unpacked-'))
+async function rpc(baseUrl, method, payload) {
+  rpcSequence += 1
+  const response = await fetch(`${baseUrl}/api/${method}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      type: 'client-request',
+      rpcId: `desktop-smoke-${String(rpcSequence)}`,
+      method,
+      payload,
+    }),
+    signal: AbortSignal.timeout(rpcTimeoutMs),
+  })
+  if (!response.ok) throw new Error(`${method} failed over HTTP ${String(response.status)}: ${await response.text()}`)
+  const body = await response.json()
+  if (body?.result?.ok !== true) {
+    const error = body?.result?.error
+    throw new Error(`${method} failed: ${String(error?.code)}: ${String(error?.message)}`)
+  }
+  return body.result.value
+}
+
+async function writeSearchCommandPlugin(userData) {
+  const dshHome = join(userData, 'dsh')
+  const pluginPath = join(dshHome, 'desktop-smoke-search.mjs')
+  await mkdir(dshHome, { recursive: true })
+  await writeFile(pluginPath, `export const name = 'desktop-smoke-search'\n\nexport const inject = ['commands']\n\nexport function apply(ctx) {\n  ctx.commands.register({\n    name: 'desktop-smoke-search',\n    description: 'Run the packaged local Skill search acceptance probe.',\n    recordInput: false,\n    async handler(invocation) {\n      const result = await invocation.agent.ctx.tools.execute({\n        callId: \`desktop-smoke-search-\${Date.now()}\`,\n        name: 'skill_search',\n        arguments: { name: 'oasis-wiki', query: ${JSON.stringify(searchQuery)}, limit: 1 },\n        agent: invocation.agent,\n        signal: invocation.signal,\n      })\n      if (result.isError) return { kind: 'error', text: result.error.message }\n      return { kind: 'success', text: JSON.stringify(result.value) }\n    },\n  })\n}\n`)
+  await writeFile(join(dshHome, 'cordis.patch.yml'), [
+    '- insert:',
+    '    - id: desktop-smoke-search',
+    `      name: ${JSON.stringify(pathToFileURL(pluginPath).href)}`,
+    '',
+  ].join('\n'))
+}
+
+async function executeSearch(baseUrl, userData) {
+  const created = await rpc(baseUrl, 'session.create', {
+    cwd: userData,
+    agentPreset: 'standard',
+  })
+  const execution = await rpc(baseUrl, 'commands/execute', {
+    args: {
+      agentId: created.sessionId,
+      line: '/desktop-smoke-search',
+      images: [],
+    },
+  })
+  if (execution?.result?.kind !== 'success' || typeof execution.result.text !== 'string') {
+    throw new Error(`Desktop Skill search command failed: ${String(execution?.result?.text)}`)
+  }
+  return JSON.parse(execution.result.text)
+}
+
+function readCorpusRevisions(databasePath) {
+  const database = new DatabaseSync(databasePath, { readOnly: true })
+  try {
+    return database.prepare(`
+      SELECT corpus_key AS corpusKey, revision
+      FROM corpora
+      ORDER BY corpus_key ASC
+    `).all()
+  } finally {
+    database.close()
+  }
+}
+
+async function runDesktopCycle(executable, userData) {
+  const readyPath = join(userData, 'desktop-ready.json')
+  await rm(readyPath, { force: true })
   const child = spawn(executable, [], {
     env: {
       ...process.env,
@@ -144,12 +208,12 @@ export async function smokeUnpacked(unpackedRoot) {
 
   let harnessPid
   try {
-    const ready = await readReadyState(join(userData, 'desktop-ready.json'), child.pid)
+    const ready = await readReadyState(readyPath, child.pid)
     harnessPid = ready.pid
     const response = await fetch(ready.url, { signal: AbortSignal.timeout(15_000) })
     if (!response.ok) throw new Error(`Desktop HTTP request returned ${String(response.status)}.`)
-    await new Promise(resolveDelay => setTimeout(resolveDelay, 2_000))
     if (!isProcessAlive(harnessPid)) throw new Error('Harness exited after the desktop reported readiness.')
+    const search = await executeSearch(ready.url, userData)
     const desktopLog = await readFile(join(userData, 'logs', 'desktop.log'), 'utf8')
     if (desktopLog.includes('dsh web: opening the default browser')) {
       throw new Error('Desktop startup attempted to open the Web UI in the default browser.')
@@ -162,10 +226,43 @@ export async function smokeUnpacked(unpackedRoot) {
     if (close.status !== 0) throw new Error(`Could not close Electron:\n${close.stderr ?? close.stdout}`)
     await waitForExit(child.pid, shutdownTimeoutMs, 'Electron')
     await waitForExit(harnessPid, shutdownTimeoutMs, 'Harness')
-    return { httpStatus: response.status, reparsePoints, tools }
+    return { httpStatus: response.status, search }
   } finally {
     if (isProcessAlive(child.pid)) await terminateProcessTree(child.pid)
     if (harnessPid !== undefined && isProcessAlive(harnessPid)) await terminateProcessTree(harnessPid)
+  }
+}
+
+/** Exercise a packaged Electron directory through local retrieval, restart reuse, and shutdown. */
+export async function smokeUnpacked(unpackedRoot) {
+  const productRoot = resolve(unpackedRoot)
+  const resourcesRoot = join(productRoot, 'resources')
+  const executable = join(productRoot, 'DeepSeek Harness.exe')
+  await verifyStagedProduct(resourcesRoot, PACKAGED_REQUIRED_FILES)
+  await verifyModelResources(join(resourcesRoot, 'models', 'bge-small-zh-v1.5'))
+  const reparsePoints = await countReparsePoints(resourcesRoot)
+  if (reparsePoints !== 0) throw new Error(`Packaged resources contain ${String(reparsePoints)} reparse points.`)
+  const tools = await verifyBundledTools(join(resourcesRoot, 'runtime'))
+  const userData = await mkdtemp(join(tmpdir(), 'dsh-desktop-unpacked-'))
+  try {
+    await writeSearchCommandPlugin(userData)
+    const first = await runDesktopCycle(executable, userData)
+    const databasePath = join(userData, 'cache', 'skill-search', 'skill-search.sqlite')
+    const firstRevisions = readCorpusRevisions(databasePath)
+    const second = await runDesktopCycle(executable, userData)
+    const secondRevisions = readCorpusRevisions(databasePath)
+    const cacheReused = firstRevisions.length > 0
+      && JSON.stringify(firstRevisions) === JSON.stringify(secondRevisions)
+    return {
+      httpStatus: second.httpStatus,
+      reparsePoints,
+      tools,
+      search: first.search,
+      restartSearch: second.search,
+      cacheReused,
+      corpusRevisions: secondRevisions,
+    }
+  } finally {
     await rm(userData, { recursive: true, force: true })
   }
 }
@@ -185,5 +282,9 @@ if (scriptPath === resolve(fileURLToPath(import.meta.url))) {
   )
   const result = await smokeUnpacked(unpackedRoot)
   console.log(`smoke-unpacked: HTTP ${String(result.httpStatus)}, ${String(result.reparsePoints)} reparse points`)
+  console.log(`- skill search: ${String(result.search.count)} hit(s), cache reused=${String(result.cacheReused)}`)
+  for (const revision of result.corpusRevisions) {
+    console.log(`- corpus ${String(revision.corpusKey)} revision ${String(revision.revision)}`)
+  }
   for (const tool of result.tools) console.log(`- ${tool.name} ${tool.version}`)
 }

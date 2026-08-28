@@ -7,6 +7,25 @@ export interface UnpackedSmokeResult {
   httpStatus: number
   reparsePoints: number
   tools: BundledToolVersion[]
+  search: SkillSearchSmokeResult
+  restartSearch: SkillSearchSmokeResult
+  cacheReused: boolean
+  corpusRevisions: Array<{ corpusKey: string; revision: number }>
+}
+
+export interface SkillSearchSmokeResult {
+  skill: string
+  query: string
+  count: number
+  hits: Array<{
+    rank: number
+    score: number
+    path: string
+    headings: string[]
+    startLine: number
+    endLine: number
+    excerpt: string
+  }>
 }
 
 export function verifyBundledTools(runtimeRoot: string): Promise<BundledToolVersion[]>

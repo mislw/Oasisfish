@@ -18,6 +18,7 @@ const expectedHashes = {
   'tokenizer.json': '48cea5d44424912a6fd1ea647bf4fe50b55ab8b1e5879c3275f80e339e8fae26',
   'vocab.txt': '45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c',
 } as const
+const expectedFiles = Object.entries(expectedHashes).map(([path, sha256]) => ({ path, sha256 }))
 
 const temporaryDirectories: string[] = []
 
@@ -39,15 +40,18 @@ describe('bundled embedding model', () => {
       modelId: 'Xenova/bge-small-zh-v1.5',
       upstreamModelId: 'BAAI/bge-small-zh-v1.5',
       revision: '75c43b069aac4d136ba6bc1122f995fedcfd2781',
+      dimensions: 512,
       license: 'MIT',
       transformersJsVersion: '4.2.0',
-      files: expectedHashes,
+      files: expectedFiles,
     })
     expect(MODEL_RESOURCE_FILES).toEqual(Object.keys(expectedHashes))
+    const modelConfig = JSON.parse(await readFile(join(modelRoot, 'config.json'), 'utf8')) as { hidden_size?: unknown }
+    expect(modelConfig.hidden_size).toBe(manifest.dimensions)
   })
 
   it('verifies the checked-in model snapshot byte for byte', async () => {
-    await expect(verifyModelResources(modelRoot)).resolves.toMatchObject({ files: expectedHashes })
+    await expect(verifyModelResources(modelRoot)).resolves.toMatchObject({ files: expectedFiles })
   })
 
   it('rejects a missing model file', async () => {
