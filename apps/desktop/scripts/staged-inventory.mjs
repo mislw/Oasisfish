@@ -27,6 +27,9 @@ export const STAGED_REQUIRED_FILES = Object.freeze([
 export const PACKAGED_REQUIRED_FILES = Object.freeze([
   ...STAGED_REQUIRED_FILES,
   'RUNTIME_NOTICES.md',
+  'oasisfish-portable-inventory.json',
+  'cleanup/portable-cleanup.mjs',
+  'cleanup/portable-inventory.mjs',
   'skills/oasis-wiki/SKILL.md',
   'skills/oasis-wiki/VERSION',
   'skills/oasis-wiki.provenance.json',

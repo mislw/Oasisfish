@@ -25,6 +25,14 @@ describe('verifyStagedProduct', () => {
     expect(PACKAGED_REQUIRED_FILES).toContain('RUNTIME_NOTICES.md')
   })
 
+  it('requires portable ownership and cleanup resources in the packaged product', () => {
+    expect(PACKAGED_REQUIRED_FILES).toEqual(expect.arrayContaining([
+      'oasisfish-portable-inventory.json',
+      'cleanup/portable-cleanup.mjs',
+      'cleanup/portable-inventory.mjs',
+    ]))
+  })
+
   it('requires the bundled Oasis Wiki skill and its provenance in the packaged product', () => {
     expect(PACKAGED_REQUIRED_FILES).toEqual(expect.arrayContaining([
       'skills/oasis-wiki/SKILL.md',
