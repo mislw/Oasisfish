@@ -10,6 +10,7 @@
     "harness:prepare": "node scripts/prepare-harness.mjs",
     "icon:generate": "node scripts/generate-icon.mjs",
     "package": "pnpm -w run build && pnpm run build && pnpm run icon:generate && pnpm run runtime:prepare && pnpm run harness:prepare && pnpm run stage:verify && electron-builder --win nsis --x64",
+    "package:publish": "pnpm -w run build && pnpm run build && pnpm run icon:generate && pnpm run runtime:prepare && pnpm run harness:prepare && pnpm run stage:verify && electron-builder --win nsis --x64 --publish always",
     "package:dir": "pnpm -w run build && pnpm run build && pnpm run icon:generate && pnpm run runtime:prepare && pnpm run harness:prepare && pnpm run stage:verify && electron-builder --dir --win --x64",
     "runtime:prepare": "node scripts/prepare-runtime.mjs",
     "smoke:unpacked": "node scripts/smoke-unpacked.mjs",

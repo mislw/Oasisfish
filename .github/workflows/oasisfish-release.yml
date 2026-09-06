@@ -1,0 +1,71 @@
+name: Oasisfish Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing v<desktop-version> tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oasisfish-release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate release tag
+        shell: pwsh
+        run: |
+          $version = node -p "require('./apps/desktop/package.json').version"
+          node apps/desktop/scripts/validate-release-tag.mjs $env:RELEASE_TAG $version
+
+      - name: Verify desktop update paths
+        shell: pwsh
+        run: |
+          pnpm exec vitest run apps/desktop/tests
+          pnpm exec vitest run packages/client/ui-desktop-update/tests
+          $env:DSH_SNAPSHOT = 'replay'
+          pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/desktop-update.snapshot.ts
+          pnpm --filter @deepseek-ai/dsh-desktop run typecheck
+          pnpm run verify-cordis-config
+          pnpm run doc-sync
+
+      - name: Build and publish NSIS update
+        run: pnpm --filter @deepseek-ai/dsh-desktop run package:publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify published file set
+        shell: pwsh
+        run: |
+          Get-ChildItem apps/desktop/release/Oasisfish-*.exe | Out-Null
+          Get-ChildItem apps/desktop/release/Oasisfish-*.exe.blockmap | Out-Null
+          Get-Item apps/desktop/release/latest.yml | Out-Null
