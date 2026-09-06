@@ -1,0 +1,4 @@
+progress=42%
+action=Downloading…
+disabled=true
+commands=<none>
