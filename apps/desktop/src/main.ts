@@ -115,6 +115,7 @@ async function startHarness(paths: DesktopPaths, port: number): Promise<string> 
 }
 
 function createWindow(url: string): DesktopWindow {
+  const preload = join(dirname(fileURLToPath(import.meta.url)), 'preload.cjs')
   const window = new BrowserWindow({
     width: 1440,
     height: 940,
@@ -126,6 +127,7 @@ function createWindow(url: string): DesktopWindow {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload,
       sandbox: true,
     },
   })
