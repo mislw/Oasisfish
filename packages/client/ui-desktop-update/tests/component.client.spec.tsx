@@ -89,7 +89,7 @@ describe('DesktopUpdateSection', () => {
 
     const progress = screen.getByRole('progressbar')
     expect(progress.getAttribute('aria-valuenow')).toBe('42')
-    expect(screen.getByRole('button', { name: 'Downloading…' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Downloading…' }).matches(':disabled')).toBe(true)
   })
 
   it('shows indeterminate progress when total progress is unavailable', () => {
@@ -115,7 +115,7 @@ describe('DesktopUpdateSection', () => {
       update: { phase, currentVersion: '1.2.3', availableVersion: '1.3.0' },
     })
 
-    expect(screen.getByRole('button', { name: label }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: label }).matches(':disabled')).toBe(true)
   })
 
   it('shows an unsupported status without an action', () => {
