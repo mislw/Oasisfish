@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-29-nonblocking-model-setup.md
-2026-08-29-nonblocking-model-setup.md: 9ee169c1ae12f08fae6ab3583d2307855e87a39e
-2026-08-29-nonblocking-model-setup.zh.md: 04090fff531578745a27b832bfe1ab0f4d5f82e6
+2026-08-29-nonblocking-model-setup.md: e7ebfcfeb47e51f128ffc981f8541e3382c4b225
+2026-08-29-nonblocking-model-setup.zh.md: 99a9ff55cd2d3673ca223a59007858c7b5013c0f

@@ -1,6 +1,7 @@
 # Agent Note: 共用弹窗的产品引导
 
 Status: implemented
+Archived: 2026-09-06
 
 [English](2026-08-13-shared-modal-product-onboarding.md) | 中文
 

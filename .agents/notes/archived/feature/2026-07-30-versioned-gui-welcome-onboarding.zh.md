@@ -1,6 +1,7 @@
 # Agent Note: 版本化 GUI 欢迎引导
 
 Status: implemented
+Archived: 2026-09-06
 
 [English](2026-07-30-versioned-gui-welcome-onboarding.md) | 中文
 

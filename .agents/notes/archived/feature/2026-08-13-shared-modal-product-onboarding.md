@@ -1,6 +1,7 @@
 # Agent Note: Shared-modal product onboarding
 
 Status: implemented
+Archived: 2026-09-06
 
 English | [中文](2026-08-13-shared-modal-product-onboarding.zh.md)
 

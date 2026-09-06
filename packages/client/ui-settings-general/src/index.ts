@@ -4,11 +4,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 
-/** Durable settings namespace for product-wide GUI onboarding facts. */
+/** Retained settings namespace for accepted GUI onboarding fields. */
 const ONBOARDING_SETTINGS_NAMESPACE = 'ui-onboarding'
 
 interface OnboardingSettings {
-  /** Last version acknowledged by the current product welcome step. */
+  /** Stored welcome version accepted for existing user documents. */
   welcomeNoticeVersion?: string
 }
 
@@ -16,7 +16,7 @@ const OnboardingSettingsSchema: z<OnboardingSettings> = z.object({
   welcomeNoticeVersion: z.string(),
 })
 
-/** Register the durable GUI-onboarding section when a settings provider exists. */
+/** Register the retained GUI-onboarding section when a settings provider exists. */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
     settingsCtx.settings.register(

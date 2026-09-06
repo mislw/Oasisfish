@@ -1,6 +1,7 @@
 # Agent Note: 移除首次启动内测声明
 
 Status: implemented
+Archived: 2026-09-06
 
 [English](2026-08-13-remove-first-run-beta-notice.md) | 中文
 
