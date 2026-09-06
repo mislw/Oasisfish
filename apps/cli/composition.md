@@ -46,6 +46,8 @@ flowchart LR
   cfg --> plugin_dsh_base_session_persistence_jsonl
   plugin_dsh_base_attachment_local["attachment-local<br/>@deepseek-ai/dsh-attachment-local"]
   cfg --> plugin_dsh_base_attachment_local
+  plugin_dsh_base_image_generation["image-generation<br/>@deepseek-ai/dsh-image-generation"]
+  cfg --> plugin_dsh_base_image_generation
   plugin_dsh_base_session_query_sqlite["session-query-sqlite<br/>@deepseek-ai/dsh-session-query-sqlite"]
   cfg --> plugin_dsh_base_session_query_sqlite
   plugin_dsh_base_session_projection["session-projection<br/>@deepseek-ai/dsh-session-projection"]
@@ -144,6 +146,8 @@ flowchart LR
   cfg --> plugin_dsh_base_tool_result_pruner
   plugin_dsh_base_tool_todo["tool-todo<br/>@deepseek-ai/dsh-tool-todo"]
   cfg --> plugin_dsh_base_tool_todo
+  plugin_dsh_base_tool_image_generate["tool-image-generate<br/>@deepseek-ai/dsh-tool-image-generate"]
+  cfg --> plugin_dsh_base_tool_image_generate
   plugin_dsh_base_tool_goal["tool-goal<br/>@deepseek-ai/dsh-tool-goal"]
   cfg --> plugin_dsh_base_tool_goal
   plugin_dsh_base_tool_ralph["tool-ralph<br/>@deepseek-ai/dsh-tool-ralph"]
@@ -191,6 +195,7 @@ flowchart LR
 | `llm-pi-ai` | `@deepseek-ai/dsh-llm-pi-ai` |
 | `session-persistence-jsonl` | `@deepseek-ai/dsh-session-persistence-jsonl` |
 | `attachment-local` | `@deepseek-ai/dsh-attachment-local` |
+| `image-generation` | `@deepseek-ai/dsh-image-generation` |
 | `session-query-sqlite` | `@deepseek-ai/dsh-session-query-sqlite` |
 | `session-projection` | `@deepseek-ai/dsh-session-projection` |
 | `session-telemetry-otel` | `@deepseek-ai/dsh-session-telemetry-otel` |
@@ -240,6 +245,7 @@ flowchart LR
 | `session-checkpoint-policy` | `@deepseek-ai/dsh-session-checkpoint-policy` |
 | `tool-result-pruner` | `@deepseek-ai/dsh-compaction-tool-result-pruner` |
 | `tool-todo` | `@deepseek-ai/dsh-tool-todo` |
+| `tool-image-generate` | `@deepseek-ai/dsh-tool-image-generate` |
 | `tool-goal` | `@deepseek-ai/dsh-tool-goal` |
 | `tool-ralph` | `@deepseek-ai/dsh-tool-ralph` |
 | `tool-str-replace-editor` | `@deepseek-ai/dsh-tool-str-replace-editor` |

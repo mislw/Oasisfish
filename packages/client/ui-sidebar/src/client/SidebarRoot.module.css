@@ -8,12 +8,14 @@
 
 .root {
   --dsh-sidebar-inline-padding: 12px;
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100%;
   padding: 6px var(--dsh-sidebar-inline-padding);
   box-sizing: border-box;
-  background: var(--dsw-specific-sidebar-fill);
+  background: transparent;
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   /* The sidebar is elevated above the conversation surface, so a revealed
@@ -22,11 +24,37 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
+.root > :not(.scene) {
+  position: relative;
+  z-index: 1;
+}
+
+.scene {
+  position: absolute;
+  bottom: 44px;
+  left: 18px;
+  z-index: 0;
+  width: 126px;
+  opacity: 0.22;
+  pointer-events: none;
+  filter: saturate(0.84);
+  animation: sidebar-scene-float 6s ease-in-out infinite;
+}
+
+@keyframes sidebar-scene-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
 /* Rail geometry (figma rail spec): 36x36 control boxes centered in the 56px
    rail (10px side padding), 12px vertical rhythm, 18px from the rail top to
-   the whale's box (24px to the 24-wide whale glyph itself). */
+   the brand mark's box. */
 .root.collapsed {
   padding: 18px 10px 6px;
+}
+
+.collapsed .scene {
+  display: none;
 }
 
 /* Scrollbars in the column are a pointer affordance: the shell adds this
@@ -141,6 +169,14 @@
   justify-content: center;
 }
 
+.fallbackBrandMark {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
 .brandName {
   display: inline-flex;
   align-items: center;
@@ -183,7 +219,7 @@
   height: 36px;
 }
 
-/* Rail logo swap: collapsed, the toggle rests as the whale mark (brand ink,
+/* Rail logo swap: collapsed, the toggle rests as the brand mark (brand ink,
    no hover circle) and hovering reveals the panel icon — the expand
    affordance (figma sidebar-hover flow). Expanded it is a plain panel icon. */
 .collapsed .toggle .panelIcon {
@@ -290,6 +326,32 @@
   overflow: hidden;
 }
 
+.modeTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin: 0 12px 8px 8px;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+}
+
+.modeTabs button {
+  min-width: 0;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.modeTabs button[aria-selected='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
 .collapsed .regionArea {
   margin-left: 0;
   margin-right: 0;
@@ -327,6 +389,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .scene,
   .wide,
   .fading > *,
   .railIn .iconButton,

@@ -49,5 +49,6 @@ describe('unpacked desktop smoke checks', () => {
     expect(typeof hit?.endLine).toBe('number')
     expect(result.restartSearch).toEqual(result.search)
     expect(result.cacheReused).toBe(true)
+    expect(result.backgroundClosePreserved).toBe(true)
   }, 720_000)
 })

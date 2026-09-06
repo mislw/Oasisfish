@@ -1,8 +1,9 @@
 /**
  * Models settings and product-onboarding plugin, browser half. It registers
- * the Models page plus the ordered internal-testing and official-DeepSeek
- * onboarding dialogs, whose UI shares this package's modal wrapper. The Host
- * settings and credential contracts stay behind their existing wire APIs.
+ * the Models page plus the versioned internal-testing notice. Provider setup
+ * remains on the Models page, while the composer identifies an empty model
+ * directory without taking over the application. The Host settings and
+ * credential contracts stay behind their existing wire APIs.
  * Export discipline:
  * packages/client/AGENTS.md.
  */
@@ -17,8 +18,6 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import { ModelsSection } from './ModelsSection.tsx'
 import type { ModelsSectionInjected } from './ModelsSection.tsx'
-import { DeepSeekOnboardingDialog } from './DeepSeekOnboardingDialog.tsx'
-import type { DeepSeekOnboardingInjected } from './DeepSeekOnboardingDialog.tsx'
 import { WelcomeNotice } from './WelcomeNotice.tsx'
 import type { WelcomeNoticeInjected } from './WelcomeNotice.tsx'
 import { decodeWelcomeSection, WelcomeNoticeStore } from './welcome-store.ts'
@@ -39,7 +38,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 /** Dictionary namespace owned by this plugin. */
 const NS = 'settings.models'
-export type { ModelsSettingsState, ProviderRow } from './store.ts'
+export type { ImageGenerationSelection, ModelsSettingsState, ProviderRow } from './store.ts'
 
 /**
  * Refetch the page snapshot only after its first load: an unopened Models
@@ -76,13 +75,6 @@ export function apply(ctx: ClientContext): void {
   const injected = (): ModelsSectionInjected => ({
     controller,
     hooks: { snapshot: controller.store },
-    api: connection.api,
-    schema,
-    t,
-  })
-  const deepSeekOnboardingInjected = (): DeepSeekOnboardingInjected => ({
-    controller,
-    hooks: { models: controller.store },
     api: connection.api,
     schema,
     t,
@@ -131,10 +123,4 @@ export function apply(ctx: ClientContext): void {
     order: -100,
     inject: welcomeInjected,
   }, WelcomeNotice))
-  ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
-    name: 'settings.onboarding',
-    id: 'deepseek-official',
-    order: 0,
-    inject: deepSeekOnboardingInjected,
-  }, DeepSeekOnboardingDialog))
 }

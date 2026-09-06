@@ -64,10 +64,10 @@ describe('ModelSelect reasoning effort', () => {
     />)
 
     const trigger = screen.getByRole('button', {
-      name: '选择模型，当前 DeepSeek-V4-Flash，推理等级 High',
+      name: '选择模型，当前 DeepSeek-V4-Flash，推理强度 High',
     })
     fireEvent.click(trigger)
-    fireEvent.click(screen.getByRole('menuitem', { name: /推理等级/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /推理强度/ }))
     expect(screen.getAllByRole('menuitemradio').map(item => item.textContent))
       .toEqual(['Off', 'High', 'MaxLargest budget'])
 
@@ -78,7 +78,7 @@ describe('ModelSelect reasoning effort', () => {
         model: 'deepseek-v4-flash',
         reasoningEffort: 'max',
       })
-      expect(trigger.getAttribute('aria-label')).toBe('选择模型，当前 DeepSeek-V4-Flash，推理等级 Max')
+      expect(trigger.getAttribute('aria-label')).toBe('选择模型，当前 DeepSeek-V4-Flash，推理强度 Max')
     })
   })
 
@@ -105,9 +105,9 @@ describe('ModelSelect reasoning effort', () => {
     />)
 
     fireEvent.click(screen.getByRole('button', {
-      name: '选择模型，当前 Model，推理等级 Default',
+      name: '选择模型，当前 Model，推理强度 Default',
     }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /推理等级/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /推理强度/ }))
     expect(screen.getAllByRole('menuitemradio').map(item => item.textContent))
       .toEqual(['Default', 'Standard'])
   })
@@ -129,10 +129,28 @@ describe('ModelSelect reasoning effort', () => {
     const trigger = screen.getByRole('button', { name: '选择模型' })
     expect(trigger.textContent).toContain('选择模型')
     fireEvent.click(trigger)
-    expect(screen.queryByRole('menuitem', { name: /推理等级/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /推理强度/ })).toBeNull()
     fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
     expect(screen.queryByText('removed-model')).toBeNull()
     expect(screen.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash' })).toBeTruthy()
+  })
+
+  it('identifies an unconfigured model catalog without blocking the composer', () => {
+    const directory = createSnapshotStore(state({ groups: [], routable: true }))
+    render(<ModelSelect
+      locked={false}
+      available
+      directory={directory}
+      load={vi.fn()}
+      select={vi.fn().mockResolvedValue(false)}
+      t={t}
+    />)
+
+    const trigger = screen.getByRole('button', { name: '尚未配置模型' })
+    expect(trigger.textContent).toContain('尚未配置模型')
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    expect(screen.getByText('尚未配置模型，请前往设置中的“模型与中转站”进行配置。')).toBeTruthy()
   })
 
   it('announces a rejected selection as a transient toast and keeps the in-menu strip for loads', async () => {

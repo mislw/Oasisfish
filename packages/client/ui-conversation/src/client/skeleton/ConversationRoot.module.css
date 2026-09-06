@@ -8,7 +8,7 @@
   flex-direction: column;
   height: 100%;
   min-width: 0;
-  background: var(--dsw-alias-bg-base);
+  background: transparent;
 
   /* Shared width axis for the whole column: one content width W
      (--dsh-chat-content-width) for the transcript, the dock cards
@@ -221,6 +221,8 @@
    so wheel over the footer moves the flow. */
 .root[data-phase='active'] {
   overflow: hidden;
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(106%);
 }
 
 .root[data-phase='active'] .header {

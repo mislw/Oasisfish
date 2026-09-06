@@ -44,6 +44,25 @@ function numberOf(model: ModelDraft, key: string): number | undefined {
   return typeof value === 'number' ? value : undefined
 }
 
+/** Standard pi-ai levels a hand-declared model may advertise. */
+const REASONING_LEVELS = [
+  { id: 'off', label: 'reasoningOff' },
+  { id: 'minimal', label: 'reasoningMinimal' },
+  { id: 'low', label: 'reasoningLow' },
+  { id: 'medium', label: 'reasoningMedium' },
+  { id: 'high', label: 'reasoningHigh' },
+  { id: 'xhigh', label: 'reasoningXHigh' },
+  { id: 'max', label: 'reasoningMax' },
+] as const satisfies readonly { id: string; label: keyof typeof en }[]
+
+/** Read the selected levels while preserving hand-written wire aliases. */
+function reasoningEffortsOf(model: ModelDraft): Readonly<Record<string, string | null>> {
+  const value = model['reasoningEfforts']
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string | null] =>
+    entry[1] === null || typeof entry[1] === 'string'))
+}
+
 /** What an interrogation needs, taken from the live form. */
 export interface ProbeTarget {
   /** Settings namespace whose adapter family answers. */
@@ -210,7 +229,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
     })
   }
 
-  const patch = (index: number, next: Record<string, string | number | undefined>): void => {
+  const patch = (index: number, next: Record<string, unknown>): void => {
     onChange(models.map((model, at) => {
       if (at !== index) return model
       // Rebuilt rather than spread over: an emptied optional field has to leave
@@ -225,6 +244,16 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         Object.entries({ ...model, ...next }).filter(([key]) => !cleared.has(key)),
       )
     }))
+  }
+
+  const toggleReasoning = (index: number, level: string, enabled: boolean): void => {
+    const model = models[index]
+    if (model === undefined) return
+    const current = reasoningEffortsOf(model)
+    const next = enabled
+      ? { ...current, [level]: level === 'off' ? null : level }
+      : Object.fromEntries(Object.entries(current).filter(([key]) => key !== level))
+    patch(index, { reasoningEfforts: Object.keys(next).length === 0 ? undefined : next })
   }
 
   const fetchModels = async (): Promise<void> => {
@@ -429,6 +458,26 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
                     onChange={(event) => { editCapacity(index, 'maxTokens', event.target.value) }}
                   />
                 </label>
+                <div className={styles['reasoningField']}>
+                  <div className={styles['reasoningHeading']}>
+                    <span className={styles['modelFieldLabel']}>{t('modelReasoning')}</span>
+                    <span className={styles['reasoningHint']}>{t('modelReasoningHint')}</span>
+                  </div>
+                  <div className={styles['reasoningLevels']} role="group" aria-label={`${t('modelReasoning')} ${index + 1}`}>
+                    {REASONING_LEVELS.map(level => (
+                      <label className={styles['reasoningLevel']} key={level.id}>
+                        <input
+                          type="checkbox"
+                          checked={Object.hasOwn(reasoningEffortsOf(model), level.id)}
+                          aria-label={`${t(level.label)} ${t('modelReasoning')} ${index + 1}`}
+                          disabled={disabled}
+                          onChange={(event) => { toggleReasoning(index, level.id, event.target.checked) }}
+                        />
+                        <span>{t(level.label)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
             )
             : null}

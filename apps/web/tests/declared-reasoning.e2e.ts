@@ -3,9 +3,7 @@
 // what the picker offers, and picking one records it with the Agent default.
 // Zero model calls: declaring, describing, and switching are settings/llm
 // traffic only, so there is no fixture and a stray stream would fail loud.
-import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { join } from 'node:path'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
@@ -66,7 +64,7 @@ describe.skipIf(MODE === 'record')('web e2e: declared reasoning efforts reach th
     const trigger = page.getByRole('button', { name: /^选择模型/ })
     await trigger.waitFor({ timeout: 15_000 })
     await trigger.click()
-    await page.getByRole('menuitem', { name: /推理等级/ }).click()
+    await page.getByRole('menuitem', { name: /推理强度/ }).click()
 
     // Declared levels, nothing else: the provider-default entry (the route
     // configures no `reasoning`), then Off/High/Max — minimal, low, medium,
@@ -77,15 +75,11 @@ describe.skipIf(MODE === 'record')('web e2e: declared reasoning efforts reach th
     const snapshot = await captureStableAria(page, '[role="menu"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
 
-    // Picking a level is the same gesture that saves the default selection, so
-    // the effort lands in the Agent default Settings section beside provider/model.
+    // Picking a level updates this session's next assembled request. The
+    // separate default-model control owns the default for future sessions.
     await page.getByRole('menuitemradio', { name: 'High' }).click()
-    await expect.poll(
-      async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
-      { timeout: 10_000 },
-    ).toContain('reasoningEffort: high')
     await expect.poll(() => trigger.getAttribute('aria-label'), { timeout: 10_000 })
-      .toBe('选择模型，当前 Acme Think，推理等级 High')
+      .toBe('选择模型，当前 Acme Think，推理强度 High')
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 

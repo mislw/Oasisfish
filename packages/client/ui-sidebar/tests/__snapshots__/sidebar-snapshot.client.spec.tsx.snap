@@ -9,6 +9,13 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
     class="root collapsed railIn quietBars"
     style=""
   >
+    <img
+      alt=""
+      aria-hidden="true"
+      class="scene"
+      data-oasis-sidebar-scene="true"
+      src="/oasisfish-mascot.webp"
+    />
     <div
       class="logoRow"
     >
@@ -25,13 +32,10 @@ exports[`sidebar shell snapshots > renders the collapsed rail after the crossfad
             data-slot="sidebar.brand.mark"
             style="display: contents;"
           >
-            <svg
-              aria-hidden="true"
-              data-content="965fe321"
-              fill="none"
-              height="17.6580310880829"
-              viewBox="0 0 23.16 17.04"
-              width="24"
+            <img
+              alt=""
+              class="fallbackBrandMark"
+              src="/oasisfish-icon.png"
             />
           </div>
         </span>
@@ -101,6 +105,13 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
     class="root quietBars"
     style="width: 300px;"
   >
+    <img
+      alt=""
+      aria-hidden="true"
+      class="scene"
+      data-oasis-sidebar-scene="true"
+      src="/oasisfish-mascot.webp"
+    />
     <div
       class="logoRow"
     >
@@ -120,13 +131,10 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               data-slot="sidebar.brand.mark"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="965fe321"
-                fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
-                width="24"
+              <img
+                alt=""
+                class="fallbackBrandMark"
+                src="/oasisfish-icon.png"
               />
             </div>
           </span>
@@ -140,7 +148,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
               <span
                 class="fallbackBrandName"
               >
-                DSH Local Build
+                Oasisfish
               </span>
               <span
                 class="buildRevision"
@@ -190,6 +198,25 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
       class="regionArea"
     >
       <div
+        class="modeTabs"
+        role="tablist"
+      >
+        <button
+          aria-selected="true"
+          role="tab"
+          type="button"
+        >
+          Sessions
+        </button>
+        <button
+          aria-selected="false"
+          role="tab"
+          type="button"
+        >
+          Toolbox
+        </button>
+      </div>
+      <div
         data-slot="sidebar.workspaces"
         style="display: contents;"
       />
@@ -227,6 +254,13 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
     class="root quietBars"
     style="width: 300px;"
   >
+    <img
+      alt=""
+      aria-hidden="true"
+      class="scene"
+      data-oasis-sidebar-scene="true"
+      src="/oasisfish-mascot.webp"
+    />
     <div
       class="logoRow"
     >
@@ -246,13 +280,10 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               data-slot="sidebar.brand.mark"
               style="display: contents;"
             >
-              <svg
-                aria-hidden="true"
-                data-content="965fe321"
-                fill="none"
-                height="17.6580310880829"
-                viewBox="0 0 23.16 17.04"
-                width="24"
+              <img
+                alt=""
+                class="fallbackBrandMark"
+                src="/oasisfish-icon.png"
               />
             </div>
           </span>
@@ -266,7 +297,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
               <span
                 class="fallbackBrandName"
               >
-                DSH Local Build
+                Oasisfish
               </span>
               <span
                 class="buildRevision"
@@ -315,6 +346,25 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
     <div
       class="regionArea"
     >
+      <div
+        class="modeTabs"
+        role="tablist"
+      >
+        <button
+          aria-selected="true"
+          role="tab"
+          type="button"
+        >
+          会话
+        </button>
+        <button
+          aria-selected="false"
+          role="tab"
+          type="button"
+        >
+          工具箱
+        </button>
+      </div>
       <div
         data-slot="sidebar.workspaces"
         style="display: contents;"

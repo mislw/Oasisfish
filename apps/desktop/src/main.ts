@@ -2,19 +2,49 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createWriteStream, existsSync, mkdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, Menu, Tray } from 'electron'
 import { buildHarnessEnvironment } from './environment.ts'
-import { resolveDesktopPaths, type DesktopPaths } from './paths.ts'
+import { resolveDesktopDataRoot, resolveDesktopPaths, type DesktopPaths } from './paths.ts'
 import { reserveLoopbackPort, waitForServer } from './server.ts'
+import {
+  createTrayMenuTemplate,
+  createWindowLifecycle,
+  handleParentControlMessage,
+  type WindowLifecycle,
+} from './window-lifecycle.ts'
 
 const startupTimeoutMs = 45_000
 const maxLogBytes = 5 * 1024 * 1024
 let mainWindow: BrowserWindow | undefined
+let mainWindowLifecycle: WindowLifecycle | undefined
+let tray: Tray | undefined
 let harnessProcess: ChildProcess | undefined
 let quitting = false
 
+if (process.send !== undefined) {
+  process.on('message', (message: unknown) => {
+    if (mainWindowLifecycle !== undefined) handleParentControlMessage(message, mainWindowLifecycle)
+  })
+}
+
+interface DesktopWindow {
+  readonly lifecycle: WindowLifecycle
+  readonly window: BrowserWindow
+}
+
+if (process.env.DSH_DESKTOP_USER_DATA === undefined) {
+  app.setPath('userData', resolveDesktopDataRoot(app.getPath('appData')))
+} else {
+  app.setPath('userData', process.env.DSH_DESKTOP_USER_DATA)
+}
+
 function developmentResourcesRoot(): string {
   return join(dirname(fileURLToPath(import.meta.url)), '..', 'build-resources')
+}
+
+function trayIconPath(): string {
+  if (app.isPackaged) return join(process.resourcesPath, 'icon.png')
+  return join(dirname(fileURLToPath(import.meta.url)), '..', 'build', 'icon.png')
 }
 
 function rotateLog(logPath: string): void {
@@ -84,7 +114,7 @@ async function startHarness(paths: DesktopPaths, port: number): Promise<string> 
   return url
 }
 
-function createWindow(url: string): BrowserWindow {
+function createWindow(url: string): DesktopWindow {
   const window = new BrowserWindow({
     width: 1440,
     height: 940,
@@ -108,46 +138,80 @@ function createWindow(url: string): BrowserWindow {
     window.show()
   })
   void window.loadURL(url)
+  const lifecycle = createWindowLifecycle({
+    window,
+    confirmCloseToBackground: async () => {
+      const result = await dialog.showMessageBox(window, {
+        type: 'question',
+        title: 'Oasisfish',
+        message: '关闭窗口后，Oasisfish 将继续在后台运行。',
+        detail: '你可以从 Windows 系统托盘重新打开或退出应用。',
+        buttons: ['最小化到后台', '取消'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      })
+      return result.response === 0
+    },
+    quit: () => { app.quit() },
+  })
+  window.on('minimize', () => { lifecycle.handleMinimize() })
+  window.on('close', (event) => {
+    void lifecycle.handleClose(event).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error)
+      dialog.showErrorBox('Oasisfish', `无法切换到后台：${message}`)
+    })
+  })
   window.on('closed', () => {
     mainWindow = undefined
+    mainWindowLifecycle = undefined
   })
-  return window
+  return { lifecycle, window }
+}
+
+function createTray(lifecycle: WindowLifecycle): Tray {
+  const desktopTray = new Tray(trayIconPath())
+  desktopTray.setToolTip('Oasisfish')
+  desktopTray.setContextMenu(Menu.buildFromTemplate(createTrayMenuTemplate(lifecycle)))
+  desktopTray.on('double-click', () => { lifecycle.showWindow() })
+  return desktopTray
 }
 
 async function boot(): Promise<void> {
   if (process.platform !== 'win32' || process.arch !== 'x64') {
-    throw new Error(`DeepSeek Harness Desktop supports Windows x64 only, received ${process.platform}-${process.arch}.`)
+    throw new Error(`Oasisfish supports Windows x64 only, received ${process.platform}-${process.arch}.`)
   }
   const resourcesRoot = process.env.DSH_DESKTOP_RESOURCES
     ?? (app.isPackaged ? process.resourcesPath : developmentResourcesRoot())
-  const dataRoot = process.env.DSH_DESKTOP_USER_DATA ?? app.getPath('userData')
+  const dataRoot = app.getPath('userData')
   const paths = resolveDesktopPaths(resourcesRoot, dataRoot)
   assertInstalledResources(paths)
   const port = await reserveLoopbackPort()
   const url = await startHarness(paths, port)
-  mainWindow = createWindow(url)
+  const desktopWindow = createWindow(url)
+  mainWindow = desktopWindow.window
+  mainWindowLifecycle = desktopWindow.lifecycle
+  tray = createTray(desktopWindow.lifecycle)
 }
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    mainWindow?.restore()
-    mainWindow?.focus()
-  })
-  app.on('window-all-closed', () => {
-    app.quit()
+    mainWindowLifecycle?.showWindow()
   })
   app.on('before-quit', (event) => {
     if (quitting) return
     event.preventDefault()
     quitting = true
     terminateHarness()
+    mainWindow?.destroy()
+    tray?.destroy()
     app.quit()
   })
   void app.whenReady().then(boot).catch((error: unknown) => {
     const message = error instanceof Error ? error.stack ?? error.message : String(error)
-    dialog.showErrorBox('DeepSeek Harness could not start', message)
+    dialog.showErrorBox('Oasisfish could not start', message)
     terminateHarness()
     app.exit(1)
   })

@@ -22,9 +22,9 @@ import type { DraftAttachmentId, SessionInputResolver } from './input/contract.t
 import type { InputSubmitMode } from './contract/composer-submission.ts'
 
 /**
- * The outward conversation face (`ctx.conversation`): the scope-addressed
- * verbs and the input registry other plugins may reach — and exactly what a
- * test fake must supply.
+ * The outward conversation face (`ctx.conversation`): scope-addressed verbs,
+ * browser attachment operations, and the input registry other plugins may
+ * reach — and exactly what a test fake must supply.
  */
 export interface IConversation {
   /** The per-session input machine registry (SessionInputResolver face). */
@@ -57,6 +57,13 @@ export interface IConversation {
    * @returns completion of the page pull.
    */
   loadOlder(): Promise<void>
+  /**
+   * Resolve and cache one session-authorized historical image URL.
+   * @param sessionId - owning session authorization scope.
+   * @param attachment - durable image reference.
+   * @returns browser URL valid until its rendered session is released.
+   */
+  resolveImage(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<string>
 }
 
 /** Create one browser-only draft descriptor; only its id enters input state. */

@@ -585,6 +585,41 @@ function buildAlphaLog(): SessionEvent[] {
     },
   })
   push({ type: 'step/end', data: { turn: 73, step: 0 } })
+  const imageCallId = 'fx-call-73-image'
+  const imageArgs = JSON.stringify({ prompt: 'A bright game item icon' })
+  push({ type: 'step/start', data: { turn: 73, step: 1 } })
+  push({
+    type: 'assistant/message', surfaceOp: 'append',
+    data: {
+      turn: 73,
+      step: 1,
+      message: assistantMessage([{
+        type: 'tool-call', id: imageCallId, name: 'image_generate', arguments: imageArgs,
+      } as ContentBlock]),
+    },
+  })
+  push({
+    type: 'tool/call',
+    data: { turn: 73, step: 1, callId: imageCallId, name: 'image_generate', arguments: imageArgs },
+  })
+  push({
+    type: 'tool/result', surfaceOp: 'append',
+    data: {
+      turn: 73,
+      step: 1,
+      message: toolResultMessage(imageCallId, [
+        { type: 'text', text: 'Generated image with fixture/gpt-image-1.' },
+        { type: 'image', attachment: FIXTURE_IMAGE_REF },
+      ], false),
+    },
+  })
+  push({ type: 'step/end', data: { turn: 73, step: 1 } })
+  push({ type: 'step/start', data: { turn: 73, step: 2 } })
+  push({
+    type: 'assistant/message', surfaceOp: 'append',
+    data: { turn: 73, step: 2, message: assistantMessage(text('图片生成完成。')) },
+  })
+  push({ type: 'step/end', data: { turn: 73, step: 2 } })
   push({ type: 'turn/end', data: { turn: 73, reason: { kind: 'completed' } } })
 
   const todoArgs = JSON.stringify({ todos: fixtureTodos })

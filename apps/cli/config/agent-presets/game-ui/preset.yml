@@ -1,0 +1,3 @@
+name: 游戏 UI 工具链
+description: 专用于 Oasis UI 生成、分层、UMG 构建、逻辑绑定和验收的 Agent。
+order: 5

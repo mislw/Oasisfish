@@ -1,4 +1,4 @@
-- menu "模型与推理等级":
+- menu "模型与推理强度":
   - menuitemradio "Default" [checked]:
     - text: Default
     - img

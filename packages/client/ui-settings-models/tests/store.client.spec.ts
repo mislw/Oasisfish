@@ -28,6 +28,15 @@ const GROUPS = [{
 
 const NAMESPACES = [
   {
+    ns: 'image-generation',
+    schema: {},
+    value: { provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations' },
+    user: { provider: 'openai', model: 'gpt-image-1' },
+    applies: 'live' as const,
+    secrets: [],
+    revision: 0,
+  },
+  {
     ns: 'llm-deepseek',
     schema: {},
     value: { apiKeyEnv: 'DEEPSEEK_API_KEY', baseURL: 'https://base' },
@@ -104,6 +113,9 @@ describe('ModelsSettingsStore', () => {
     expect(state.writable).toBe(true)
     expect(state.credentialError).toBeNull()
     expect(state.defaultSelection).toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
+    expect(state.defaultImageSelection).toEqual({
+      provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+    })
     expect(state.groups).toEqual(GROUPS)
     expect(state.catalogFailures).toEqual([])
     expect(seenRefs).toEqual([['DEEPSEEK_API_KEY', 'OPENAI_API_KEY']])
@@ -227,6 +239,26 @@ describe('ModelsSettingsStore', () => {
     await expect(store.selectDefault({ provider: 'openai', model: 'gpt-5' }))
       .resolves.toBe('default is read-only')
     expect(store.store.getSnapshot()).toBe(before)
+  })
+
+  it('saves the default image route through the image-generation settings namespace', async () => {
+    const { face, mirror } = api()
+    const mutate = vi.fn(() => Promise.resolve(ok({})))
+    ;(face as unknown as { settings: { mutate: typeof mutate } }).settings.mutate = mutate
+    const store = new ModelsSettingsStore(face, settingsSchema, mirror)
+    await store.load()
+
+    await expect(store.selectDefaultImage({
+      provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+    })).resolves.toBeUndefined()
+    expect(mutate).toHaveBeenCalledWith({
+      ns: 'image-generation',
+      ops: [
+        { op: 'set', path: ['provider'], value: 'openai' },
+        { op: 'set', path: ['model'], value: 'gpt-image-1' },
+        { op: 'set', path: ['endpointPath'], value: 'images/generations' },
+      ],
+    })
   })
 })
 

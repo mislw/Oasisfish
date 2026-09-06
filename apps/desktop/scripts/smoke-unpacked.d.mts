@@ -4,6 +4,7 @@ export interface BundledToolVersion {
 }
 
 export interface UnpackedSmokeResult {
+  backgroundClosePreserved: boolean
   httpStatus: number
   reparsePoints: number
   tools: BundledToolVersion[]

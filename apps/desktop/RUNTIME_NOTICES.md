@@ -1,6 +1,6 @@
-# DeepSeek Harness Desktop Runtime Notices
+# Oasisfish Desktop Runtime Notices
 
-DeepSeek Harness Desktop bundles the following unmodified or minimally repackaged command-line runtimes for offline use on Windows x64. The application license and JavaScript dependency notices are provided separately as `LICENSE` and `THIRD_PARTY_NOTICES.md` in the installed resources directory.
+Oasisfish bundles the following unmodified or minimally repackaged command-line runtimes for offline use on Windows x64. The application license and JavaScript dependency notices are provided separately as `LICENSE` and `THIRD_PARTY_NOTICES.md` in the installed resources directory.
 
 | Component | Version | License and bundled notice |
 |---|---:|---|

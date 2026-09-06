@@ -137,6 +137,12 @@ afterEach(() => {
 })
 
 describe('AppFrame', () => {
+  it('keeps the Oasisfish seascape mounted behind every app column', () => {
+    const { frame } = mountFrame()
+    expect(frame.getAttribute('data-oasis-theme')).toBe('persistent')
+    expect(frame.querySelector('[data-oasis-backdrop]')).not.toBeNull()
+  })
+
   it('renders three tracks from store state', () => {
     const { frame } = mountFrame()
     expect(tracks(frame)).toEqual([280, 0])

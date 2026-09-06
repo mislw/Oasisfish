@@ -106,6 +106,15 @@
     - id: attachment-local
       name: '@deepseek-ai/dsh-attachment-local'
 
+    # Auxiliary generated-image route. It reuses the selected llm-pi-ai
+    # provider's Base URL and credential reference, while keeping its model
+    # selection independent from the conversation model.
+    - id: image-generation
+      name: '@deepseek-ai/dsh-image-generation'
+      config:
+        endpointPath: images/generations
+        maxResponseBytes: 25000000
+
     # Full-text session search is opt-in. `openAt: never` keeps
     # ctx.sessionQuery mounted — exact reads, titles, and lineage traces
     # (session export, subagent-fork Workspace inheritance) stay available —
@@ -386,6 +395,11 @@
       name: '@deepseek-ai/dsh-tool-todo'
       config:
         allowParallelInProgress: true
+
+    - id: tool-image-generate
+      name: '@deepseek-ai/dsh-tool-image-generate'
+      config:
+        timeoutMs: 180000
 
     # Persisted same-session goals reach the model and the slash menu here; the
     # domain, driver, and `/goal` command are above.

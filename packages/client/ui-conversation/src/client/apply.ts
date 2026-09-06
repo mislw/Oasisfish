@@ -261,6 +261,7 @@ export function apply(ctx: Context): void {
     children: {
       'conversation.session.header.lineage': { kind: 'single', scope: 'session' },
       'conversation.session.header.actions': { kind: 'list', scope: 'session' },
+      'conversation.session.header.progress': { kind: 'list', scope: 'session' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
     },
     store: chatStore,
@@ -447,6 +448,7 @@ export function apply(ctx: Context): void {
     name: 'details',
     locale: NS,
     children: {
+      'conversation.details.summary': { kind: 'list', scope: 'session' },
       'conversation.details.tool': { kind: 'single', scope: 'session' },
     },
     store: chatStore,

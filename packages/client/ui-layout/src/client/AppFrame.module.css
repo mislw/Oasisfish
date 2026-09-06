@@ -1,13 +1,25 @@
 .frame {
   position: relative; /* anchors the drag handles, which straddle column borders */
+  isolation: isolate;
   display: grid;
   grid-template-rows: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--dsw-alias-bg-base);
+  background: #eaf6fd;
   /* Collapse/expand animates the tracks on the deepsuite sider curve
      (--ds-ease-in-out / --ds-transition-duration-slow, ui-theme base.css). */
   transition: grid-template-columns var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: #eaf6fd;
+  background-image: url('/oasisfish-seascape.webp');
+  background-position: center bottom;
+  background-size: cover;
+  pointer-events: none;
 }
 
 /* Dragging writes widths at pointer cadence; easing them would detach the
@@ -23,13 +35,18 @@
 }
 
 .sidebarCol {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   overflow: hidden;
-  background: var(--dsw-specific-sidebar-fill);
+  background: color-mix(in srgb, var(--dsw-specific-sidebar-fill) 78%, transparent);
   border-right: 1px solid var(--dsw-alias-border-l1);
+  backdrop-filter: blur(12px) saturate(108%);
 }
 
 .centerCol {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -37,9 +54,13 @@
 }
 
 .detailsCol {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   overflow: hidden;
+  background: color-mix(in srgb, var(--dsw-alias-bg-base) 86%, transparent);
   border-left: 1px solid var(--dsw-alias-border-l2);
+  backdrop-filter: blur(12px) saturate(105%);
 }
 
 /* The details subtree stays mounted at zero width, so its border must not paint

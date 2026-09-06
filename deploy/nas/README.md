@@ -1,5 +1,7 @@
 # NAS Harness Image
 
+English | [中文](README.zh.md)
+
 This directory packages the current local `0.1.0-rc.5` dirty source snapshot as a NAS-targeted DeepSeek Harness image. Build it from the repository root so the image includes the current uncommitted Harness source, including `packages/client/ui-oasis-workflow`.
 
 ```powershell

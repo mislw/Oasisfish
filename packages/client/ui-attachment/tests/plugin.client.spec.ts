@@ -1,5 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { apply as applyHost } from '../src/index.ts'
 import { apply, inject } from '../src/client/index.ts'
@@ -9,16 +9,19 @@ import { MessageImages } from '../src/client/MessageImages.tsx'
 async function bench() {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
+  const resolveImage = vi.fn(async () => 'blob:test')
+  ctx.provide('conversation', { resolveImage } as never)
   ctx.slots.register({
     name: 'root',
     children: {
       'conversation.input.attachments': { kind: 'single', scope: 'session-maybe' },
       'conversation.message.images': { kind: 'single', scope: 'session' },
+      'tool.call.toolview': { kind: 'keyed', scope: 'session' },
     },
   } as never, () => null)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { ctx, fiber }
+  return { ctx, fiber, resolveImage }
 }
 
 describe('attachment plugin', () => {
@@ -26,9 +29,9 @@ describe('attachment plugin', () => {
     expect(() => { applyHost() }).not.toThrow()
   })
 
-  it('registers both entries and removes them with the plugin fiber', async () => {
-    const { ctx, fiber } = await bench()
-    expect(inject).toEqual(['slots'])
+  it('registers attachment entries and the generated-image tool view, then removes them with the plugin fiber', async () => {
+    const { ctx, fiber, resolveImage } = await bench()
+    expect(inject).toEqual(['slots', 'conversation'])
     expect(ctx.slots.entries('conversation.input.attachments')).toMatchObject([{
       locale: 'conversation',
       component: ComposerAttachments,
@@ -37,10 +40,22 @@ describe('attachment plugin', () => {
       locale: 'conversation',
       component: MessageImages,
     }])
+    expect(ctx.slots.entries('tool.call.toolview')).toMatchObject([{
+      options: { key: 'image_generate' },
+      locale: 'conversation',
+    }])
+    const toolview = ctx.slots.entries('tool.call.toolview')[0]!
+    const injected = (toolview.inject as (sessionId: string) => {
+      loadImage: (attachment: { attachmentId: string }) => Promise<string>
+    })('session-1')
+    const attachment = { attachmentId: 'fixture:image' }
+    await expect(injected.loadImage(attachment)).resolves.toBe('blob:test')
+    expect(resolveImage).toHaveBeenCalledWith('session-1', attachment)
 
     await fiber.dispose()
 
     expect(ctx.slots.entries('conversation.input.attachments')).toHaveLength(0)
     expect(ctx.slots.entries('conversation.message.images')).toHaveLength(0)
+    expect(ctx.slots.entries('tool.call.toolview')).toHaveLength(0)
   })
 })

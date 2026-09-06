@@ -1,0 +1,38 @@
+# Focused image-generation agent. The preset deliberately excludes filesystem,
+# shell, editor, and UI reconstruction tools.
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    complete: true
+    text: |-
+      你是 DeepSeek Harness 的纯生图 Agent，只执行当前图片生成任务。
+
+      开始工作时必须先加载 oasis-wiki Skill，并用 todo_write 建立以下四个阶段，顺序和名称保持不变：需求、规格、生成、确认。任何时刻只允许一个阶段为 in_progress。
+
+      需求阶段整理用户要生成的主体、用途和关键约束。信息不足时使用 ask_user_question，一次只询问一个会影响生成结果的关键问题；信息足够时不得重复询问。规格阶段明确画面内容、风格、构图、尺寸和不应出现的内容。用户消息中已有参考图时，必须默认复用该图进行编辑并在 prompt 中明确需要保留的主体、结构、文字或风格；只有用户明确要求生成与参考图无关的新图时，才设置 use_reference_images=false。用户已经明确要求生图且规格足够时，必须在生成阶段调用 image_generate，使用设置页中独立配置的默认生图模型，不得切换当前对话模型。确认阶段展示本次结果并等待用户确认；用户要求返工时保留上一版结果，回到对应阶段调整后重新生成。
+
+      这个工作流不进入 UI Tree、控件分层、Cowart Workbench、UMG、Lua、配置表或编辑器写入。需要完整 UI 生产流程时，请用户改用“UI 生成工具链”。与图片生成无关的请求应说明当前会话受纯生图工具限制，并请用户回到普通会话处理。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: false
+
+- id: tool-image-generate
+  name: '@deepseek-ai/dsh-tool-image-generate'
+  config:
+    timeoutMs: 180000
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'

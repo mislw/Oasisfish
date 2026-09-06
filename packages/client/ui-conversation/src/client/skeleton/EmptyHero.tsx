@@ -118,15 +118,21 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
   return (
     <div className={css.root}>
       <div className={css.stack}>
-        <div className={css.headline}>
-          {/* figma 34:10412: fish 34×25 leading the headline, gap 10. */}
-          <span className={css.fishHitbox}>
-            {renderSlot('conversation.hero.brand.mark', { size: 34, className: css.fish }, {
-              fallback: <FishLogo size={34} className={css.fish} />,
-            })}
-          </span>
-          <span className={css.headlineText}>{t('hero.headline')}</span>
-          <span className={css.previewBadge}>{t('hero.preview')}</span>
+        <div className={css.scene}>
+          <div className={css.copy}>
+            <div className={css.brandWord}>{t('hero.brand')}</div>
+            <div className={css.headline}>
+              <span className={css.fishHitbox}>
+                {renderSlot('conversation.hero.brand.mark', { size: 34, className: css.fish }, {
+                  fallback: <FishLogo size={34} className={css.fish} />,
+                })}
+              </span>
+              <span className={css.headlineText}>{t('hero.headline')}</span>
+              <span className={css.previewBadge}>{t('hero.preview')}</span>
+            </div>
+            <p className={css.tagline}>{t('hero.tagline')}</p>
+          </div>
+          <img className={css.mascot} src="/oasisfish-mascot.webp" alt="" aria-hidden="true" />
         </div>
         <div className={css.body}>
           {/* The resident composer (ConversationRoot's root-owned scrollport;

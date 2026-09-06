@@ -142,6 +142,7 @@ export function ConversationSessionHeader({
               {renderSlot('conversation.session.header.utilities', {})}
             </div>
           </div>
+          {renderSlot('conversation.session.header.progress', {})}
           {tabs.length > 1 && (
             <div className={css.tabs} role="tablist">
               {tabs.map(viewTab => (

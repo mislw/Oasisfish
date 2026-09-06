@@ -23,6 +23,30 @@
   overflow: visible;
 }
 
+.scene {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  align-items: center;
+  gap: 24px;
+  min-height: 230px;
+}
+
+.copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.brandWord {
+  color: #4d75ca;
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 24px;
+}
+
 /* figma 34:10411: fish + title, gap 10, centered; 26/32 wt500. The preview
    badge is a product addition outside that source: a mono superscript pill
    riding the title's top-right. */
@@ -31,10 +55,10 @@
   grid-template-columns: 34px auto auto;
   column-gap: 10px;
   align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  line-height: 32px;
-  font-weight: 500;
+  justify-content: start;
+  font-size: 36px;
+  line-height: 44px;
+  font-weight: 650;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -59,6 +83,28 @@
   line-height: 18px;
   font-weight: 500;
   white-space: nowrap;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.mascot {
+  display: block;
+  width: 230px;
+  max-width: 100%;
+  aspect-ratio: 5 / 4;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 20px rgb(70 118 174 / 0.15));
+  animation: oasis-mascot-float 5s ease-in-out infinite;
+}
+
+@keyframes oasis-mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
 }
 
 /* Keep hover detection on a stationary box while the mark moves within it. */
@@ -93,6 +139,31 @@
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .fishHitbox:hover .fish {
     animation: hero-fish-swim var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+  }
+}
+
+@media (max-width: 640px) {
+  .scene {
+    grid-template-columns: minmax(0, 1fr) 128px;
+    gap: 8px;
+    min-height: 160px;
+  }
+
+  .headline {
+    grid-template-columns: 28px minmax(0, auto) auto;
+    column-gap: 7px;
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .mascot {
+    width: 128px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot {
+    animation: none;
   }
 }
 

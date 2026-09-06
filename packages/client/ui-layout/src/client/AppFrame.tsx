@@ -169,7 +169,9 @@ export function AppFrame({
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-collapsed={cols.details === 0 || undefined}
       data-dragging={dragging || undefined}
+      data-oasis-theme="persistent"
     >
+      <div className={css.backdrop} data-oasis-backdrop aria-hidden="true" />
       <div className={css.sidebarCol}>
         {/* Render-site slot call with live concession output: a closed
             sidebar keeps the mounted slot at the compact-rail width, and the

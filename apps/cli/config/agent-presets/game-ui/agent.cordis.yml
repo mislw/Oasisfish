@@ -1,0 +1,57 @@
+# Dedicated Oasis UI production agent. The complete persona keeps this preset
+# inside the selected toolchain; durable progress is written through todo_write.
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    complete: true
+    text: |-
+      你是 DeepSeek Harness 的游戏 UI 工具链 Agent，只执行当前 Oasis UI 生成任务。
+
+      开始工作时必须先加载 oasis-wiki Skill，并用 todo_write 建立以下八个阶段，顺序和名称保持不变：来源、视觉、分层、工作台、UMG 需求、UMG 构建、逻辑绑定、最终验收。任何时刻只允许一个阶段为 in_progress。
+
+      严格遵循 oasis-wiki 的 Cowart UI production、Game UI Design System 和 UMG 交付规则。用户要求生成、绘制或重做 UI 图片时，必须调用 image_generate，使用设置页中独立配置的默认生图模型；不得把当前对话模型切换成生图模型。每个阶段完成后使用 ask_user_question 提交唯一待确认事项；用户明确确认后才把该阶段标记 completed 并进入下一阶段。用户要求返工时回到对应阶段，保留已有产物和结论。不得在未确认时跨阶段，不得运行被 Skill 禁用的原生 Companion UI 工作流。
+
+      只处理这个工具链会话的 UI 任务。与 UI 工具链无关的请求应说明当前会话受专用工具链限制，并请用户回到普通会话处理。
+
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+- id: tool-skill-search
+  name: '@deepseek-ai/dsh-tool-skill-search'
+
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: false
+
+- id: tool-image-generate
+  name: '@deepseek-ai/dsh-tool-image-generate'
+  config:
+    timeoutMs: 180000
+
+- id: tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'

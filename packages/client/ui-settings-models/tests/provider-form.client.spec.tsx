@@ -34,6 +34,7 @@ const PiAiConfig = Schema.object({
       name: Schema.string(),
       contextWindow: Schema.number(),
       maxTokens: Schema.number(),
+      reasoningEfforts: Schema.dict(Schema.string()),
     })),
     reasoning: Schema.union(['off', 'high']),
   })),
@@ -792,7 +793,7 @@ describe('hand-declared providers', () => {
     // control could only be set to a value some of them reject — which would
     // take the whole provider out of the picker. The composer's model picker
     // owns the choice, and a switch there records provider+model+effort together.
-    const fields = () => [...document.querySelectorAll('input,select')]
+    const fields = () => [...(screen.queryByLabelText(en.keyInput)?.closest('li') ?? document).querySelectorAll('input,select')]
       .map(el => el.getAttribute('aria-label'))
       .filter(label => label !== null && label !== en.defaultProvider && label !== en.defaultModel)
 
@@ -1147,6 +1148,26 @@ describe('hand-declared providers', () => {
 
     await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
     expect(firstMutate(mutate).ops[0]?.value).toMatchObject({ models: [{ id: 'bare' }] })
+  })
+
+  it('creates a model with selectable reasoning efforts', async () => {
+    const { mutate, onClose } = mountCard()
+    fireEvent.change(screen.getByLabelText(en.customRoute), { target: { value: 'acme' } })
+    fireEvent.change(screen.getByLabelText(en.baseUrl), { target: { value: 'https://acme.test/v1' } })
+    fireEvent.click(screen.getByRole('button', { name: en.addModel }))
+    fireEvent.change(screen.getByLabelText(`${en.modelId} 1`), { target: { value: 'acme-reasoning' } })
+    expandModel(1)
+    fireEvent.click(screen.getByLabelText(`${en.reasoningHigh} ${en.modelReasoning} 1`))
+    fireEvent.click(screen.getByLabelText(`${en.reasoningMax} ${en.modelReasoning} 1`))
+    fireEvent.click(screen.getByText(en.create))
+
+    await waitFor(() => { expect(onClose).toHaveBeenCalledWith(true) })
+    expect(firstMutate(mutate).ops[0]?.value).toMatchObject({
+      models: [{
+        id: 'acme-reasoning',
+        reasoningEfforts: { high: 'high', max: 'max' },
+      }],
+    })
   })
 
   it('refuses to create until the route, endpoint, and a model are usable', () => {

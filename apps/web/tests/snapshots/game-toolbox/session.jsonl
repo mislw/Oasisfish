@@ -1,0 +1,7 @@
+{"type":"session","version":0,"id":"{{sessionId}}","createdAt":1787875200000,"cwd":"{{cwd}}","agentPreset":"game-ui"}
+{"type":"turn/start","data":{"turn":1,"trigger":{"kind":"message","source":{"kind":"user","rpcId":"{{rpcId}}"}}}}
+{"type":"user/message","data":{"content":[{"type":"text","text":"启动 UI 生成工具链。"}],"source":{"kind":"user","rpcId":"{{rpcId}}"}},"surfaceOp":"append"}
+{"type":"session/title","data":{"title":"Oasis UI 生成工具链","messageSeqs":[1],"source":{"kind":"fallback"}}}
+{"type":"todo/write","data":{"todos":[{"content":"来源：已确认需求来源","status":"completed"},{"content":"视觉：等待视觉方案确认","status":"in_progress"},{"content":"分层","status":"pending"},{"content":"工作台","status":"pending"},{"content":"UMG 需求","status":"pending"},{"content":"UMG 构建","status":"pending"},{"content":"逻辑绑定","status":"pending"},{"content":"最终验收","status":"pending"}]}}
+{"type":"assistant/message","data":{"turn":1,"step":1,"content":[{"type":"text","text":"视觉阶段已准备，等待确认。"}],"provenance":{"provider":"deepseek-official","model":"deepseek-v4-flash"}},"surfaceOp":"append"}
+{"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}}}

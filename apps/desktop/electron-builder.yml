@@ -1,6 +1,6 @@
 appId: ai.deepseek.harness.desktop
-productName: DeepSeek Harness
-copyright: Copyright DeepSeek Harness contributors
+productName: Oasisfish
+copyright: Copyright Oasisfish contributors
 asar: true
 npmRebuild: false
 nodeGypRebuild: false
@@ -11,6 +11,8 @@ files:
   - dist/**
   - package.json
 extraResources:
+  - from: build/icon.png
+    to: icon.png
   - from: build-resources/runtime
     to: runtime
   - from: bundled-skills
@@ -29,11 +31,11 @@ win:
     - target: nsis
       arch:
         - x64
-  artifactName: DeepSeek-Harness-${version}-${arch}.${ext}
+  artifactName: Oasisfish-${version}-${arch}.${ext}
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: DeepSeek Harness
+  shortcutName: Oasisfish

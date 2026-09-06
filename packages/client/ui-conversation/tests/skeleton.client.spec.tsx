@@ -383,6 +383,7 @@ describe('ConversationRoot resident composer', () => {
     expect(seat?.contains(textarea)).toBe(true)
     expect(b.slotCalls).toContain('conversation.session.header.lineage')
     expect(b.slotCalls).toContain('conversation.session.header.actions')
+    expect(b.slotCalls).toContain('conversation.session.header.progress')
     expect(b.slotCalls).toContain('conversation.session.header.utilities')
   })
 
@@ -409,8 +410,11 @@ describe('ConversationRoot resident composer', () => {
     const header = b.view.container.querySelector('header')
     expect(host).not.toBeNull()
     expect(header?.getAttribute('aria-hidden')).toBe('true')
+    expect(b.view.getByText('Oasisfish')).toBeTruthy()
     expect(b.view.getByText('探索未至之境')).toBeTruthy()
+    expect(b.view.getByText('在 Oasisfish 的陪伴下，开启你的无限可能')).toBeTruthy()
     expect(b.view.getByText('预览版')).toBeTruthy()
+    expect(b.view.container.querySelector('img[src="/oasisfish-mascot.webp"]')).not.toBeNull()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
     // persistence mirror stays bound (ConversationSession mounts chrome-hidden

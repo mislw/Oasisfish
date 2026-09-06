@@ -17,9 +17,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import {
-  FishLogo, IconNewChatOutline16, IconPanelLeftOutline16, Tooltip,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconNewChatOutline16, IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
 
@@ -47,6 +45,7 @@ export function SidebarRoot({
   t,
   renderSlot,
 }: SidebarRootComponentProps) {
+  const [mode, setMode] = useState<'sessions' | 'toolbox'>('sessions')
   // Wide content stays mounted while the collapse animates (fading via
   // .collapsed .wide), unmounts at settle, and remounts right away on expand.
   const [settled, setSettled] = useState(collapsed)
@@ -125,6 +124,13 @@ export function SidebarRoot({
       }}
       onPointerLeave={() => { armLinger() }}
     >
+      <img
+        className={css.scene}
+        src="/oasisfish-mascot.webp"
+        alt=""
+        aria-hidden="true"
+        data-oasis-sidebar-scene
+      />
       <div className={css.logoRow}>
         {/* Expanded, the brand doubles as a New Session shortcut; the
             collapsed rail's logo is the expand toggle below instead. */}
@@ -137,13 +143,15 @@ export function SidebarRoot({
           >
             <span className={css.brandIdentity} aria-hidden="true">
               <span className={css.brandMark}>
-                {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
+                {renderSlot('sidebar.brand.mark', { size: 24 }, {
+                  fallback: <img className={css.fallbackBrandMark} src="/oasisfish-icon.png" alt="" />,
+                })}
               </span>
               <span className={css.brandName}>
                 {renderSlot('sidebar.brand.name', {}, {
                   fallback: (
                     <>
-                      <span className={css.fallbackBrandName}>DSH Local Build</span>
+                      <span className={css.fallbackBrandName}>Oasisfish</span>
                       {process.env.DSH_CLIENT_COMMIT_HASH
                         ? <span className={css.buildRevision}>{process.env.DSH_CLIENT_COMMIT_HASH}</span>
                         : null}
@@ -154,7 +162,7 @@ export function SidebarRoot({
             </span>
           </button>
         )}
-        {/* Rail resting state is the whale mark; hovering swaps in the panel
+        {/* Rail resting state is the brand mark; hovering swaps in the panel
             icon (the expand affordance, figma sidebar-hover flow). */}
         <Tooltip label={collapsed ? t('toggle.open') : t('toggle.collapse')} delayMs={500}>
           <button
@@ -165,7 +173,9 @@ export function SidebarRoot({
           >
             {!wide && (
               <span className={css.railMark} aria-hidden="true">
-                {renderSlot('sidebar.brand.mark', { size: 24 }, { fallback: <FishLogo size={24} /> })}
+                {renderSlot('sidebar.brand.mark', { size: 24 }, {
+                  fallback: <img className={css.fallbackBrandMark} src="/oasisfish-icon.png" alt="" />,
+                })}
               </span>
             )}
             {/* Rail icons render at 18 (figma rail spec); expanded keeps the glyph-native sizes. */}
@@ -190,7 +200,14 @@ export function SidebarRoot({
       {/* The browsing region fills the column between the controls and the
           foot in both states; its rail icon column rides the same slot. */}
       <div className={css.regionArea}>
-        {renderSlot('sidebar.workspaces', {
+        {wide && <div className={css.modeTabs} role="tablist">
+          <button type="button" role="tab" aria-selected={mode === 'sessions'} onClick={() => { setMode('sessions') }}>{t('mode.sessions')}</button>
+          <button type="button" role="tab" aria-selected={mode === 'toolbox'} onClick={() => { setMode('toolbox') }}>{t('mode.toolbox')}</button>
+        </div>}
+        {mode === 'sessions' ? renderSlot('sidebar.workspaces', {
+          wide,
+          expandSidebar: () => { if (collapsed) toggleSidebar() },
+        }) : renderSlot('sidebar.toolbox', {
           wide,
           expandSidebar: () => { if (collapsed) toggleSidebar() },
         })}

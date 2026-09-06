@@ -203,11 +203,28 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
   const [defaultModel, setDefaultModel] = useState(state.defaultSelection?.model ?? '')
   const [savingDefault, setSavingDefault] = useState(false)
   const [defaultFailure, setDefaultFailure] = useState<string | undefined>(undefined)
+  const [imageProvider, setImageProvider] = useState(state.defaultImageSelection?.provider ?? '')
+  const [imageModel, setImageModel] = useState(state.defaultImageSelection?.model ?? '')
+  const [imageEndpointPath, setImageEndpointPath] = useState(
+    state.defaultImageSelection?.endpointPath ?? 'images/generations',
+  )
+  const [savingImageDefault, setSavingImageDefault] = useState(false)
+  const [imageDefaultFailure, setImageDefaultFailure] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     setDefaultProvider(state.defaultSelection?.provider ?? '')
     setDefaultModel(state.defaultSelection?.model ?? '')
   }, [state.defaultSelection?.provider, state.defaultSelection?.model])
+
+  useEffect(() => {
+    setImageProvider(state.defaultImageSelection?.provider ?? '')
+    setImageModel(state.defaultImageSelection?.model ?? '')
+    setImageEndpointPath(state.defaultImageSelection?.endpointPath ?? 'images/generations')
+  }, [
+    state.defaultImageSelection?.provider,
+    state.defaultImageSelection?.model,
+    state.defaultImageSelection?.endpointPath,
+  ])
 
   const announceSaved = (target: ProviderIdentity): void => {
     // Announced only once the refreshed directory is in the snapshot the
@@ -298,6 +315,11 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
   const defaultUnavailable = state.catalogFailures.some(failure => failure.id === defaultProvider)
   const defaultUnchanged = state.defaultSelection?.provider === defaultProvider
     && state.defaultSelection.model === defaultModel
+  const imageGroup = state.groups.find(group => group.id === imageProvider)
+  const imageModels = imageGroup?.models ?? []
+  const imageDefaultUnchanged = state.defaultImageSelection?.provider === imageProvider
+    && state.defaultImageSelection.model === imageModel
+    && state.defaultImageSelection.endpointPath === imageEndpointPath
 
   const saveDefault = (): void => {
     if (savingDefault || defaultProvider.length === 0 || defaultModel.length === 0) return
@@ -306,6 +328,19 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
     void controller.selectDefault({ provider: defaultProvider, model: defaultModel })
       .then((failure) => { setDefaultFailure(failure) })
       .finally(() => { setSavingDefault(false) })
+  }
+
+
+  const saveImageDefault = (): void => {
+    if (savingImageDefault || imageProvider.length === 0 || imageModel.length === 0 || imageEndpointPath.length === 0) return
+    setSavingImageDefault(true)
+    setImageDefaultFailure(undefined)
+    void controller.selectDefaultImage({
+      provider: imageProvider,
+      model: imageModel,
+      endpointPath: imageEndpointPath,
+    }).then((failure) => { setImageDefaultFailure(failure) })
+      .finally(() => { setSavingImageDefault(false) })
   }
 
   return (
@@ -317,6 +352,7 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
         <label className={styles['defaultField']}>
           <span>{t('defaultProvider')}</span>
           <select
+            className={styles['selectInput']}
             aria-label={t('defaultProvider')}
             value={defaultProvider}
             disabled={savingDefault}
@@ -332,6 +368,7 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
         <label className={styles['defaultField']}>
           <span>{t('defaultModel')}</span>
           <select
+            className={styles['selectInput']}
             aria-label={t('defaultModel')}
             value={defaultModel}
             disabled={savingDefault || defaultModels.length === 0}
@@ -349,6 +386,58 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
           {savingDefault ? t('settingDefault') : t('setDefault')}
         </button>
         {defaultFailure === undefined ? null : <p className={styles['error']}>{defaultFailure}</p>}
+      </section>
+      <section className={styles['defaultRoute']} aria-label={t('defaultImageRoute')}>
+        <span className={styles['defaultRouteTitle']}>{t('defaultImageRoute')}</span>
+        <label className={styles['defaultField']}>
+          <span>{t('imageProvider')}</span>
+          <select
+            className={styles['selectInput']}
+            aria-label={t('imageProvider')}
+            value={imageProvider}
+            disabled={savingImageDefault}
+            onChange={(event) => {
+              const provider = event.target.value
+              setImageProvider(provider)
+              setImageModel(state.groups.find(group => group.id === provider)?.models[0]?.id ?? '')
+            }}
+          >
+            <option value="">{t('imageProviderUnset')}</option>
+            {state.groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </select>
+        </label>
+        <label className={styles['defaultField']}>
+          <span>{t('imageModel')}</span>
+          <select
+            className={styles['selectInput']}
+            aria-label={t('imageModel')}
+            value={imageModel}
+            disabled={savingImageDefault || imageModels.length === 0}
+            onChange={(event) => { setImageModel(event.target.value) }}
+          >
+            {imageModels.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}
+          </select>
+        </label>
+        <button
+          type="button"
+          className={styles['primaryButton']}
+          disabled={savingImageDefault || imageDefaultUnchanged || imageModel.length === 0 || imageEndpointPath.length === 0}
+          onClick={saveImageDefault}
+        >
+          {savingImageDefault ? t('settingImageDefault') : t('setImageDefault')}
+        </button>
+        <label className={`${styles['defaultField']} ${styles['imageEndpointField']}`}>
+          <span>{t('imageEndpointPath')}</span>
+          <input
+            className={styles['input']}
+            aria-label={t('imageEndpointPath')}
+            value={imageEndpointPath}
+            disabled={savingImageDefault}
+            onChange={(event) => { setImageEndpointPath(event.target.value) }}
+          />
+        </label>
+        <p className={styles['imageHint']}>{t('imageDefaultHint')}</p>
+        {imageDefaultFailure === undefined ? null : <p className={styles['error']}>{imageDefaultFailure}</p>}
       </section>
       {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
       {savedIdentity === undefined

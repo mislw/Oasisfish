@@ -4,9 +4,9 @@
     - button "通用设置":
       - img
       - text: 通用设置
-    - button "模型":
+    - button "模型与中转站":
       - img
-      - text: 模型
+      - text: 模型与中转站
     - button "插件":
       - img
       - text: 插件
@@ -17,14 +17,35 @@
   - button "关闭":
     - img
     - text: 关闭
-  - heading "模型" [level=2]
-  - paragraph: 填入各提供方的 API 密钥即可使用其模型。
+  - heading "模型与中转站" [level=2]
+  - paragraph: 配置模型提供方和中转站、测试连接，并选择新任务使用的默认模型。
+  - region "新任务默认模型":
+    - text: 新任务默认模型 默认提供方
+    - combobox "默认提供方":
+      - option "DeepSeek" [selected]
+    - text: 默认模型
+    - combobox "默认模型":
+      - option "DeepSeek-V4-Flash" [selected]
+      - option "DeepSeek-V4-Pro"
+      - option "DeepSeek-V4-Flash-Vision-Exp"
+    - button "设为默认" [disabled]
+  - region "默认生图模型":
+    - text: 默认生图模型 生图提供方
+    - combobox "生图提供方":
+      - option "未配置" [selected]
+      - option "DeepSeek"
+    - text: 生图模型
+    - combobox "生图模型" [disabled]
+    - button "设为生图模型" [disabled]
+    - text: Images API 路径
+    - textbox "Images API 路径": images/generations
+    - paragraph: 用户提出生图需求时，Agent 会通过 image_generate 调用这里的模型，不会切换当前对话模型。
   - list:
     - listitem:
-      - text: DeepSeek
+      - text: DeepSeek 当前默认
       - img "API 密钥已配置"
       - button "编辑 DeepSeek (deepseek-official)": 编辑
-      - text: DeepSeek deepseek-official API 密钥
+      - text: "端点: 未知 协议: 未知 3 个模型 DeepSeek deepseek-official API 密钥"
       - textbox "API 密钥":
         - /placeholder: 已配置——输入新值可替换
       - group:
@@ -40,7 +61,7 @@
           - textbox "显示名称 1":
             - /placeholder: 显示名称
             - text: DeepSeek-V4-Pro
-          - button "容量 1":
+          - button "模型高级设置 1":
             - img
           - button "删除模型 1":
             - img
@@ -50,7 +71,7 @@
           - textbox "显示名称 2":
             - /placeholder: 显示名称
             - text: DeepSeek-V4-Flash-Vision-Exp
-          - button "容量 2":
+          - button "模型高级设置 2":
             - img
           - button "删除模型 2":
             - img
@@ -60,7 +81,7 @@
           - textbox "显示名称 3":
             - /placeholder: 显示名称
             - text: Private Preview
-          - button "容量 3" [expanded]:
+          - button "模型高级设置 3" [expanded]:
             - img
           - button "删除模型 3":
             - img

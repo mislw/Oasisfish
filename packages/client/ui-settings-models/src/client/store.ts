@@ -54,10 +54,30 @@ export interface ModelsSettingsState {
   namespaces: ReadonlyMap<string, SettingsNamespaceView>
   /** Default route used by future sessions. */
   defaultSelection: ModelSelection | undefined
+  /** Auxiliary route used by the image_generate tool. */
+  defaultImageSelection: ImageGenerationSelection | undefined
   /** Live model groups available for default selection. */
   groups: readonly ModelProviderGroup[]
   /** Provider catalog failures that make a route unavailable for selection. */
   catalogFailures: readonly ModelCatalogFailure[]
+}
+
+/** Persisted auxiliary image model selection. */
+export interface ImageGenerationSelection {
+  provider: string
+  model: string
+  endpointPath: string
+}
+
+const IMAGE_GENERATION_NAMESPACE = 'image-generation'
+
+function imageSelectionOf(namespace: SettingsNamespaceView | undefined): ImageGenerationSelection | undefined {
+  if (typeof namespace?.value !== 'object' || namespace.value === null) return undefined
+  const value = namespace.value as Record<string, unknown>
+  if (typeof value.provider !== 'string' || typeof value.model !== 'string' || typeof value.endpointPath !== 'string') {
+    return undefined
+  }
+  return { provider: value.provider, model: value.model, endpointPath: value.endpointPath }
 }
 
 /**
@@ -120,7 +140,7 @@ export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
     status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
-    defaultSelection: undefined, groups: [], catalogFailures: [],
+    defaultSelection: undefined, defaultImageSelection: undefined, groups: [], catalogFailures: [],
   })
 
   /** Latest load wins; an older response never overwrites a newer one. */
@@ -229,6 +249,7 @@ export class ModelsSettingsStore {
       }))
       s.namespaces = namespaces
       s.defaultSelection = { ...defaultSelection }
+      s.defaultImageSelection = imageSelectionOf(namespaces.get(IMAGE_GENERATION_NAMESPACE))
       s.groups = groups
       s.catalogFailures = catalogFailures
     })
@@ -242,6 +263,29 @@ export class ModelsSettingsStore {
   async selectDefault(selection: ModelSelection): Promise<string | undefined> {
     try {
       const response = await this.api.llm.selectDefaultModel(selection)
+      if (!response.result.ok) return response.result.error.message
+    } catch (error) {
+      return messageOf(error)
+    }
+    await this.load()
+    return undefined
+  }
+
+  /**
+   * Save the auxiliary image route without changing the conversation model.
+   * @param selection Provider, model, and Images API path to persist.
+   * @returns A user-facing rejection message, or `undefined` after a successful refresh.
+   */
+  async selectDefaultImage(selection: ImageGenerationSelection): Promise<string | undefined> {
+    try {
+      const response = await this.api.settings.mutate({
+        ns: IMAGE_GENERATION_NAMESPACE,
+        ops: [
+          { op: 'set', path: ['provider'], value: selection.provider },
+          { op: 'set', path: ['model'], value: selection.model },
+          { op: 'set', path: ['endpointPath'], value: selection.endpointPath },
+        ],
+      })
       if (!response.result.ok) return response.result.error.message
     } catch (error) {
       return messageOf(error)
@@ -265,75 +309,4 @@ export function providerUsable(row: ProviderRow): boolean {
   if (!row.entry.active) return false
   if (row.apiKeyEnv === undefined) return true
   return row.credential?.configured === true
-}
-
-/** First-run onboarding readiness derived only from the shared Models join. */
-export type OnboardingReadiness =
-  | { kind: 'loading' }
-  | { kind: 'adapter-absent' }
-  | { kind: 'provider-ready' }
-  | { kind: 'credential-missing' }
-  | {
-    kind: 'unavailable'
-    reason:
-      | 'load-failed'
-      | 'provider-inactive'
-      | 'credentials-unavailable'
-      | 'settings-read-only'
-      | 'credential-read-only'
-  }
-
-/**
- * Project first-run readiness from the provider/settings/credential join used
- * by the Models page. The step exists to leave the user with a model to talk
- * to, so ANY usable provider ends it; only when none exists does the official
- * DeepSeek route — the one route the prompt can offer a key field for — decide
- * whether prompting can help. A missing official configurable-provider
- * declaration means the adapter is not repairable by navigating to Models.
- * @param state - current shared Models join snapshot.
- * @returns the onboarding state without reading a parallel fact source.
- */
-export function onboardingReadiness(state: ModelsSettingsState): OnboardingReadiness {
-  if ((state.status === 'idle' || state.status === 'loading') && state.rows.length === 0) {
-    return { kind: 'loading' }
-  }
-  if (state.status === 'error') {
-    return {
-      kind: 'unavailable',
-      reason: 'load-failed',
-    }
-  }
-  if (state.rows.some(providerUsable)) return { kind: 'provider-ready' }
-  const row = state.rows.find(candidate =>
-    candidate.entry.provider === 'deepseek-official'
-    && candidate.entry.settingsNs === 'llm-deepseek'
-    && candidate.entry.settingsPath.length === 0)
-  if (row === undefined) return { kind: 'adapter-absent' }
-  if (!row.entry.active) {
-    return {
-      kind: 'unavailable',
-      reason: 'provider-inactive',
-    }
-  }
-  // Past the usable gate an active route names a reference it has no stored
-  // credential for, so the remaining questions are all about that credential.
-  if (state.credentialError !== null || row.credential === undefined) {
-    return {
-      kind: 'unavailable',
-      reason: 'credentials-unavailable',
-    }
-  }
-  if (!state.writable) {
-    return {
-      kind: 'unavailable',
-      reason: 'settings-read-only',
-    }
-  }
-  if (!row.credential.writable) {
-    return {
-      kind: 'unavailable',
-      reason: 'credential-read-only',
-    }
-  }
-  return { kind: 'credential-missing' }
 }

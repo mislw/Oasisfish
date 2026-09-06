@@ -1,0 +1,27 @@
+{
+  "name": "@deepseek-ai/dsh-tool-image-generate",
+  "description": "Model-facing image_generate tool over the generated-image capability",
+  "version": "0.1.1-rc.2",
+  "publishConfig": { "access": "public" },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./invariant": { "types": "./lib/types/invariant.d.ts", "default": "./lib/invariant.js" },
+    "./src/*": "./src/*", "./package.json": "./package.json"
+  },
+  "files": ["lib/index.js", "lib/invariant.js", "lib/types/**/*.d.ts"],
+  "license": "MIT",
+  "dependencies": { "@deepseek-ai/schemastery": "workspace:^" },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^", "@deepseek-ai/dsh-attachment": "workspace:^",
+    "@deepseek-ai/dsh-image-generation": "workspace:^", "@deepseek-ai/dsh-invariants": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^", "@deepseek-ai/dsh-attachment": "workspace:^",
+    "@deepseek-ai/dsh-image-generation": "workspace:^", "@deepseek-ai/dsh-invariants": "workspace:^",
+    "@deepseek-ai/dsh-tools": "workspace:^"
+  }
+}

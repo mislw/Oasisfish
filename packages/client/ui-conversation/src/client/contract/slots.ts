@@ -98,11 +98,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * self-sufficient, not starved.
      */
     'conversation.session.header.actions': { kind: 'list'; scope: 'session'; owner: ConversationHeaderActionOwnerProps }
+    /** Full-width progress strip below the title row. */
+    'conversation.session.header.progress': { kind: 'list'; scope: 'session'; owner: ConversationHeaderActionOwnerProps }
     /**
      * Right-aligned Session utilities kept outside the title-adjacent action
      * group, so an optional utility cannot reorder session context or lineage.
      */
     'conversation.session.header.utilities': { kind: 'list'; scope: 'session'; owner: ConversationHeaderActionOwnerProps }
+    /** Feature summaries shown above selected tool details. */
+    'conversation.details.summary': { kind: 'list'; scope: 'session'; owner: ConversationHeaderActionOwnerProps }
     /**
      * The conversation view ring: one list entry per view tab (chat here;
      * trajectory/waterfall from ui-trajectory), rendered one-at-a-time by
@@ -663,6 +667,7 @@ export type ConversationSessionHeaderSlotProps =
   & PropsRenderSlots<
     'conversation.session.header.lineage'
     | 'conversation.session.header.actions'
+    | 'conversation.session.header.progress'
     | 'conversation.session.header.utilities'
   >
   & PropsStore<ChatStore>
@@ -807,7 +812,7 @@ export interface DetailsInjected {
 }
 
 /** Full details-slot props: selection store, Tool output seat, injected close callback, and locale. */
-export type DetailsSlotProps = PropsRuntime<'details'> & PropsRenderSlots<'conversation.details.tool'>
+export type DetailsSlotProps = PropsRuntime<'details'> & PropsRenderSlots<'conversation.details.summary' | 'conversation.details.tool'>
   & PropsStore<ChatStore> & DetailsInjected & PropsLocale<'conversation'>
 
 /** Owner share common to the hero / New-Session Workspace pickers. */

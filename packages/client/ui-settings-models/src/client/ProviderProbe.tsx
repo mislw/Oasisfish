@@ -5,6 +5,7 @@ import type { ProbeTarget } from './ModelListEditor.tsx'
 import { messageOf } from './store.ts'
 import type { en } from './locales.ts'
 import styles from './ProviderProbe.module.css'
+import formStyles from './ModelsSection.module.css'
 
 /** Props of {@link ProviderProbe}. */
 export interface ProviderProbeProps {
@@ -66,6 +67,7 @@ export function ProviderProbe(props: ProviderProbeProps): ReactNode {
         <label className={styles['modelField']}>
           <span>{props.t('testModel')}</span>
           <select
+            className={formStyles['selectInput']}
             value={model}
             disabled={props.disabled || busy || modelIds.length === 0}
             onChange={(event) => { setModel(event.target.value) }}

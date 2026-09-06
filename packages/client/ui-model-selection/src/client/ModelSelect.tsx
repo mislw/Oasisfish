@@ -202,10 +202,12 @@ export function ModelSelect(
     void select(selection).then(settleSelection)
   }
 
-  const modelLabel = currentChoice?.model.name ?? t('trigger.fallback')
+  const unconfigured = state.status === 'ready' && choices.length === 0
+  const modelLabel = currentChoice?.model.name
+    ?? (unconfigured ? t('trigger.unconfigured') : t('trigger.fallback'))
   const triggerLabel = effortLabel === undefined ? modelLabel : `${modelLabel} · ${effortLabel}`
   const triggerAria = currentChoice === undefined
-    ? t('trigger.selectAria')
+    ? unconfigured ? t('trigger.unconfiguredAria') : t('trigger.selectAria')
     : effortLabel === undefined
       ? t('trigger.aria', { model: modelLabel })
       : t('trigger.ariaEffort', { model: modelLabel, effort: effortLabel })

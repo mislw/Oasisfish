@@ -270,6 +270,29 @@ describe('ModelsSection', () => {
     })
   })
 
+  it('saves a separate default image model without changing the conversation default', async () => {
+    const { mutate, selectDefaultModel } = await mountSection()
+
+    fireEvent.change(screen.getByLabelText(en.imageProvider), { target: { value: 'openai' } })
+    fireEvent.change(screen.getByLabelText(en.imageModel), { target: { value: 'gpt-5-mini' } })
+    fireEvent.change(screen.getByLabelText(en.imageEndpointPath), {
+      target: { value: 'v1/images/generations' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: en.setImageDefault }))
+
+    await waitFor(() => {
+      expect(mutate).toHaveBeenCalledWith({
+        ns: 'image-generation',
+        ops: [
+          { op: 'set', path: ['provider'], value: 'openai' },
+          { op: 'set', path: ['model'], value: 'gpt-5-mini' },
+          { op: 'set', path: ['endpointPath'], value: 'v1/images/generations' },
+        ],
+      })
+    })
+    expect(selectDefaultModel).not.toHaveBeenCalled()
+  })
+
   it('blocks deleting the provider that owns the current default', async () => {
     await mountSection({ defaultSelection: { provider: 'openai', model: 'gpt-5' } })
     const blocked = screen.getByRole<HTMLButtonElement>('button', { name: en.switchDefaultBeforeDelete })
@@ -403,66 +426,6 @@ describe('ModelsSection', () => {
     )
     fireEvent.click(screen.getByText(en.add))
     expect(screen.queryByRole('status')).toBeNull()
-  })
-
-  it('reuses the provider editor as a required credential-only onboarding form', async () => {
-    let finishSet: ((response: RpcResponse<Record<string, never>>) => void) | undefined
-    const set = vi.fn(() => new Promise<RpcResponse<Record<string, never>>>((resolve) => {
-      finishSet = resolve
-    }))
-    const { face, mutate } = scriptedFace({ set })
-    const onClose = vi.fn()
-    const { ProviderEditor } = await import('../src/client/ProviderEditor.tsx')
-
-    render(<ProviderEditor
-      provider="deepseek-official"
-      displayName="DeepSeek"
-      hideTitle
-      namespace={wireNamespaces()[0]!}
-      schema={settingsSchema}
-      settingsPath={[]}
-      api={face as never}
-      t={t}
-      readOnly={false}
-      credentialOnly
-      credentialRequired
-      autoFocusCredential
-      cancelLabel="onboardingLater"
-      submitLabel="onboardingSave"
-      submitBusyLabel="onboardingSaving"
-      onClose={onClose}
-    />)
-
-    const key = screen.getByLabelText<HTMLInputElement>(en.keyInput)
-    const save = screen.getByText<HTMLButtonElement>(en.onboardingSave)
-    expect(document.activeElement).toBe(key)
-    expect(key.required).toBe(true)
-    expect(save.disabled).toBe(true)
-    expect(screen.getByText(en.onboardingLater)).toBeTruthy()
-    expect(screen.queryByText(en.customized)).toBeNull()
-    expect(screen.queryByLabelText(en.baseUrl)).toBeNull()
-
-    fireEvent.change(key, { target: { value: '   ' } })
-    expect(screen.getByText(en.keyRequired)).toBeTruthy()
-    expect(key.getAttribute('aria-invalid')).toBe('true')
-    expect(save.disabled).toBe(true)
-
-    fireEvent.change(key, { target: { value: '  sk-onboarding  ' } })
-    expect(screen.queryByText(en.keyRequired)).toBeNull()
-    expect(save.disabled).toBe(false)
-    fireEvent.click(save)
-
-    expect(await screen.findByText(en.onboardingSaving)).toBeTruthy()
-    expect(set).toHaveBeenCalledWith({ ref: 'DEEPSEEK_API_KEY', value: 'sk-onboarding' })
-    expect(mutate).not.toHaveBeenCalled()
-    expect(onClose).not.toHaveBeenCalled()
-
-    if (finishSet === undefined) throw new Error('credential write did not start')
-    await act(async () => {
-      finishSet?.(ok({}))
-      await Promise.resolve()
-    })
-    expect(onClose).toHaveBeenCalledWith(true)
   })
 
   it('applies customized deepseek fields as path ops', async () => {

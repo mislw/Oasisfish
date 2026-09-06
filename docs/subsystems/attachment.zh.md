@@ -187,4 +187,21 @@ readImageRequest( ref: ImageAttachmentRef, policy: ImageRequestPolicy, signal?: 
 ```
 
 Source: [`packages/attachment/attachment/src/index.ts`](../../packages/attachment/attachment/src/index.ts)
+
+<a id="ctximagegeneration--imagegenerationservice"></a>
+
+### `ctx.imageGeneration` — `ImageGenerationService`
+
+Host-owned generated-image capability and OpenAI-compatible provider.
+
+```ts cordis-catalog
+/**
+ * Generate one image and persist it through the attachment service.
+ * @param request - prompt, optional reference images and output controls, and cancellation signal.
+ * @returns the serving route plus a durable generated-image attachment.
+ */
+async generate(request: GenerateImageRequest): Promise<GeneratedImage>
+```
+
+Source: [`packages/attachment/image-generation/src/index.ts`](../../packages/attachment/image-generation/src/index.ts)
 <!-- END GENERATED cordis-surface -->

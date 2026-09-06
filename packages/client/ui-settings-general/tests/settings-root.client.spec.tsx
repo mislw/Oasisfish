@@ -98,6 +98,13 @@ describe('SettingsRoot trigger', () => {
 })
 
 describe('SettingsPanel chrome seats', () => {
+  it('portals the full-viewport layer outside layout containing blocks', () => {
+    mount()
+    openPanel()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.parentElement?.parentElement).toBe(document.body)
+  })
+
   it('names the dialog via aria-labelledby pointing at the header seat node', () => {
     mount()
     openPanel()

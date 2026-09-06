@@ -9,6 +9,7 @@ import { verifyModelResources } from './verify-model-resources.mjs'
 
 const startupTimeoutMs = 60_000
 const shutdownTimeoutMs = 15_000
+const backgroundCloseObservationMs = 1_000
 const rpcTimeoutMs = 600_000
 const searchQuery = '如何用 UGCAskQ 读取 DataTable？'
 let rpcSequence = 0
@@ -201,7 +202,7 @@ async function runDesktopCycle(executable, userData) {
       BROWSER: process.execPath,
       DSH_DESKTOP_USER_DATA: userData,
     },
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     windowsHide: false,
   })
   if (child.pid === undefined) throw new Error('Electron did not report a process id.')
@@ -223,10 +224,19 @@ async function runDesktopCycle(executable, userData) {
       encoding: 'utf8',
       windowsHide: true,
     })
-    if (close.status !== 0) throw new Error(`Could not close Electron:\n${close.stderr ?? close.stdout}`)
+    if (close.status !== 0) throw new Error(`Could not request an Electron window close:\n${close.stderr ?? close.stdout}`)
+    await new Promise(resolveDelay => setTimeout(resolveDelay, backgroundCloseObservationMs))
+    if (!isProcessAlive(child.pid)) throw new Error('Electron exited after a window-close request.')
+    if (!isProcessAlive(harnessPid)) throw new Error('Harness exited after an Electron window-close request.')
+    await new Promise((resolveQuitRequest, reject) => {
+      child.send({ type: 'oasisfish.quit' }, (error) => {
+        if (error === null) resolveQuitRequest()
+        else reject(error)
+      })
+    })
     await waitForExit(child.pid, shutdownTimeoutMs, 'Electron')
     await waitForExit(harnessPid, shutdownTimeoutMs, 'Harness')
-    return { httpStatus: response.status, search }
+    return { backgroundClosePreserved: true, httpStatus: response.status, search }
   } finally {
     if (isProcessAlive(child.pid)) await terminateProcessTree(child.pid)
     if (harnessPid !== undefined && isProcessAlive(harnessPid)) await terminateProcessTree(harnessPid)
@@ -237,7 +247,7 @@ async function runDesktopCycle(executable, userData) {
 export async function smokeUnpacked(unpackedRoot) {
   const productRoot = resolve(unpackedRoot)
   const resourcesRoot = join(productRoot, 'resources')
-  const executable = join(productRoot, 'DeepSeek Harness.exe')
+  const executable = join(productRoot, 'Oasisfish.exe')
   await verifyStagedProduct(resourcesRoot, PACKAGED_REQUIRED_FILES)
   await verifyModelResources(join(resourcesRoot, 'models', 'bge-small-zh-v1.5'))
   const reparsePoints = await countReparsePoints(resourcesRoot)
@@ -254,6 +264,7 @@ export async function smokeUnpacked(unpackedRoot) {
     const cacheReused = firstRevisions.length > 0
       && JSON.stringify(firstRevisions) === JSON.stringify(secondRevisions)
     return {
+      backgroundClosePreserved: first.backgroundClosePreserved && second.backgroundClosePreserved,
       httpStatus: second.httpStatus,
       reparsePoints,
       tools,

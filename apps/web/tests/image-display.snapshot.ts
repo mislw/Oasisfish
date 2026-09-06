@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 // Multimodal image surfaces over the BUILT client graph (the code-mode-fixture
 // idiom: real bundles via AppWebEntry, keyless FixtureApiClient transport).
-// Opens the fixture history session whose turn 73 carries an image in BOTH a
-// user message and an assistant message, and pins the product surfaces: the
-// history ImageGallery loading real fixture bytes through the authorized
-// sessions.attachment route, the single-click ImageLightbox, and the composer
-// intake chain (paste → ordered thumbnail rail → image-only send enablement → remove).
+// Opens the fixture history session whose turn 73 carries an image in a user
+// message, an assistant message, and an image_generate Tool result, and pins
+// the product surfaces: history images loading real fixture bytes through the
+// authorized sessions.attachment route, the single-click ImageLightbox, and
+// the composer intake chain (paste → ordered thumbnail rail → image-only send
+// enablement → remove).
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { installAssembledBootEnv, mountAssembledApp } from './assembled-boot.ts'
@@ -32,7 +33,7 @@ async function openFixtureSession(): Promise<void> {
   }, { timeout: 10_000 })
 }
 
-it('renders the history image pair through the authorized attachment route and opens the lightbox', async () => {
+it('renders message and generated-tool history images through the authorized attachment route and opens the lightbox', async () => {
   mountAssembledApp()
   await openFixtureSession()
 
@@ -47,6 +48,7 @@ it('renders the history image pair through the authorized attachment route and o
     }
   }, { timeout: 10_000 })
   const galleryShape = (align: string) => [...document.querySelectorAll(`[data-align="${align}"] img`)]
+    .filter(img => img.closest('[data-tool="image_generate"]') === null)
     .map(img => ({ alt: img.getAttribute('alt'), scheme: img.getAttribute('src')?.split(':')[0] }))
   expect({ user: galleryShape('end'), assistant: galleryShape('start') }).toMatchInlineSnapshot(`
     {
@@ -64,6 +66,11 @@ it('renders the history image pair through the authorized attachment route and o
       ],
     }
   `)
+  const generatedImage = document.querySelector<HTMLImageElement>('[data-tool="image_generate"] img')
+  expect({
+    alt: generatedImage?.getAttribute('alt'),
+    scheme: generatedImage?.getAttribute('src')?.split(':')[0],
+  }).toEqual({ alt: 'fixture-image.png', scheme: 'blob' })
   const userImage = document.querySelector<HTMLElement>('[data-align="end"] img')!
 
   // A single click opens the original-size lightbox; Escape/close dismisses it.

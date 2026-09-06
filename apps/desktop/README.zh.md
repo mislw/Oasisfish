@@ -1,12 +1,12 @@
-# DeepSeek Harness Desktop
+# Oasisfish Desktop
 
 [English](README.md) | 中文
 
-本文是 Windows 10/11 x64 自包含发行版的参考文档。安装后的应用内置 Harness Web UI 及本地编码运行时；模型与远程 API 请求仍需联网并使用用户提供的凭据。
+本文是 Oasisfish Windows 10/11 x64 自包含发行版的参考文档。安装后的应用内置 DeepSeek Harness Web UI 及本地编码运行时；模型与远程 API 请求仍需联网并使用用户提供的凭据。
 
 ## 运行时行为
 
-Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-open` 入口，等待 HTTP 就绪后，只在沙箱化 BrowserWindow 中打开该来源，不会将其交给系统浏览器。应用拒绝外部导航和新窗口。关闭应用时会终止完整的 Harness 进程树。
+Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-open` 入口，等待 HTTP 就绪后，只在沙箱化 BrowserWindow 中打开该来源，不会将其交给系统浏览器。应用拒绝外部导航和新窗口。标题栏最小化按钮会将窗口隐藏到 Windows 系统托盘；标题栏关闭按钮会先请求确认，确认后隐藏到托盘，取消则保持窗口打开。用户可以从托盘重新打开窗口；只有托盘菜单中的“退出 Oasisfish”会主动终止应用及完整的 Harness 进程树。
 
 只有 Harness 子进程会在 `PATH` 前端获得内置工具目录。桌面应用不会修改用户的全局环境。不可变应用文件保留在安装目录中；profile、设置、凭据、会话、缓存和日志保留在 Electron 的用户数据目录中。
 
@@ -57,11 +57,11 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-staging 检查要求 Harness 入口、Web 前端、运行时 manifest、产品所需的每个可执行文件，以及已通过 hash 验证的本地检索模型齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，通过真实 `skill` 工具加载它，并通过 `skill_search` 检索其声明的参考资料。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后仍存活，关闭 Electron，并要求两个进程均退出。
+staging 检查要求 Harness 入口、Web 前端、运行时 manifest、产品所需的每个可执行文件，以及已通过 hash 验证的本地检索模型齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，通过真实 `skill` 工具加载它，并通过 `skill_search` 检索其声明的参考资料。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后及窗口关闭请求后仍存活，再通过仅供测试使用的父进程通道调用托盘退出路径，并要求 Electron 与 Harness 都退出。
 
 ## 用户数据与日志
 
-默认数据根目录为 `%APPDATA%\DeepSeek Harness`。`desktop-ready.json` 记录当前回环 URL 与 Harness PID，供诊断使用。启动过程和 Harness 输出写入 `logs\desktop.log`；日志轮转后，上一份文件保留为 `desktop.log.previous`。
+默认数据根目录继续使用 `%APPDATA%\DeepSeek Harness`，因此升级到 Oasisfish 后仍会保留现有 profile、设置、凭据、会话、缓存、浏览器状态和日志。`desktop-ready.json` 记录当前回环 URL 与 Harness PID，供诊断使用。启动过程和 Harness 输出写入 `logs\desktop.log`；日志轮转后，上一份文件保留为 `desktop.log.previous`。
 
 ## 许可证与限制
 

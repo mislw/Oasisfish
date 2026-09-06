@@ -873,6 +873,32 @@ export interface Config {
 
 来源：[`packages/host/webserver/src/index.ts:59`](../packages/host/webserver/src/index.ts)
 
+<a id="deepseek-aidsh-image-generation"></a>
+
+## `@deepseek-ai/dsh-image-generation`
+
+```ts config-catalog
+/** Plugin configuration and composition-layer defaults. */
+export interface Config extends Partial<ImageGenerationSettings> {
+  /** Maximum accepted Images API JSON or downloaded image bytes. */
+  maxResponseBytes?: number
+}
+
+/** Persisted default image route. */
+export interface ImageGenerationSettings {
+  /** Provider route whose Base URL and credential back image requests. */
+  provider: string
+  /** Provider-specific model id sent to the Images API. */
+  model: string
+  /** Relative Images API path resolved against the provider Base URL. */
+  endpointPath: string
+  /** Relative Images API path used when the request includes reference images. */
+  editEndpointPath: string
+}
+```
+
+来源：[`packages/attachment/image-generation/src/index.ts:39`](../packages/attachment/image-generation/src/index.ts)
+
 <a id="deepseek-aidsh-invariants"></a>
 
 ## `@deepseek-ai/dsh-invariants`
@@ -2698,6 +2724,22 @@ export interface Config {
 
 来源：[`packages/goal/tool-goal/src/index.ts:26`](../packages/goal/tool-goal/src/index.ts)
 
+<a id="deepseek-aidsh-tool-image-generate"></a>
+
+## `@deepseek-ai/dsh-tool-image-generate`
+
+需要：`tools` · `imageGeneration`
+
+```ts config-catalog
+/** Image generation tool runtime limits. */
+export interface Config {
+  /** Maximum duration of one provider request, image download, and attachment save. */
+  timeoutMs: number
+}
+```
+
+来源：[`packages/attachment/tool-image-generate/src/index.ts:17`](../packages/attachment/tool-image-generate/src/index.ts)
+
 <a id="deepseek-aidsh-tool-jobs"></a>
 
 ## `@deepseek-ai/dsh-tool-jobs`
@@ -3320,6 +3362,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-deliverables` — 需要 `systemPrompt`（[`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-directory-picker-browse`（[`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-directory-picker-native`（[`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-game-toolbox`（[`packages/client/ui-game-toolbox/src/index.ts`](../packages/client/ui-game-toolbox/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-goal`（[`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-input-trigger`（[`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）

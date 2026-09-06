@@ -1,12 +1,12 @@
-# DeepSeek Harness Desktop
+# Oasisfish Desktop
 
 English | [中文](README.zh.md)
 
-This reference describes the self-contained Windows 10/11 x64 distribution. The installed application carries the Harness Web UI and its local coding runtimes; model and remote API requests still require network access and user-provided credentials.
+This reference describes the self-contained Oasisfish distribution for Windows 10/11 x64. The installed application carries the DeepSeek Harness Web UI and its local coding runtimes; model and remote API requests still require network access and user-provided credentials.
 
 ## Runtime behavior
 
-Electron starts the bundled `dsh web --no-open` entry on an operating-system-assigned `127.0.0.1` port, waits for HTTP readiness, and then opens that origin only in a sandboxed BrowserWindow without handing it to the system browser. External navigation and new windows are denied. Closing the application terminates the complete Harness process tree.
+Electron starts the bundled `dsh web --no-open` entry on an operating-system-assigned `127.0.0.1` port, waits for HTTP readiness, and then opens that origin only in a sandboxed BrowserWindow without handing it to the system browser. External navigation and new windows are denied. The title-bar minimize control hides the window in the Windows system tray. The title-bar close control asks for confirmation and then hides the window in the tray; cancelling keeps the window open. The tray can reopen the window, and its **Exit Oasisfish** command is the only user-initiated action that terminates the application and complete Harness process tree.
 
 Only the Harness child process receives the bundled tool directories at the front of `PATH`. The desktop application does not modify the user's global environment. Immutable application files remain under the installation directory; profiles, settings, credentials, sessions, caches, and logs remain under Electron's per-user data directory.
 
@@ -57,11 +57,11 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-The staging check requires the Harness entry, Web frontend, runtime manifest, every executable needed by the product, and the hash-verified local retrieval model. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog, loads it through the real `skill` tool, and searches its declared references through `skill_search`. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness, closes Electron, and requires both processes to exit.
+The staging check requires the Harness entry, Web frontend, runtime manifest, every executable needed by the product, and the hash-verified local retrieval model. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog, loads it through the real `skill` tool, and searches its declared references through `skill_search`. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness and a window-close request, then uses its private parent-process channel to invoke the tray exit path and requires Electron and Harness to exit.
 
 ## User data and logs
 
-The default data root is `%APPDATA%\DeepSeek Harness`. `desktop-ready.json` records the active loopback URL and Harness PID for diagnostics. Startup and Harness output are written to `logs\desktop.log`; the previous file is retained as `desktop.log.previous` after rotation.
+The default data root remains `%APPDATA%\DeepSeek Harness` so an Oasisfish upgrade retains existing profiles, settings, credentials, sessions, caches, browser state, and logs. `desktop-ready.json` records the active loopback URL and Harness PID for diagnostics. Startup and Harness output are written to `logs\desktop.log`; the previous file is retained as `desktop.log.previous` after rotation.
 
 ## Licenses and limits
 

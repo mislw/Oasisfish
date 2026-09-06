@@ -1,0 +1,78 @@
+- button "New session"
+- button "Collapse sidebar":
+  - img
+- button "New session":
+  - img
+  - text: New Session
+- tablist:
+  - tab "Sessions"
+  - tab "Toolbox" [selected]
+- text: Game Development Tools
+- button "UI Generation Toolchain From visual direction through UMG build, binding, and acceptance Resume":
+  - img
+  - text: UI Generation Toolchain From visual direction through UMG build, binding, and acceptance Resume
+- button "Image Generation Refine an image request and use the default image model Open":
+  - img
+  - text: Image Generation Refine an image request and use the default image model Open
+- button "Lua Development Coming later" [disabled]:
+  - img
+  - text: Lua Development Coming later
+- button "Data Tables Coming later" [disabled]:
+  - img
+  - text: Data Tables Coming later
+- button "Log Diagnostics Coming later" [disabled]:
+  - img
+  - text: Log Diagnostics Coming later
+- button "Settings":
+  - img
+  - text: Settings
+- banner:
+  - navigation "Session hierarchy":
+    - button "Oasis UI 生成工具链" [disabled]
+  - img
+  - text: 游戏 UI 工具链
+  - button "Session log":
+    - text: Session log
+    - img
+  - button "Open task details": 来源 视觉 分层 工作台 UMG 需求 UMG 构建 逻辑绑定 最终验收
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
+- text: 启动 UI 生成工具链。 8/28 {{clock}}
+- button "Copy":
+  - img
+- paragraph: 视觉阶段已准备，等待确认。
+- button "Copy":
+  - img
+- button "Good response":
+  - img
+- button "Bad response":
+  - img
+- button "Branch into a new conversation":
+  - img
+- text: 8/28 {{clock}} Ran for {{duration}}
+- region "To-dos":
+  - button "To-dos 1 completed · 1 in progress · 6 pending"
+- textbox "Message the agent"
+- button "Commands":
+  - img
+- 'button "Access mode, current: Workspace Write"': Workspace Write
+- button "Select model, current DeepSeek-V4-Flash":
+  - text: DeepSeek-V4-Flash
+  - img
+- button "Send message" [disabled]
+- text: Details
+- button "Close details"
+- heading "Current stage" [level=3]
+- text: 视觉
+- heading "Artifacts and checks" [level=3]
+- list:
+  - listitem: ✓ 来源：已确认需求来源
+  - listitem: ● 视觉：等待视觉方案确认
+  - listitem: ○ 分层
+  - listitem: ○ 工作台
+  - listitem: ○ UMG 需求
+  - listitem: ○ UMG 构建
+  - listitem: ○ 逻辑绑定
+  - listitem: ○ 最终验收
+- text: Click a tool row in the message flow to view its details

@@ -1,5 +1,12 @@
 import { join } from 'node:path'
 
+const LEGACY_DATA_DIRECTORY = 'DeepSeek Harness'
+
+/** Preserve the desktop data directory while the visible product name changes. */
+export function resolveDesktopDataRoot(appDataRoot: string): string {
+  return join(appDataRoot, LEGACY_DATA_DIRECTORY)
+}
+
 /** Immutable product resources and mutable per-user desktop state. */
 export interface DesktopPaths {
   resourcesRoot: string

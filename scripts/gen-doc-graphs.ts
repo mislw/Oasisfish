@@ -107,6 +107,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The host commits accepted images before session events; provider adapters resolve authorized durable references into provider-native content.',
   },
   {
+    key: 'imageGeneration',
+    pkg: 'image-generation',
+    title: 'Configured image generation',
+    mode: 'seam',
+    consumers: ['tool-image-generate'],
+    note: 'The service resolves the separately configured Images API route and persists its output through ctx.attachments; the tool exposes that capability without changing the conversation model.',
+  },
+  {
     key: 'llm',
     pkg: 'llm',
     title: 'LLM adapter registry',

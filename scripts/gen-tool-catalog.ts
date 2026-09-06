@@ -8,7 +8,7 @@
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
-import { Context } from '@deepseek-ai/cordis'
+import { Context, Service } from '@deepseek-ai/cordis'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -26,6 +26,7 @@ import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
+import type { GenerateImageRequest, GeneratedImage } from '@deepseek-ai/dsh-image-generation'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import WebRuntime from '@deepseek-ai/dsh-web'
@@ -48,6 +49,7 @@ import CordisHostRunner from '@deepseek-ai/dsh-cordis-host-runner'
 import * as ToolCordis from '@deepseek-ai/dsh-tool-cordis'
 import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
 import * as ToolFsSearch from '@deepseek-ai/dsh-tool-fs-search'
+import * as ToolImageGenerate from '@deepseek-ai/dsh-tool-image-generate'
 import * as ToolStrReplaceEditor from '@deepseek-ai/dsh-tool-str-replace-editor'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
@@ -91,6 +93,17 @@ class CatalogAttachmentStore extends AttachmentStore {
 
   override readImage(_ref: ImageAttachmentRef): Promise<StoredImageAttachment> {
     return Promise.reject(new Error('gen-tool-catalog: attachment reads are unreachable during schema harvest'))
+  }
+}
+
+/** Image-generation seam marker used only to harvest the consumer's schema. */
+class CatalogImageGenerationService extends Service {
+  constructor(ctx: Context) {
+    super(ctx, 'imageGeneration')
+  }
+
+  generate(_request: GenerateImageRequest): Promise<GeneratedImage> {
+    return Promise.reject(new Error('gen-tool-catalog: image generation is unreachable during schema harvest'))
   }
 }
 
@@ -346,6 +359,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-image-generate',
+    dir: 'tool-image-generate',
+    source: 'packages/attachment/tool-image-generate/src/index.ts',
+    requires: ['ctx.tools', 'ctx.imageGeneration'],
+    writes: ['tool/call', 'durable generated-image attachment', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(CatalogImageGenerationService)
+      await ctx.plugin(ToolImageGenerate, { timeoutMs: 180_000 })
+    },
+    note:
+      'The tool uses the separately configured default image provider and model; it does not change the conversation model route.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-terminal',

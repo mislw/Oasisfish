@@ -103,9 +103,10 @@ describe('SidebarRoot shell', () => {
         options?.fallback ?? null) as SidebarRootComponentProps['renderSlot']}
     />)
 
-    expect(screen.getByText('DSH Local Build')).toBeTruthy()
+    expect(screen.getByText('Oasisfish')).toBeTruthy()
     expect(screen.getByText('0123456')).toBeTruthy()
-    expect(container.querySelector('svg')).not.toBeNull()
+    expect(container.querySelector('img[src="/oasisfish-icon.png"]')).not.toBeNull()
+    expect(container.querySelector('img[src="/oasisfish-mascot.webp"][data-oasis-sidebar-scene]')).not.toBeNull()
   })
 
   it('hands the region its wide flag and clamps expandSidebar to the collapsed state', () => {
