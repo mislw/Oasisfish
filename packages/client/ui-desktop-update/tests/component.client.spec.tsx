@@ -9,6 +9,8 @@ import { en, zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
+const unusedHook = (() => { throw new Error('unused') }) as never
+
 function mount(state: DesktopUpdateViewState, locale: typeof en = en) {
   const store = createSnapshotStore(state)
   const actions = {
@@ -21,7 +23,9 @@ function mount(state: DesktopUpdateViewState, locale: typeof en = en) {
     close={vi.fn()}
     {...actions}
     useDesktopUpdate={bindSnapshotSelector(store)}
-    t={key => locale[key]}
+    useSessions={unusedHook}
+    useWorkspaces={unusedHook}
+    t={key => (locale as Record<string, string>)[key] ?? key}
   />)
   return { actions, store }
 }
@@ -85,7 +89,7 @@ describe('DesktopUpdateSection', () => {
 
     const progress = screen.getByRole('progressbar')
     expect(progress.getAttribute('aria-valuenow')).toBe('42')
-    expect((screen.getByRole('button', { name: 'Downloading…' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Downloading…' }).disabled).toBe(true)
   })
 
   it('shows indeterminate progress when total progress is unavailable', () => {
@@ -111,7 +115,7 @@ describe('DesktopUpdateSection', () => {
       update: { phase, currentVersion: '1.2.3', availableVersion: '1.3.0' },
     })
 
-    expect((screen.getByRole('button', { name: label }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: label }).disabled).toBe(true)
   })
 
   it('shows an unsupported status without an action', () => {

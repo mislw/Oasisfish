@@ -50,6 +50,12 @@ pnpm --filter @deepseek-ai/dsh-desktop run package
 
 `package:dir` 将解包应用写入 `apps/desktop/release/win-unpacked/`。`package` 将 NSIS 安装包写入 `apps/desktop/release/`。本地缓存缺少上游运行时归档时，构建过程会按固定地址下载；安装后的应用无需联网即可启动 UI 或执行内置本地工具。
 
+## 更新
+
+安装版和打包后的便携目录都会显示“设置 > 应用更新”。打开 Oasisfish 或设置页面不会访问 GitHub；“检查更新”、“下载更新”和“重启并安装”分别需要用户操作。安装程序替换已注册的应用文件，并保留 `%APPDATA%\DeepSeek Harness` 中的设置、凭据、会话、缓存、浏览器状态和日志。
+
+只推送源码不构成应用更新。发布时先修改 `apps/desktop/package.json` 中的版本，再创建匹配的 `v<version>` 标签，并通过 `.github/workflows/oasisfish-release.yml` 发布该标签。公开的 `mislw/Oasisfish` Release 必须包含 NSIS 安装包、对应的 `.blockmap` 和 `latest.yml`。便携版清理只会在安装后的目标版本写入回执后，删除打包清单中未被修改的文件；存在未知文件或修改文件时会保留旧便携目录，供用户手动检查。
+
 ## 验证
 
 ```sh
@@ -57,11 +63,11 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-staging 检查要求 Harness 入口、Web 前端、运行时 manifest、产品所需的每个可执行文件，以及已通过 hash 验证的本地检索模型齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，通过真实 `skill` 工具加载它，并通过 `skill_search` 检索其声明的参考资料。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后及窗口关闭请求后仍存活，再通过仅供测试使用的父进程通道调用托盘退出路径，并要求 Electron 与 Harness 都退出。
+staging 检查要求 Harness 入口、Web 前端、更新元数据、便携清单与清理 helper、运行时 manifest、产品所需的每个可执行文件，以及已通过 hash 验证的本地检索模型齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，通过真实 `skill` 工具加载它，并通过 `skill_search` 检索其声明的参考资料。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后及窗口关闭请求后仍存活，再通过仅供测试使用的父进程通道调用托盘退出路径，并要求 Electron 与 Harness 都退出。
 
 ## 用户数据与日志
 
-默认数据根目录继续使用 `%APPDATA%\DeepSeek Harness`，因此升级到 Oasisfish 后仍会保留现有 profile、设置、凭据、会话、缓存、浏览器状态和日志。`desktop-ready.json` 记录当前回环 URL 与 Harness PID，供诊断使用。启动过程和 Harness 输出写入 `logs\desktop.log`；日志轮转后，上一份文件保留为 `desktop.log.previous`。
+默认数据根目录继续使用 `%APPDATA%\DeepSeek Harness`，因此升级到 Oasisfish 后仍会保留现有 profile、设置、凭据、会话、缓存、浏览器状态和日志。更新下载、安装回执、清理副本和清理诊断都保存在其 `updates` 目录下。`desktop-ready.json` 记录当前回环 URL 与 Harness PID，供诊断使用。启动过程和 Harness 输出写入 `logs\desktop.log`；日志轮转后，上一份文件保留为 `desktop.log.previous`。
 
 ## 许可证与限制
 

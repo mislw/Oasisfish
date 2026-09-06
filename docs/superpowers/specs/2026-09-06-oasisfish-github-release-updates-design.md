@@ -62,7 +62,7 @@ Unsigned builds may show Windows reputation or publisher warnings. The update UI
 
 Desktop unit tests cover state transitions, command serialization, safe error projection, packaged-only behavior, preload channel restrictions, install eligibility, and portable cleanup allowlists. Client tests cover conditional section registration, localized states, progress, retry, and command dispatch. An assembled keyless Web snapshot proves the desktop-only section is absent in an ordinary browser and present with the test bridge.
 
-Packaging tests require `latest.yml`, the installer block map, the product marker, and the cleanup helper. The unpacked smoke flow serves a local fake release feed, downloads a fixture installer without external credentials, verifies the checksum, and proves that user data remains byte-identical. A Windows release smoke installs version N, writes a user-data fixture, upgrades to N+1, and verifies the old registered program is replaced while the fixture survives.
+Packaging tests require `app-update.yml`, the product marker, the portable inventory, and the cleanup helper. The release workflow requires the NSIS installer, its block map, and `latest.yml`. The installed receipt and portable cleanup tests verify target versions, path ownership, changed and unknown file preservation, reparse-point rejection, and separation from the user-data directory. A final Windows two-version installer upgrade remains a release-time smoke because it requires two deliberately versioned NSIS fixtures.
 
 ## Alternatives considered
 

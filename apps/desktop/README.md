@@ -50,6 +50,12 @@ pnpm --filter @deepseek-ai/dsh-desktop run package
 
 `package:dir` writes the unpacked application to `apps/desktop/release/win-unpacked/`. `package` writes the NSIS installer to `apps/desktop/release/`. Building downloads the pinned upstream runtime archives when they are absent from the local cache; the installed application needs no network access to start the UI or execute the bundled local tools.
 
+## Updates
+
+The installed application and packaged portable directory expose **Settings > App Updates**. Opening Oasisfish or Settings does not contact GitHub. **Check for updates**, **Download update**, and **Restart and install** are separate user actions. The installer replaces the registered application files and keeps `%APPDATA%\DeepSeek Harness`, including settings, credentials, sessions, caches, browser state, and logs.
+
+A source push is not an application update. Set `apps/desktop/package.json` to the new version, create the matching `v<version>` tag, and publish that tag through `.github/workflows/oasisfish-release.yml`. The public `mislw/Oasisfish` Release must contain the NSIS installer, its `.blockmap`, and `latest.yml`. Portable cleanup removes only unchanged files listed by the packaged inventory after the installed target version writes its receipt; unknown or modified files leave the old portable directory available for manual review.
+
 ## Verification
 
 ```sh
@@ -57,11 +63,11 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-The staging check requires the Harness entry, Web frontend, runtime manifest, every executable needed by the product, and the hash-verified local retrieval model. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog, loads it through the real `skill` tool, and searches its declared references through `skill_search`. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness and a window-close request, then uses its private parent-process channel to invoke the tray exit path and requires Electron and Harness to exit.
+The staging check requires the Harness entry, Web frontend, update metadata, portable inventory and cleanup helpers, runtime manifest, every executable needed by the product, and the hash-verified local retrieval model. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog, loads it through the real `skill` tool, and searches its declared references through `skill_search`. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness and a window-close request, then uses its private parent-process channel to invoke the tray exit path and requires Electron and Harness to exit.
 
 ## User data and logs
 
-The default data root remains `%APPDATA%\DeepSeek Harness` so an Oasisfish upgrade retains existing profiles, settings, credentials, sessions, caches, browser state, and logs. `desktop-ready.json` records the active loopback URL and Harness PID for diagnostics. Startup and Harness output are written to `logs\desktop.log`; the previous file is retained as `desktop.log.previous` after rotation.
+The default data root remains `%APPDATA%\DeepSeek Harness` so an Oasisfish upgrade retains existing profiles, settings, credentials, sessions, caches, browser state, and logs. Update downloads, installation receipts, cleanup copies, and cleanup diagnostics remain below its `updates` directory. `desktop-ready.json` records the active loopback URL and Harness PID for diagnostics. Startup and Harness output are written to `logs\desktop.log`; the previous file is retained as `desktop.log.previous` after rotation.
 
 ## Licenses and limits
 

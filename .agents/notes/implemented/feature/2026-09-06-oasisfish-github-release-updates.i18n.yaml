@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-06-oasisfish-github-release-updates.md
+2026-09-06-oasisfish-github-release-updates.md: 3a5dc86806077c94c02abca0f8ae06de1c3957d6
+2026-09-06-oasisfish-github-release-updates.zh.md: 98337dcba5a1a95abfd9d758fb2aa6d86b3ecce0

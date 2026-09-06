@@ -8,13 +8,14 @@ import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { DesktopUpdateSection } from '../src/client/DesktopUpdateSection.tsx'
 import type { DesktopUpdateSectionInjected } from '../src/client/DesktopUpdateSection.tsx'
-import type { OasisfishUpdateBridge } from '../src/protocol.ts'
+import type { DesktopUpdateState, OasisfishUpdateBridge } from '../src/protocol.ts'
 
 const originalBridge = window.oasisfishUpdate
 usePinnedBrowserLanguages('zh-CN')
 
 afterEach(() => {
-  window.oasisfishUpdate = originalBridge
+  if (originalBridge) window.oasisfishUpdate = originalBridge
+  else delete window.oasisfishUpdate
 })
 
 async function bench() {
@@ -30,16 +31,27 @@ async function bench() {
   return { ctx, locale, slots }
 }
 
-function bridge(): OasisfishUpdateBridge & { unsubscribe: ReturnType<typeof vi.fn> } {
+function bridge() {
   const unsubscribe = vi.fn()
-  return {
-    unsubscribe,
-    getState: vi.fn(async () => ({ phase: 'idle', currentVersion: '1.2.3' })),
-    check: vi.fn(async () => ({ phase: 'up-to-date', currentVersion: '1.2.3' })),
-    download: vi.fn(async () => ({ phase: 'downloaded', currentVersion: '1.2.3', availableVersion: '1.3.0' })),
-    install: vi.fn(async () => ({ phase: 'installing', currentVersion: '1.2.3', availableVersion: '1.3.0' })),
-    subscribe: vi.fn(() => unsubscribe),
+  const idle: DesktopUpdateState = { phase: 'idle', currentVersion: '1.2.3' }
+  const upToDate: DesktopUpdateState = { phase: 'up-to-date', currentVersion: '1.2.3' }
+  const downloaded: DesktopUpdateState = {
+    phase: 'downloaded',
+    currentVersion: '1.2.3',
+    availableVersion: '1.3.0',
   }
+  const installing: DesktopUpdateState = {
+    phase: 'installing',
+    currentVersion: '1.2.3',
+    availableVersion: '1.3.0',
+  }
+  const getState = vi.fn(async () => idle)
+  const check = vi.fn(async () => upToDate)
+  const download = vi.fn(async () => downloaded)
+  const install = vi.fn(async () => installing)
+  const subscribe = vi.fn(() => unsubscribe)
+  const value = { getState, check, download, install, subscribe } satisfies OasisfishUpdateBridge
+  return { value, getState, check, download, install, subscribe, unsubscribe }
 }
 
 describe('ui-desktop-update browser plugin', () => {
@@ -48,7 +60,7 @@ describe('ui-desktop-update browser plugin', () => {
   })
 
   it('contributes no section outside the Electron renderer', async () => {
-    window.oasisfishUpdate = undefined
+    delete window.oasisfishUpdate
     const b = await bench()
 
     await b.ctx.plugin({ inject: [...inject], apply }).await()
@@ -58,8 +70,8 @@ describe('ui-desktop-update browser plugin', () => {
   })
 
   it('registers one localized section without starting an update command', async () => {
-    const desktopBridge = bridge()
-    window.oasisfishUpdate = desktopBridge
+    const desktop = bridge()
+    window.oasisfishUpdate = desktop.value
     const b = await bench()
     const fiber = b.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -69,27 +81,27 @@ describe('ui-desktop-update browser plugin', () => {
     expect(entry.options).toMatchObject({ id: 'app-updates', order: 30 })
     expect(entry.locale).toBe(NS)
     expect(resolveSlotLabel(entry.options.label)).toBe('应用更新')
-    expect(desktopBridge.subscribe).toHaveBeenCalledOnce()
-    expect(desktopBridge.getState).not.toHaveBeenCalled()
-    expect(desktopBridge.check).not.toHaveBeenCalled()
-    expect(desktopBridge.download).not.toHaveBeenCalled()
-    expect(desktopBridge.install).not.toHaveBeenCalled()
+    expect(desktop.subscribe).toHaveBeenCalledOnce()
+    expect(desktop.getState).not.toHaveBeenCalled()
+    expect(desktop.check).not.toHaveBeenCalled()
+    expect(desktop.download).not.toHaveBeenCalled()
+    expect(desktop.install).not.toHaveBeenCalled()
 
     const injected = (entry.inject as unknown as () => DesktopUpdateSectionInjected)()
     await injected.load()
     await injected.check()
     await injected.download()
     await injected.install()
-    expect(desktopBridge.getState).toHaveBeenCalledOnce()
-    expect(desktopBridge.check).toHaveBeenCalledOnce()
-    expect(desktopBridge.download).toHaveBeenCalledOnce()
-    expect(desktopBridge.install).toHaveBeenCalledOnce()
+    expect(desktop.getState).toHaveBeenCalledOnce()
+    expect(desktop.check).toHaveBeenCalledOnce()
+    expect(desktop.download).toHaveBeenCalledOnce()
+    expect(desktop.install).toHaveBeenCalledOnce()
 
     b.locale.setLocale('en')
     expect(resolveSlotLabel(entry.options.label)).toBe('App Updates')
 
     await fiber.dispose()
-    expect(desktopBridge.unsubscribe).toHaveBeenCalledOnce()
+    expect(desktop.unsubscribe).toHaveBeenCalledOnce()
     expect(b.slots.entries('settings.section')).toHaveLength(0)
     await b.ctx.fiber.dispose()
   })

@@ -10,7 +10,7 @@ The package's Host plugin has no behavior. Electron owns GitHub Release access, 
 
 ## Model Experience
 
-None. Desktop update state and commands do not enter model requests or session logs.
+None, as the plugin renders browser settings UI and its update state and commands do not enter model requests or session logs.
 
 #### KV Cache effect
 

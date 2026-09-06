@@ -368,9 +368,6 @@ importers:
         specifier: 6.8.9
         version: 6.8.9(supports-color@9.4.0)
     devDependencies:
-      '@deepseek-ai/dsh-client-ui-desktop-update':
-        specifier: workspace:^
-        version: link:../../packages/client/ui-desktop-update
       electron:
         specifier: 44.0.0
         version: 44.0.0(supports-color@9.4.0)

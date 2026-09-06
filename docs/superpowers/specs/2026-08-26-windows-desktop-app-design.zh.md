@@ -49,7 +49,7 @@ BrowserWindow 启用 context isolation，禁用 Node integration 和 remote modu
 
 ## 打包与更新
 
-首个版本生成一个 x64 NSIS 安装包和一个用于 smoke 测试的未打包目录。运行时下载和生成的暂存目录不进入 Git。代码签名和自动更新仍属于发行流水线事项；未签名的本地安装包预计会触发 Windows 信誉警告。
+Windows 发行版生成一个 x64 NSIS 安装包和一个用于 smoke 测试的未打包目录。运行时下载和生成的暂存目录不进入 Git。应用内手动更新使用 [Oasisfish GitHub Release 更新设计](2026-09-06-oasisfish-github-release-updates-design.zh.md)中说明的公开 GitHub Release 流程。未签名安装包可能触发 Windows 信誉警告。
 
 ## 验证
 

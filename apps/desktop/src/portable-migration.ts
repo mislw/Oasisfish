@@ -5,17 +5,16 @@ import {
   PORTABLE_INVENTORY_PATH,
   validatePortableInventory,
   verifyPortableTree,
-  type PortableInventory,
 } from '../scripts/portable-inventory.mjs'
 
 export const INSTALLED_MARKER = 'oasisfish-installed.json'
-export const INSTALLED_RECEIPT = 'updates/installed-receipt.json'
+const INSTALLED_RECEIPT = 'updates/installed-receipt.json'
 
 /** Runtime distribution mode selected by the NSIS-owned installation marker. */
 export type DesktopDistribution = 'installed' | 'portable'
 
 /** Receipt written by an installed build after Electron reaches ready state. */
-export interface InstalledReceipt {
+interface InstalledReceipt {
   readonly product: 'Oasisfish'
   readonly version: string
   readonly installDirectory: string
@@ -37,7 +36,7 @@ interface SpawnedCleanup {
 }
 
 /** Spawn signature used for the copied cleanup runtime. */
-export type SpawnCleanup = (
+type SpawnCleanup = (
   command: string,
   args: readonly string[],
   options: { detached: true; stdio: 'ignore'; windowsHide: true },
@@ -116,7 +115,7 @@ export async function preparePortableCleanup(options: PreparePortableCleanupOpti
     throw new Error('Portable application and user-data roots must be separate.')
   }
   const sourceInventoryPath = join(options.portableRoot, ...PORTABLE_INVENTORY_PATH.split('/'))
-  const inventory = validatePortableInventory(JSON.parse(await readFile(sourceInventoryPath, 'utf8'))) as PortableInventory
+  const inventory = validatePortableInventory(JSON.parse(await readFile(sourceInventoryPath, 'utf8')))
   if (inventory.version === options.targetVersion) throw new Error('Portable cleanup target must be newer than the running version.')
   const verified = await verifyPortableTree(options.portableRoot, inventory)
   if (!verified.ok) throw new Error(verified.reason)

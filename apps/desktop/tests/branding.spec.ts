@@ -29,7 +29,8 @@ describe('desktop branding', () => {
   it('registers manual updates without checking during desktop startup', async () => {
     const main = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8')
 
-    expect(main).toContain("import { autoUpdater } from 'electron-updater'")
+    expect(main).not.toContain("import { autoUpdater } from 'electron-updater'")
+    expect(main).toContain("createRequire(import.meta.url)('electron-updater')")
     expect(main).toContain('new DesktopUpdateController({')
     expect(main).toContain('registerDesktopUpdateIpc({')
     expect(main).toContain('runUpdateInstallation({')

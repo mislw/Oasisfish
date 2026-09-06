@@ -43,6 +43,11 @@ export const PACKAGED_REQUIRED_FILES = Object.freeze([
   'models/bge-small-zh-v1.5/vocab.txt',
 ])
 
+export const RELEASE_REQUIRED_FILES = Object.freeze([
+  ...PACKAGED_REQUIRED_FILES,
+  'app-update.yml',
+])
+
 /** Verify that every file required by the packaged desktop product exists. */
 export async function verifyStagedProduct(resourcesRoot, requiredFiles = STAGED_REQUIRED_FILES) {
   const missing = []

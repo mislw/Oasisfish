@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   PACKAGED_REQUIRED_FILES,
+  RELEASE_REQUIRED_FILES,
   STAGED_REQUIRED_FILES,
   verifyStagedProduct,
 } from '../scripts/staged-inventory.mjs'
@@ -30,6 +31,14 @@ describe('verifyStagedProduct', () => {
       'oasisfish-portable-inventory.json',
       'cleanup/portable-cleanup.mjs',
       'cleanup/portable-inventory.mjs',
+    ]))
+  })
+
+  it('requires update metadata only from a release build', () => {
+    expect(PACKAGED_REQUIRED_FILES).not.toContain('app-update.yml')
+    expect(RELEASE_REQUIRED_FILES).toEqual(expect.arrayContaining([
+      'app-update.yml',
+      ...PACKAGED_REQUIRED_FILES,
     ]))
   })
 

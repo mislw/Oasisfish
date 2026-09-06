@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/superpowers/specs/2026-09-06-oasisfish-github-release-updates-design.md
-2026-09-06-oasisfish-github-release-updates-design.md: 754414671800c325ba12f53f81a3e5b88f2107ad
-2026-09-06-oasisfish-github-release-updates-design.zh.md: c9195b6a1f608452d62b809a8d6541540309b8d2
+2026-09-06-oasisfish-github-release-updates-design.md: 7cb95369ec851eefdaf3783353054e55aa745db0
+2026-09-06-oasisfish-github-release-updates-design.zh.md: 091c5ab13e1b75adcdaf364210651875436ed2b8

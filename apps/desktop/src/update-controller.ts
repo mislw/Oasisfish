@@ -1,12 +1,12 @@
 import type { DesktopUpdateState } from './update-protocol.ts'
 
 /** Update metadata consumed from electron-updater events. */
-export interface UpdaterInfo {
+interface UpdaterInfo {
   readonly version: string
 }
 
 /** Download metadata consumed from electron-updater events. */
-export interface UpdaterProgress {
+interface UpdaterProgress {
   readonly percent?: number
   readonly transferred: number
   readonly total?: number

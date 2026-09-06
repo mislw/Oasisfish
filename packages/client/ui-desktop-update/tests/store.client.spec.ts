@@ -15,27 +15,45 @@ function deferred<T>() {
 function bridge(overrides: Partial<OasisfishUpdateBridge> = {}) {
   let listener: ((state: DesktopUpdateState) => void) | undefined
   const unsubscribe = vi.fn()
-  const value: OasisfishUpdateBridge = {
-    getState: vi.fn(async () => ({ phase: 'idle', currentVersion: '1.2.3' })),
-    check: vi.fn(async () => ({ phase: 'up-to-date', currentVersion: '1.2.3' })),
-    download: vi.fn(async () => ({ phase: 'downloaded', currentVersion: '1.2.3', availableVersion: '1.3.0' })),
-    install: vi.fn(async () => ({ phase: 'installing', currentVersion: '1.2.3', availableVersion: '1.3.0' })),
-    subscribe: vi.fn((next) => { listener = next; return unsubscribe }),
-    ...overrides,
+  const idle: DesktopUpdateState = { phase: 'idle', currentVersion: '1.2.3' }
+  const upToDate: DesktopUpdateState = { phase: 'up-to-date', currentVersion: '1.2.3' }
+  const downloaded: DesktopUpdateState = {
+    phase: 'downloaded',
+    currentVersion: '1.2.3',
+    availableVersion: '1.3.0',
   }
-  return { value, unsubscribe, push: (state: DesktopUpdateState) => { listener?.(state) } }
+  const installing: DesktopUpdateState = {
+    phase: 'installing',
+    currentVersion: '1.2.3',
+    availableVersion: '1.3.0',
+  }
+  const getState = vi.fn(async () => idle)
+  const check = vi.fn(async () => upToDate)
+  const download = vi.fn(async () => downloaded)
+  const install = vi.fn(async () => installing)
+  const subscribe = vi.fn((next: (state: DesktopUpdateState) => void) => { listener = next; return unsubscribe })
+  const value = {
+    getState,
+    check,
+    download,
+    install,
+    subscribe,
+    ...overrides,
+  } satisfies OasisfishUpdateBridge
+  return { value, getState, check, download, install, subscribe, unsubscribe, push: (state: DesktopUpdateState) => { listener?.(state) } }
 }
 
 describe('DesktopUpdateStore', () => {
   it('loads once per active read and accepts pushed state', async () => {
     const pending = deferred<DesktopUpdateState>()
-    const b = bridge({ getState: vi.fn(() => pending.promise) })
+    const getState = vi.fn(() => pending.promise)
+    const b = bridge({ getState })
     const store = new DesktopUpdateStore(b.value)
 
     const first = store.load()
     const second = store.load()
     expect(first).toBe(second)
-    expect(b.value.getState).toHaveBeenCalledOnce()
+    expect(getState).toHaveBeenCalledOnce()
     pending.resolve({ phase: 'idle', currentVersion: '1.2.3' })
     await first
     expect(store.store.getSnapshot()).toEqual({
@@ -53,9 +71,10 @@ describe('DesktopUpdateStore', () => {
   })
 
   it('can retry after an initial state read fails', async () => {
+    const idle: DesktopUpdateState = { phase: 'idle', currentVersion: '1.2.3' }
     const getState = vi.fn()
       .mockRejectedValueOnce(new Error('ipc failed'))
-      .mockResolvedValueOnce({ phase: 'idle', currentVersion: '1.2.3' })
+      .mockResolvedValueOnce(idle)
     const b = bridge({ getState })
     const store = new DesktopUpdateStore(b.value)
 
@@ -81,9 +100,9 @@ describe('DesktopUpdateStore', () => {
     expect(store.store.getSnapshot()).toMatchObject({ status: 'ready', update: { phase: 'downloaded' } })
     await store.install()
     expect(store.store.getSnapshot()).toMatchObject({ status: 'ready', update: { phase: 'installing' } })
-    expect(b.value.check).toHaveBeenCalledOnce()
-    expect(b.value.download).toHaveBeenCalledOnce()
-    expect(b.value.install).toHaveBeenCalledOnce()
+    expect(b.check).toHaveBeenCalledOnce()
+    expect(b.download).toHaveBeenCalledOnce()
+    expect(b.install).toHaveBeenCalledOnce()
   })
 
   it('projects a rejected command as a renderer-safe local error', async () => {

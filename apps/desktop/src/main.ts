@@ -1,9 +1,9 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createWriteStream, existsSync, mkdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, Menu, Tray } from 'electron'
-import { autoUpdater } from 'electron-updater'
 import { buildHarnessEnvironment } from './environment.ts'
 import { resolveDesktopDataRoot, resolveDesktopPaths, type DesktopPaths } from './paths.ts'
 import {
@@ -206,6 +206,7 @@ async function boot(): Promise<void> {
   const paths = resolveDesktopPaths(resourcesRoot, dataRoot)
   assertInstalledResources(paths)
   const distribution = await resolveDesktopDistribution(resourcesRoot)
+  const { autoUpdater } = createRequire(import.meta.url)('electron-updater') as typeof import('electron-updater')
   const updateController = new DesktopUpdateController({
     updater: autoUpdater,
     currentVersion: app.getVersion(),

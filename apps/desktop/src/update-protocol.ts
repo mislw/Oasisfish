@@ -1,5 +1,5 @@
 /** Renderer-safe phases published by the desktop update controller. */
-export type DesktopUpdatePhase =
+type DesktopUpdatePhase =
   | 'idle'
   | 'checking'
   | 'up-to-date'
@@ -11,7 +11,7 @@ export type DesktopUpdatePhase =
   | 'error'
 
 /** Download counters projected without provider or filesystem details. */
-export interface DesktopUpdateProgress {
+interface DesktopUpdateProgress {
   readonly percent?: number
   readonly transferred: number
   readonly total?: number

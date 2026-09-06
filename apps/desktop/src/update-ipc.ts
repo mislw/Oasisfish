@@ -10,7 +10,7 @@ export const DESKTOP_UPDATE_CHANNELS = Object.freeze({
 })
 
 /** Controller operations exposed through the fixed IPC handlers. */
-export interface DesktopUpdateIpcController {
+interface DesktopUpdateIpcController {
   getState(): DesktopUpdateState
   check(): Promise<DesktopUpdateState>
   download(): Promise<DesktopUpdateState>
@@ -19,13 +19,13 @@ export interface DesktopUpdateIpcController {
 }
 
 /** Electron IpcMain subset used by the update registration. */
-export interface DesktopIpcMain {
+interface DesktopIpcMain {
   handle(channel: string, handler: () => Promise<DesktopUpdateState>): void
   removeHandler(channel: string): void
 }
 
 /** Browser-window messaging subset used by state broadcasts. */
-export interface DesktopUpdateWebContents {
+interface DesktopUpdateWebContents {
   isDestroyed(): boolean
   send(channel: string, state: DesktopUpdateState): void
 }
@@ -40,7 +40,7 @@ export interface DesktopUpdateIpcOptions {
 /** Register the complete desktop update IPC allowlist and return its disposer. */
 export function registerDesktopUpdateIpc(options: DesktopUpdateIpcOptions): () => void {
   const handlers = [
-    [DESKTOP_UPDATE_CHANNELS.getState, async () => options.controller.getState()],
+    [DESKTOP_UPDATE_CHANNELS.getState, () => Promise.resolve(options.controller.getState())],
     [DESKTOP_UPDATE_CHANNELS.check, async () => options.controller.check()],
     [DESKTOP_UPDATE_CHANNELS.download, async () => options.controller.download()],
     [DESKTOP_UPDATE_CHANNELS.install, async () => options.controller.install()],

@@ -17,7 +17,7 @@ const DOWNLOADING_EXPECTED = join(SNAPSHOT_DIR, 'desktop-downloading.txt')
 installAssembledBootEnv()
 
 afterEach(() => {
-  window.oasisfishUpdate = undefined
+  delete window.oasisfishUpdate
 })
 
 function saveOrMatch(path: string, value: string): Promise<void> {
@@ -30,14 +30,15 @@ function saveOrMatch(path: string, value: string): Promise<void> {
 
 function bridge(initial: DesktopUpdateState) {
   const commands: string[] = []
-  const value: OasisfishUpdateBridge = {
-    getState: vi.fn(async () => initial),
+  const getState = vi.fn(async () => initial)
+  const value = {
+    getState,
     check: vi.fn(async () => { commands.push('check'); return initial }),
     download: vi.fn(async () => { commands.push('download'); return initial }),
     install: vi.fn(async () => { commands.push('install'); return initial }),
     subscribe: vi.fn(() => () => {}),
-  }
-  return { value, commands }
+  } satisfies OasisfishUpdateBridge
+  return { value, getState, commands }
 }
 
 async function openUpdates() {
@@ -50,7 +51,7 @@ async function openUpdates() {
 
 describe('assembled desktop update settings', () => {
   it('does not register an update page in an ordinary browser', async () => {
-    window.oasisfishUpdate = undefined
+    delete window.oasisfishUpdate
     mountAssembledApp()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Settings' }, { timeout: 10_000 }))
@@ -70,7 +71,7 @@ describe('assembled desktop update settings', () => {
     mountAssembledApp()
     const dialog = await openUpdates()
 
-    expect(desktop.value.getState).toHaveBeenCalledOnce()
+    expect(desktop.getState).toHaveBeenCalledOnce()
     expect(desktop.commands).toEqual([])
     const action = within(dialog).getByRole('button', { name: 'Download update' })
     const shape = [

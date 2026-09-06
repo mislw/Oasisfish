@@ -62,7 +62,7 @@ Electron 加载一个沙箱化 preload 入口，并通过 `contextBridge` 只暴
 
 桌面单元测试覆盖状态迁移、命令串行、安全错误投影、仅打包版本行为、preload 通道限制、安装资格和便携目录清理 allowlist。客户端测试覆盖条件式页面注册、本地化状态、进度、重试和命令分发。无 Key 的组装 Web snapshot 证明普通浏览器中不存在桌面专属页面，并且测试 bridge 存在时能够显示该页面。
 
-打包测试要求存在 `latest.yml`、安装包 block map、产品标记和清理 helper。未打包 smoke 流程使用本地假 Release feed，在没有外部凭据的情况下下载 fixture 安装包、验证校验和，并证明用户数据字节保持不变。Windows Release smoke 先安装版本 N、写入用户数据 fixture，再升级到 N+1，验证已注册的旧程序被替换且 fixture 保留。
+打包测试要求存在 `app-update.yml`、产品标记、便携清单和清理 helper。发布工作流要求生成 NSIS 安装包、对应的 block map 和 `latest.yml`。安装回执与便携清理测试会验证目标版本、路径所有权、修改文件和未知文件保留、reparse point 拒绝以及应用目录与用户数据目录分离。最终的 Windows 双版本安装升级属于发布时 smoke，因为它需要两个经过明确版本设置的 NSIS fixture。
 
 ## 已考虑的替代方案
 

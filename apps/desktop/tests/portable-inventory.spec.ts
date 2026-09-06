@@ -35,7 +35,7 @@ describe('portable inventory', () => {
     await write(root, 'resources/base.txt', 'base')
 
     const inventory = await createPortableInventory(root, '1.2.3')
-    const disk = JSON.parse(await readFile(join(root, PORTABLE_INVENTORY_PATH), 'utf8'))
+    const disk = JSON.parse(await readFile(join(root, PORTABLE_INVENTORY_PATH), 'utf8')) as unknown
 
     expect(inventory).toEqual(disk)
     expect(inventory).toMatchObject({ schemaVersion: 1, product: 'Oasisfish', version: '1.2.3' })

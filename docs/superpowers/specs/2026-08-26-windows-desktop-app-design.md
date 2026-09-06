@@ -49,7 +49,7 @@ The BrowserWindow enables context isolation, disables Node integration and the r
 
 ## Packaging and updates
 
-The first release produces an x64 NSIS installer and an unpacked directory for smoke testing. Runtime downloads and generated staging directories are excluded from Git. Code signing and automatic updates remain release-pipeline concerns; the unsigned local installer is expected to trigger Windows reputation warnings.
+The Windows release produces an x64 NSIS installer and an unpacked directory for smoke testing. Runtime downloads and generated staging directories are excluded from Git. Manual in-app updates use the public GitHub Release flow described in [Oasisfish GitHub Release Updates Design](2026-09-06-oasisfish-github-release-updates-design.md). Unsigned installers may trigger Windows reputation warnings.
 
 ## Verification
 

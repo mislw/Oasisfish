@@ -20,7 +20,6 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@deepseek-ai/dsh-client-ui-desktop-update": "workspace:^",
     "electron": "44.0.0",
     "electron-builder": "26.15.3",
     "extract-zip": "2.0.1",

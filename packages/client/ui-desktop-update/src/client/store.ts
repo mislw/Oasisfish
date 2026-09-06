@@ -9,6 +9,7 @@ export type DesktopUpdateViewState =
 
 /** Owns renderer update state and forwards only explicit user commands. */
 export class DesktopUpdateStore {
+  /** Observable Settings projection consumed by the update section. */
   readonly store: SnapshotStore<DesktopUpdateViewState> = createSnapshotStore({ status: 'loading' })
   readonly #bridge: OasisfishUpdateBridge
   readonly #unsubscribe: () => void
