@@ -30,7 +30,7 @@ export interface DesktopUpdateControllerOptions {
   readonly updater: UpdaterFacade
   readonly currentVersion: string
   readonly isPackaged: boolean
-  readonly install: () => void
+  readonly install: (targetVersion: string) => void | Promise<void>
 }
 
 /** Owns manual update state without exposing updater internals to the renderer. */
@@ -131,7 +131,7 @@ export class DesktopUpdateController {
         phase: 'installing',
         availableVersion,
       })
-      this.#options.install()
+      await this.#options.install(availableVersion)
       return this.#state
     })
   }

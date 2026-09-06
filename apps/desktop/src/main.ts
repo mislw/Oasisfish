@@ -2,10 +2,19 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createWriteStream, existsSync, mkdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, dialog, Menu, Tray } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, Tray } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { buildHarnessEnvironment } from './environment.ts'
 import { resolveDesktopDataRoot, resolveDesktopPaths, type DesktopPaths } from './paths.ts'
+import {
+  preparePortableCleanup,
+  resolveDesktopDistribution,
+  writeInstalledReceipt,
+} from './portable-migration.ts'
 import { reserveLoopbackPort, waitForServer } from './server.ts'
+import { DesktopUpdateController } from './update-controller.ts'
+import { runUpdateInstallation } from './update-installation.ts'
+import { registerDesktopUpdateIpc } from './update-ipc.ts'
 import {
   createTrayMenuTemplate,
   createWindowLifecycle,
@@ -19,6 +28,7 @@ let mainWindow: BrowserWindow | undefined
 let mainWindowLifecycle: WindowLifecycle | undefined
 let tray: Tray | undefined
 let harnessProcess: ChildProcess | undefined
+let disposeUpdateIpc: (() => void) | undefined
 let quitting = false
 
 if (process.send !== undefined) {
@@ -72,6 +82,13 @@ function terminateHarness(): void {
     windowsHide: true,
     stdio: 'ignore',
   })
+}
+
+function destroyDesktopUi(): void {
+  disposeUpdateIpc?.()
+  disposeUpdateIpc = undefined
+  mainWindow?.destroy()
+  tray?.destroy()
 }
 
 async function startHarness(paths: DesktopPaths, port: number): Promise<string> {
@@ -188,12 +205,47 @@ async function boot(): Promise<void> {
   const dataRoot = app.getPath('userData')
   const paths = resolveDesktopPaths(resourcesRoot, dataRoot)
   assertInstalledResources(paths)
+  const distribution = await resolveDesktopDistribution(resourcesRoot)
+  const updateController = new DesktopUpdateController({
+    updater: autoUpdater,
+    currentVersion: app.getVersion(),
+    isPackaged: app.isPackaged,
+    install: targetVersion => runUpdateInstallation({
+      distribution,
+      targetVersion,
+      preparePortableCleanup: async (version) => {
+        await preparePortableCleanup({
+          portableRoot: dirname(process.execPath),
+          resourcesRoot,
+          dataRoot,
+          currentPid: process.pid,
+          targetVersion: version,
+        })
+      },
+      beginQuit: () => { quitting = true },
+      terminateHarness,
+      destroyUi: destroyDesktopUi,
+      quitAndInstall: () => { autoUpdater.quitAndInstall(false, true) },
+    }),
+  })
+  disposeUpdateIpc = registerDesktopUpdateIpc({
+    ipcMain,
+    controller: updateController,
+    windows: () => BrowserWindow.getAllWindows().map(window => window.webContents),
+  })
   const port = await reserveLoopbackPort()
   const url = await startHarness(paths, port)
   const desktopWindow = createWindow(url)
   mainWindow = desktopWindow.window
   mainWindowLifecycle = desktopWindow.lifecycle
   tray = createTray(desktopWindow.lifecycle)
+  if (distribution === 'installed') {
+    await writeInstalledReceipt({
+      dataRoot,
+      version: app.getVersion(),
+      executablePath: process.execPath,
+    })
+  }
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -207,13 +259,14 @@ if (!app.requestSingleInstanceLock()) {
     event.preventDefault()
     quitting = true
     terminateHarness()
-    mainWindow?.destroy()
-    tray?.destroy()
+    destroyDesktopUi()
     app.quit()
   })
   void app.whenReady().then(boot).catch((error: unknown) => {
     const message = error instanceof Error ? error.stack ?? error.message : String(error)
     dialog.showErrorBox('Oasisfish could not start', message)
+    disposeUpdateIpc?.()
+    disposeUpdateIpc = undefined
     terminateHarness()
     app.exit(1)
   })

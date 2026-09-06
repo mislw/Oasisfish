@@ -17,6 +17,27 @@ describe('desktop branding', () => {
     expect(main).toContain("app.setPath('userData', resolveDesktopDataRoot(app.getPath('appData')))")
   })
 
+  it('publishes desktop update metadata from the public Oasisfish repository', async () => {
+    const config = await readFile(new URL('../electron-builder.yml', import.meta.url), 'utf8')
+
+    expect(config).toContain('publish:')
+    expect(config).toContain('provider: github')
+    expect(config).toContain('owner: mislw')
+    expect(config).toContain('repo: Oasisfish')
+  })
+
+  it('registers manual updates without checking during desktop startup', async () => {
+    const main = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8')
+
+    expect(main).toContain("import { autoUpdater } from 'electron-updater'")
+    expect(main).toContain('new DesktopUpdateController({')
+    expect(main).toContain('registerDesktopUpdateIpc({')
+    expect(main).toContain('runUpdateInstallation({')
+    expect(main).toContain('writeInstalledReceipt({')
+    expect(main).not.toMatch(/\.check\(\)/)
+    expect(main).not.toContain('checkForUpdates()')
+  })
+
   it('ships a 256 pixel Windows icon', async () => {
     const icon = await readFile(new URL('../build/icon.png', import.meta.url))
 

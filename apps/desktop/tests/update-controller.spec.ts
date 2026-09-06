@@ -148,11 +148,30 @@ describe('DesktopUpdateController', () => {
     })
 
     await controller.install()
-    expect(install).toHaveBeenCalledTimes(1)
+    expect(install).toHaveBeenCalledWith('1.3.0')
     expect(controller.getState()).toEqual({
       phase: 'installing',
       currentVersion: '1.2.3',
       availableVersion: '1.3.0',
+    })
+  })
+
+  it('keeps the app running when install preparation rejects', async () => {
+    const updater = new FakeUpdater()
+    updater.emit = updater.emit.bind(updater)
+    const controller = new DesktopUpdateController({
+      updater,
+      currentVersion: '1.2.3',
+      isPackaged: true,
+      install: vi.fn(async () => { throw new Error('cleanup preparation failed') }),
+    })
+    updater.emit('update-downloaded', { version: '1.3.0' })
+
+    await expect(controller.install()).resolves.toEqual({
+      phase: 'error',
+      currentVersion: '1.2.3',
+      availableVersion: '1.3.0',
+      message: 'Unable to complete the update. Try again.',
     })
   })
 

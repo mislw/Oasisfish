@@ -7,6 +7,10 @@ nodeGypRebuild: false
 directories:
   output: release
 afterPack: scripts/after-pack.mjs
+publish:
+  provider: github
+  owner: mislw
+  repo: Oasisfish
 files:
   - dist/**
   - package.json
