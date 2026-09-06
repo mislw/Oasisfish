@@ -38,3 +38,10 @@ export interface OasisfishUpdateBridge {
   install(): Promise<DesktopUpdateState>
   subscribe(listener: (state: DesktopUpdateState) => void): () => void
 }
+
+declare global {
+  interface Window {
+    /** Electron-only update bridge exposed by the sandboxed Oasisfish preload. */
+    oasisfishUpdate?: OasisfishUpdateBridge
+  }
+}

@@ -1,6 +1,6 @@
-import { staticLinked } from '../tsdown.client.ts'
+import { clientBundle } from '../tsdown.client.ts'
 
-export default staticLinked(
+export default clientBundle(
   '@deepseek-ai/dsh-client-ui-desktop-update',
   ['lib/types/index.js', 'lib/types/invariant.js', 'lib/types/protocol.js'],
 )

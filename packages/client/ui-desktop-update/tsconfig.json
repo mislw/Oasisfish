@@ -12,6 +12,21 @@
       "path": "../../../vendor/cordis"
     },
     {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../runtime"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../ui-settings"
+    },
+    {
+      "path": "../locale"
+    },
+    {
       "path": "../../runtime-diagnostics/invariants"
     }
   ]
