@@ -10,9 +10,11 @@ Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-o
 
 只有 Harness 子进程会在 `PATH` 前端获得内置工具目录。桌面应用不会修改用户的全局环境。不可变应用文件保留在安装目录中；profile、设置、凭据、会话、缓存和日志保留在 Electron 的用户数据目录中。
 
-## 内置 Skill
+## 内置 Skills
 
-安装资源包含 Oasis Wiki `1.260827.1`，作为默认领域 Skill。监督器将 `DSH_BUNDLED_SKILL_DIR` 指向打包后的 `skills` 目录，因此标准 agent（智能体）目录无需单独安装或联网，即可公布并加载 `oasis-wiki`。项目与用户 Skill 根目录的优先级高于内置根目录，因此显式安装的更新可以覆盖安装包中的兜底版本，而无需修改应用文件。[`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) 记录该快照的源仓库、源路径、版本与精确 revision。
+安装资源包含作为默认领域 Skill 的 Oasis Wiki `1.260827.1`，以及用于离线优化生图提示词的 `ai-image-prompts` Skill。监督器将 `DSH_BUNDLED_SKILL_DIR` 指向打包后的 `skills` 目录，因此标准 agent（智能体）目录无需单独安装或联网，即可公布并加载两者。项目与用户 Skill 根目录的优先级高于内置根目录，因此显式安装的更新可以覆盖安装包中的兜底版本，而无需修改应用文件。[`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) 记录 Oasis 快照的源仓库、源路径、版本与精确 revision。[`ai-image-prompts.provenance.json`](bundled-skills/ai-image-prompts.provenance.json) 固定经适配的 YouMind 上游 revision；内置 MIT 许可证保留在该 Skill 目录中。
+
+生图请求仍只使用设置中选择的一个默认生图模型。当前对话模型会在现有轮次内优化用户描述，按需检索本地视觉配方，并把所得英文 prompt 交给 `image_generate`；Oasisfish 不会在后台额外请求第二次对话模型，也不会增加第二个生图提供方。
 
 ## 内置本地检索模型
 
@@ -63,7 +65,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-staging 检查要求 Harness 入口、Web 前端、更新元数据、便携清单与清理 helper、运行时 manifest、产品所需的每个可执行文件，以及已通过 hash 验证的本地检索模型齐全。打包资源验证还要求 Oasis Wiki Skill 及其来源记录存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布 `oasis-wiki`，通过真实 `skill` 工具加载它，并通过 `skill_search` 检索其声明的参考资料。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后及窗口关闭请求后仍存活，再通过仅供测试使用的父进程通道调用托盘退出路径，并要求 Electron 与 Harness 都退出。
+staging 检查要求 Harness 入口、Web 前端、更新元数据、便携清单与清理 helper、运行时 manifest、产品所需的每个可执行文件，以及已通过 hash 验证的本地检索模型齐全。打包资源验证还要求两个内置 Skill、各自来源记录，以及生图提示词 Skill 的许可证与视觉配方存在。无需密钥的 assembled snapshot（组装快照）会在标准 agent 目录中公布两个 Skill，通过真实 `skill` 工具加载它们，并通过 `skill_search` 检索各自声明的参考资料。解包冒烟测试会拒绝 reparse point（重解析点），执行每个内置工具，启动打包后的应用，要求在不交接给默认浏览器的情况下获得 HTTP 200 响应，确认 Harness 在就绪后及窗口关闭请求后仍存活，再通过仅供测试使用的父进程通道调用托盘退出路径，并要求 Electron 与 Harness 都退出。
 
 ## 用户数据与日志
 
@@ -71,4 +73,4 @@ staging 检查要求 Harness 入口、Web 前端、更新元数据、便携清�
 
 ## 许可证与限制
 
-打包资源包含仓库[许可证](../../LICENSE)、[JavaScript 依赖通知](../../THIRD_PARTY_NOTICES.md)、[内置运行时通知](RUNTIME_NOTICES.md)和本地检索模型的 MIT 许可证。目前仅支持 Windows x64。安装程序不会配置对话模型凭据；本地 Skill 检索在离线状态下仍可用，对话模型与远程 API 请求则需要相应的网络访问和凭据。
+打包资源包含仓库[许可证](../../LICENSE)、[JavaScript 依赖通知](../../THIRD_PARTY_NOTICES.md)、[内置运行时通知](RUNTIME_NOTICES.md)、本地检索模型的 MIT 许可证，以及经适配的生图提示词 Skill 的 MIT 许可证。目前仅支持 Windows x64。安装程序不会配置对话模型凭据；本地 Skill 检索在离线状态下仍可用，对话模型与远程 API 请求则需要相应的网络访问和凭据。

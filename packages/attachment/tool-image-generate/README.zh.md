@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-面向模型的 `image_generate` Consumer，调用 `ctx.imageGeneration`。工具接收完整图片描述和输出控制参数，自动复用最近一条直接用户消息中的图片作为编辑参考，保持当前对话模型不变，并在工具结果中返回文字与可持久读取的图片附件。
+面向模型的 `image_generate` Consumer，调用 `ctx.imageGeneration`。其 Schema 要求当前对话模型在调用前，把简短需求优化为细节充分、可直接生图的英文 prompt。工具接收该 prompt 和输出控制参数，自动复用最近一条直接用户消息中的图片作为编辑参考，保持当前对话模型不变，并在工具结果中返回文字与可持久读取的图片附件。
 
 ## 配置
 
@@ -16,7 +16,7 @@
 
 #### 模型看到的内容
 
-模型会看到生成的 [`image_generate` Schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-image-generate)，并被要求在用户提出生成、绘制、渲染或编辑图片时调用。参数包括必填的完整 `prompt`、可选的提供方支持 `size` 和 `quality`，以及 `use_reference_images`。工具默认使用最近一条包含图片的直接用户消息；只有当目标图片必须与这些输入无关时，模型才把 `use_reference_images` 设为 `false`。参考图请求默认使用高输出质量。
+模型会看到生成的 [`image_generate` Schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-image-generate)，并被要求在用户提出生成、绘制、渲染或编辑图片时调用。同一个对话模型轮次会在调用前把简短描述扩展成连贯的英文 prompt，按任务需要补充主体、环境、构图、镜头、光线、材质、色彩、空间关系、完成质感和负面约束，同时保留用户明确指定的文字与参考图要求；这个过程不会在后台额外发起第二次对话模型请求。参数包括必填的已优化 `prompt`、可选的提供方支持 `size` 和 `quality`，以及 `use_reference_images`。工具默认使用最近一条包含图片的直接用户消息；只有当目标图片必须与这些输入无关时，模型才把 `use_reference_images` 设为 `false`。参考图请求默认使用高输出质量。
 
 #### Token 影响
 
@@ -43,3 +43,4 @@
 ## 已知限制与后续工作
 
 - 每次调用只生成一张图片。模型可以选择输出质量和是否复用参考图，但提供方专属的蒙版、背景、输出格式和变体选项暂不进入工具 Schema。
+- 提示词优化会改善发送给已配置生图模型的指令，但不会增加另一个生图提供方，也不会扩展该模型原生的渲染能力。

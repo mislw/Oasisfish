@@ -810,7 +810,7 @@ glob and grep are unconditional discovery tools that spawn the packaged ripgrep 
 
 ### `image_generate`
 
-Generate or edit an image with the configured default image model. Reuse images from the latest direct user message when they are relevant. The conversation model remains unchanged.
+Generate or edit an image with the configured default image model. Refine the user request before calling: turn brief wording into a detailed, coherent visual specification while preserving every explicit requirement. Reuse images from the latest direct user message when they are relevant. The conversation model remains unchanged.
 
 ```json
 {
@@ -818,7 +818,7 @@ Generate or edit an image with the configured default image model. Reuse images 
   "properties": {
     "prompt": {
       "type": "string",
-      "description": "Complete visual description of the image to generate."
+      "description": "A generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged."
     },
     "size": {
       "type": "string",

@@ -28,4 +28,21 @@ describe('bundled Oasis Wiki skill', () => {
     expect(builderConfig).toContain('from: bundled-skills')
     expect(builderConfig).toContain('to: skills')
   })
+
+  it('bundles the image prompt refinement skill with pinned provenance', async () => {
+    const skill = await readFile(new URL('ai-image-prompts/SKILL.md', skillRoot), 'utf8')
+    const license = await readFile(new URL('ai-image-prompts/LICENSE', skillRoot), 'utf8')
+    const provenance = JSON.parse(
+      await readFile(new URL('ai-image-prompts.provenance.json', skillRoot), 'utf8'),
+    ) as { source: string; revision: string; adaptation: string }
+
+    expect(skill).toContain('name: ai-image-prompts')
+    expect(skill).toContain('generation-ready English prompt')
+    expect(license).toContain('Copyright (c) 2026 YouMind-OpenLab')
+    expect(provenance).toEqual({
+      source: 'https://github.com/YouMind-OpenLab/ai-image-prompts-skill',
+      revision: '6ef324c0aaf3bae6605e21be08f510a7a3fa0cfb',
+      adaptation: 'Oasisfish offline prompt-refinement guidance',
+    })
+  })
 })

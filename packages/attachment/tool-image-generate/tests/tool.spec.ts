@@ -8,6 +8,20 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as tool from '../src/index.ts'
 
 describe('image_generate', () => {
+  it('instructs the conversation model to refine a generation-ready prompt before calling', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    ctx.provide('imageGeneration', { generate: vi.fn() } as never)
+    await ctx.plugin(tool, { timeoutMs: 180_000 })
+
+    const schema = ctx.tools.schemas().find(candidate => candidate.name === 'image_generate')
+    expect(schema?.description).toContain('Refine the user request before calling')
+    expect(JSON.stringify(schema?.parameters)).toContain('composition, camera, lighting, materials, color')
+    expect(JSON.stringify(schema?.parameters)).toContain('generation-ready English prompt')
+    await ctx.fiber.dispose()
+  })
+
   it('calls the auxiliary image service and returns a durable image block', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)

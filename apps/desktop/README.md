@@ -10,9 +10,11 @@ Electron starts the bundled `dsh web --no-open` entry on an operating-system-ass
 
 Only the Harness child process receives the bundled tool directories at the front of `PATH`. The desktop application does not modify the user's global environment. Immutable application files remain under the installation directory; profiles, settings, credentials, sessions, caches, and logs remain under Electron's per-user data directory.
 
-## Bundled Skill
+## Bundled Skills
 
-The installed resources include Oasis Wiki `1.260827.1` as the default domain Skill. The supervisor sets `DSH_BUNDLED_SKILL_DIR` to the packaged `skills` directory, so the standard agent catalog can advertise and load `oasis-wiki` without a separate installation or network request. Project and user Skill roots have higher precedence than the bundled root, allowing an explicitly installed update to replace the packaged fallback without modifying application files. [`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) records the source repository, source path, version, and exact revision of the snapshot.
+The installed resources include Oasis Wiki `1.260827.1` as the default domain Skill and `ai-image-prompts` as an offline image-prompt refinement Skill. The supervisor sets `DSH_BUNDLED_SKILL_DIR` to the packaged `skills` directory, so the standard agent catalog can advertise and load both without a separate installation or network request. Project and user Skill roots have higher precedence than the bundled root, allowing an explicitly installed update to replace a packaged fallback without modifying application files. [`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) records the source repository, source path, version, and exact revision of the Oasis snapshot. [`ai-image-prompts.provenance.json`](bundled-skills/ai-image-prompts.provenance.json) pins the adapted YouMind source revision; its packaged MIT license remains beside the Skill.
+
+Image requests still use the single default image model selected in Settings. The current conversation model refines the user's wording in its existing turn, optionally searches the local visual recipes, and sends the resulting English prompt to `image_generate`; Oasisfish does not issue a hidden second conversation-model request or add a second image provider.
 
 ## Bundled local retrieval model
 
@@ -63,7 +65,7 @@ pnpm --filter @deepseek-ai/dsh-desktop run stage:verify
 pnpm --filter @deepseek-ai/dsh-desktop run smoke:unpacked
 ```
 
-The staging check requires the Harness entry, Web frontend, update metadata, portable inventory and cleanup helpers, runtime manifest, every executable needed by the product, and the hash-verified local retrieval model. Packaged-resource verification additionally requires the Oasis Wiki Skill and its provenance record. The keyless assembled snapshot advertises `oasis-wiki` in the standard agent catalog, loads it through the real `skill` tool, and searches its declared references through `skill_search`. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness and a window-close request, then uses its private parent-process channel to invoke the tray exit path and requires Electron and Harness to exit.
+The staging check requires the Harness entry, Web frontend, update metadata, portable inventory and cleanup helpers, runtime manifest, every executable needed by the product, and the hash-verified local retrieval model. Packaged-resource verification additionally requires both bundled Skills, their provenance records, and the image-prompt Skill's license and visual recipes. The keyless assembled snapshot advertises both Skills in the standard agent catalog, loads them through the real `skill` tool, and searches each declared reference corpus through `skill_search`. The unpacked smoke test rejects reparse points, executes every bundled tool, starts the packaged application, requires an HTTP 200 response without a default-browser handoff, confirms the Harness remains alive after readiness and a window-close request, then uses its private parent-process channel to invoke the tray exit path and requires Electron and Harness to exit.
 
 ## User data and logs
 
@@ -71,4 +73,4 @@ The default data root remains `%APPDATA%\DeepSeek Harness` so an Oasisfish upgra
 
 ## Licenses and limits
 
-The packaged resources include the repository [license](../../LICENSE), [JavaScript dependency notices](../../THIRD_PARTY_NOTICES.md), [bundled runtime notices](RUNTIME_NOTICES.md), and the local retrieval model's MIT license. Only Windows x64 is supported. The installer does not configure chat-model credentials; local Skill retrieval remains available offline, while chat-model and remote API requests require the corresponding network access and credentials.
+The packaged resources include the repository [license](../../LICENSE), [JavaScript dependency notices](../../THIRD_PARTY_NOTICES.md), [bundled runtime notices](RUNTIME_NOTICES.md), the local retrieval model's MIT license, and the adapted image-prompt Skill's MIT license. Only Windows x64 is supported. The installer does not configure chat-model credentials; local Skill retrieval remains available offline, while chat-model and remote API requests require the corresponding network access and credentials.

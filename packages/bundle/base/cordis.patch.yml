@@ -252,7 +252,7 @@
     - id: skill-search
       name: '@deepseek-ai/dsh-skill-search'
       config:
-        corpora: !!js "process.env.DSH_BUNDLED_SKILL_DIR ? [{ skill: 'oasis-wiki', provider: 'filesystem', roots: ['references'], extensions: ['.md', '.txt'], maxFileBytes: 1048576, maxCorpusBytes: 16777216, maxChunks: 20000 }] : []"
+        corpora: !!js "process.env.DSH_BUNDLED_SKILL_DIR ? [{ skill: 'oasis-wiki', provider: 'filesystem', roots: ['references'], extensions: ['.md', '.txt'], maxFileBytes: 1048576, maxCorpusBytes: 16777216, maxChunks: 20000 }, { skill: 'ai-image-prompts', provider: 'filesystem', roots: ['references'], extensions: ['.md', '.txt'], maxFileBytes: 1048576, maxCorpusBytes: 4194304, maxChunks: 4000 }] : []"
 
     # The local provider loads only when a deployment supplies both immutable
     # model resources and a mutable cache directory. Source launches therefore

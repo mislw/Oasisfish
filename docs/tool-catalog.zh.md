@@ -816,7 +816,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 
 ### `image_generate`
 
-使用已配置的默认生图模型生成或编辑图片。在相关情况下，复用最近一条直接用户消息中的图片。当前对话模型保持不变。
+使用已配置的默认生图模型生成或编辑图片。调用前先优化用户需求：把简短描述扩展为细节充分、连贯的视觉规格，同时保留每项明确要求。在相关情况下，复用最近一条直接用户消息中的图片。当前对话模型保持不变。
 
 ```json
 {
@@ -824,7 +824,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
   "properties": {
     "prompt": {
       "type": "string",
-      "description": "Complete visual description of the image to generate."
+      "description": "A generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged."
     },
     "size": {
       "type": "string",

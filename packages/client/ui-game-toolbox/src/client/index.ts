@@ -10,8 +10,8 @@ import { GAME_IMAGE_STAGES, GAME_UI_STAGES, newestToolSession } from './model.ts
 import { en, zh } from './locales.ts'
 
 const NS = 'gameToolbox'
-const UI_ENTRY_PROMPT = '启动 UI 生成工具链。首先加载 oasis-wiki Skill，然后用 todo_write 建立并维护这 8 个阶段：来源、视觉、分层、工作台、UMG 需求、UMG 构建、逻辑绑定、最终验收。一次只执行一个阶段，每个阶段完成后必须使用 ask_user_question 等待我确认，未经确认不得进入下一阶段。'
-const IMAGE_ENTRY_PROMPT = '启动纯生图工作流。首先加载 oasis-wiki Skill，然后用 todo_write 建立并维护这 4 个阶段：需求、规格、生成、确认。整理需求和输出规格后，使用设置页配置的默认生图模型调用 image_generate；不要进入 UI Tree、分层、Workbench、UMG、Lua 或编辑器写入流程。'
+const UI_ENTRY_PROMPT = '启动 UI 生成工具链。首先加载 oasis-wiki Skill，然后用 todo_write 建立并维护这 8 个阶段：来源、视觉、分层、工作台、UMG 需求、UMG 构建、逻辑绑定、最终验收。需要生图时加载 ai-image-prompts Skill，让当前默认对话 GPT 先细化完整英文 prompt 再调用 image_generate。一次只执行一个阶段，每个阶段完成后必须使用 ask_user_question 等待我确认，未经确认不得进入下一阶段。'
+const IMAGE_ENTRY_PROMPT = '启动纯生图工作流。首先加载 oasis-wiki 和 ai-image-prompts Skill，然后用 todo_write 建立并维护这 4 个阶段：需求、规格、生成、确认。使用 skill_search 检索对应视觉配方，让当前默认对话 GPT 把我的描述优化为完整、细节充分的英文 prompt，再使用设置页配置的默认生图模型调用 image_generate；不要直接转发简短描述，不要进入 UI Tree、分层、Workbench、UMG、Lua 或编辑器写入流程。'
 type ToolboxPreset = 'game-ui' | 'game-image'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' { interface LocaleNamespaceMap { gameToolbox: keyof typeof zh } }

@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Model-facing `image_generate` Consumer over `ctx.imageGeneration`. It accepts a complete image prompt and output controls, automatically reuses images from the latest direct user message as edit references, keeps the conversation model unchanged, and returns text plus a durable image block in the tool result.
+Model-facing `image_generate` Consumer over `ctx.imageGeneration`. Its schema tells the current conversation model to refine a brief request into a detailed generation-ready English prompt before the call. The tool accepts that prompt and output controls, automatically reuses images from the latest direct user message as edit references, keeps the conversation model unchanged, and returns text plus a durable image block in the tool result.
 
 ## Config
 
@@ -16,7 +16,7 @@ Model-facing `image_generate` Consumer over `ctx.imageGeneration`. It accepts a 
 
 #### What the model sees
 
-The model sees the generated [`image_generate` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-image-generate) and is instructed to use it when a user asks to create, draw, render, generate, or edit an image. Its arguments are a required complete `prompt`, optional provider-supported `size` and `quality`, and `use_reference_images`. The tool uses the latest direct user message containing images by default; the model sets `use_reference_images` to `false` only when the requested image must be independent of those inputs. Reference-image requests default to high output quality.
+The model sees the generated [`image_generate` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-image-generate) and is instructed to use it when a user asks to create, draw, render, generate, or edit an image. Before calling, the same conversation-model turn expands brief wording into a coherent English prompt with task-relevant subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and exclusions while preserving explicit text and reference constraints. This refinement does not make a hidden second conversation-model request. Its arguments are the required refined `prompt`, optional provider-supported `size` and `quality`, and `use_reference_images`. The tool uses the latest direct user message containing images by default; the model sets `use_reference_images` to `false` only when the requested image must be independent of those inputs. Reference-image requests default to high output quality.
 
 #### Token effect
 
@@ -43,3 +43,4 @@ Append-only; the result follows the reusable request prefix and does not invalid
 ## Known Limitations and Deferred Work
 
 - The tool creates one image per call. It can select output quality and reference-image reuse, while provider-specific masks, backgrounds, output formats, and variations remain out of the model-facing schema.
+- Prompt refinement improves the instruction sent to the configured image model; it does not add another image provider or expand that model's native rendering capability.

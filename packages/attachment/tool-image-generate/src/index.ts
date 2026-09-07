@@ -42,10 +42,10 @@ function latestUserImages(exec: ToolRunContext): ImageAttachmentRef[] {
 export function apply(ctx: Context, config: Config): void {
   ctx.tools.register(defineTool({
     name: 'image_generate',
-    description: 'Generate or edit an image with the configured default image model. Reuse images from the latest direct user message when they are relevant. The conversation model remains unchanged.',
+    description: 'Generate or edit an image with the configured default image model. Refine the user request before calling: turn brief wording into a detailed, coherent visual specification while preserving every explicit requirement. Reuse images from the latest direct user message when they are relevant. The conversation model remains unchanged.',
     timeoutMs: config.timeoutMs,
     parameters: {
-      prompt: { type: 'string', required: true, description: 'Complete visual description of the image to generate.' },
+      prompt: { type: 'string', required: true, description: 'A generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged.' },
       size: { type: 'string', description: 'Optional provider-supported pixel size such as 1024x1024 or 1536x1024.' },
       use_reference_images: { type: 'boolean', description: 'Use images from the latest direct user message as references. Defaults to true when images are available.' },
       quality: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Optional provider-supported output quality.' },

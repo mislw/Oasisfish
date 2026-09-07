@@ -50,6 +50,15 @@ describe('verifyStagedProduct', () => {
     ]))
   })
 
+  it('requires the image prompt refinement skill and its provenance in the packaged product', () => {
+    expect(PACKAGED_REQUIRED_FILES).toEqual(expect.arrayContaining([
+      'skills/ai-image-prompts/SKILL.md',
+      'skills/ai-image-prompts/LICENSE',
+      'skills/ai-image-prompts/references/visual-recipes.md',
+      'skills/ai-image-prompts.provenance.json',
+    ]))
+  })
+
   it('requires the pinned local embedding model in the packaged product', () => {
     expect(PACKAGED_REQUIRED_FILES).toEqual(expect.arrayContaining([
       'models/bge-small-zh-v1.5/model-manifest.json',

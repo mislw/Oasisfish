@@ -82,7 +82,9 @@ try {
     ? decision.messages.find(message => message.role === 'user'
       && message.source.kind === 'skill-catalog')?.content
     : undefined
-  const summary = (await ctx.skills.list()).find(skill => skill.name === 'oasis-wiki')
+  const summaries = await ctx.skills.list()
+  const summary = summaries.find(skill => skill.name === 'oasis-wiki')
+  const imagePromptSummary = summaries.find(skill => skill.name === 'ai-image-prompts')
   const result = await ctx.tools.execute({
     callId: CallId('desktop-oasis-wiki-snapshot'),
     name: 'skill',
@@ -90,6 +92,13 @@ try {
     signal: new AbortController().signal,
   })
   const value = result.isError ? undefined : result.value
+  const imagePromptResult = await ctx.tools.execute({
+    callId: CallId('desktop-image-prompts-snapshot'),
+    name: 'skill',
+    arguments: { name: 'ai-image-prompts' },
+    signal: new AbortController().signal,
+  })
+  const imagePromptValue = imagePromptResult.isError ? undefined : imagePromptResult.value
   const searchArgs = { name: 'oasis-wiki', query: 'UGCAskQ DataTable', limit: 1 }
   const searchCallId = CallId('desktop-oasis-wiki-search')
   const call = session.append('tool/call', {
@@ -113,6 +122,37 @@ try {
     ...search.error?.info === undefined ? {} : { error: search.error.info },
     ...search.meta === undefined ? {} : { meta: search.meta },
   }, { surfaceOp: 'append', sourceEventSeqs: [call.seq] })
+  const imageSearchArgs = {
+    name: 'ai-image-prompts',
+    query: 'Game Item Icon unmistakable silhouette thumbnail size',
+    limit: 5,
+  }
+  const imageSearchCallId = CallId('desktop-image-prompts-search')
+  const imageCall = session.append('tool/call', {
+    turn: 1,
+    step: 1,
+    callId: imageSearchCallId,
+    name: 'skill_search',
+    arguments: JSON.stringify(imageSearchArgs),
+  })
+  const imageSearch = await ctx.tools.execute({
+    callId: imageSearchCallId,
+    name: 'skill_search',
+    arguments: imageSearchArgs,
+    agent,
+    signal: new AbortController().signal,
+  })
+  session.append('tool/result', {
+    turn: 1,
+    step: 1,
+    message: createToolResultMessage({
+      callId: imageSearchCallId,
+      content: imageSearch.content,
+      isError: imageSearch.isError,
+    }),
+    ...imageSearch.error?.info === undefined ? {} : { error: imageSearch.error.info },
+    ...imageSearch.meta === undefined ? {} : { meta: imageSearch.meta },
+  }, { surfaceOp: 'append', sourceEventSeqs: [imageCall.seq] })
   const catalogText = Array.isArray(catalog)
     ? catalog.map(part => part.type === 'text' ? part.text : '').join('\n')
     : catalog ?? ''
@@ -137,9 +177,13 @@ try {
   }
   process.stdout.write(`${JSON.stringify({
     catalogIncludesSkill: catalogText.includes('`oasis-wiki`'),
+    catalogIncludesImagePromptSkill: catalogText.includes('`ai-image-prompts`'),
     summary: summary ?? null,
     loaded: value === undefined ? null : loadedSkill(value),
     search: search.isError ? null : search.value,
+    imagePromptSummary: imagePromptSummary ?? null,
+    imagePromptLoaded: imagePromptValue === undefined ? null : loadedSkill(imagePromptValue),
+    imagePromptSearch: imageSearch.isError ? null : imageSearch.value,
     transcript,
   })}\n`)
 } finally {
