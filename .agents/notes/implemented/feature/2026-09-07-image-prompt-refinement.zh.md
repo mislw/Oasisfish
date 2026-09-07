@@ -14,11 +14,11 @@ Status: implemented
 
 Oasisfish 内置从 YouMind OpenLab revision `6ef324c0aaf3bae6605e21be08f510a7a3fa0cfb` 适配的离线 `ai-image-prompts` Skill。该 Skill 为游戏资产、UI 图片、mockup、海报、产品、肖像、插画、信息图和参考图编辑提供简洁的视觉配方，其来源记录和 MIT 许可证随安装包提供。内置版本不会自更新、下载示例、联系上游服务，也不会在模型回复中附加推广署名。
 
-专用 `game-image` 和 `game-ui` preset 会加载该 Skill，并在生图前通过显式的本地 `skill_search` 检索配方。标准 preset 会在目录中看到该 Skill，在桌面本地提供方可用时拥有相同的检索工具，并从 `image_generate` Schema 获得提示词优化要求。所有路径最终都调用设置中选择的一个默认生图提供方。
+专用 `game-image` 和 `game-ui` preset 会加载该 Skill，并在生图前通过显式的本地 `skill_search` 检索配方。纯生图入口只打开空白 `game-image` 会话，不提交启动消息，也不显示阶段；用户输入需求后，Agent 静默完成 Skill 加载、配方检索和 prompt 优化并直接生图。标准 preset 会在目录中看到该 Skill，在桌面本地提供方可用时拥有相同的检索工具，并从 `image_generate` Schema 获得提示词优化要求。所有路径最终都调用设置中选择的一个默认生图提供方。
 
 ## 验证
 
-包测试断言生成的工具 Schema 包含提示词优化要求。preset 组装测试断言专用生图工作流暴露 `skill_search` 并携带优化指令。桌面资源和 staging 清单测试要求 Skill、视觉配方、来源记录与许可证齐全。无密钥 assembled snapshot 会加载真实的内置 Skill 并检索游戏物品视觉配方，不调用对话或生图提供方。
+包测试断言生成的工具 Schema 包含提示词优化要求。preset 组装测试断言专用生图工作流暴露 `skill_search`、不暴露阶段工具并携带静默优化指令。浏览器端到端测试断言点击纯生图不会提交启动消息或显示阶段。桌面资源和 staging 清单测试要求 Skill、视觉配方、来源记录与许可证齐全。无密钥 assembled snapshot 会加载真实的内置 Skill 并检索游戏物品视觉配方，不调用对话或生图提供方。
 
 ## 考虑过的替代方案
 

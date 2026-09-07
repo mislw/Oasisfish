@@ -96,4 +96,19 @@ describe('web e2e: game-development toolbox', () => {
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
     await assertFixtureInventory(SNAPSHOT_DIR, ['session.jsonl', 'ui.expected.md'])
   }, 90_000)
+
+  it('opens a blank image-generation session without submitting an entry prompt', async () => {
+    await connectFreshWorkspace(page, dirname(scaffold.workspaceCwd), basename(scaffold.workspaceCwd))
+
+    await page.getByRole('tab', { name: 'Toolbox', exact: true }).click()
+    await page.getByRole('button', { name: /Image Generation/u }).click()
+
+    await page.getByRole('textbox').waitFor({ timeout: 15_000 })
+    await expect.poll(() => page.getByText('启动纯生图工作流。', { exact: false }).count(), {
+      timeout: 5_000,
+    }).toBe(0)
+    await expect.poll(() => page.getByRole('button', { name: 'Open task details', exact: true }).count(), {
+      timeout: 5_000,
+    }).toBe(0)
+  }, 60_000)
 })

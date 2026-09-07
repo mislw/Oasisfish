@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionSummary } from '@deepseek-ai/dsh-client-runtime/client'
 import {
-  GAME_IMAGE_STAGES,
   GAME_UI_STAGES,
   newestToolSession,
   projectStages,
@@ -38,15 +37,5 @@ describe('game toolbox model', () => {
     expect(GAME_UI_STAGES.map(stage => stage.label)).toEqual([
       '来源', '视觉', '分层', '工作台', 'UMG 需求', 'UMG 构建', '逻辑绑定', '最终验收',
     ])
-  })
-
-  it('projects the pure image workflow onto four focused stages', () => {
-    const stages = projectStages([
-      { content: '需求', status: 'completed' },
-      { content: '规格', status: 'in_progress' },
-    ], GAME_IMAGE_STAGES)
-    expect(stages).toHaveLength(4)
-    expect(stages.map(stage => stage.label)).toEqual(['需求', '规格', '生成', '确认'])
-    expect(stages.map(stage => stage.status)).toEqual(['completed', 'in_progress', 'pending', 'pending'])
   })
 })

@@ -471,7 +471,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'details\' (client-ui-conversation), so it exists while that entry is mounted',
     occupants: [
       'client-ui-game-toolbox ToolchainDetails id \'game-ui\'',
-      'client-ui-game-toolbox ToolchainDetails id \'game-image\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.details.summary\', () => ctx.slots.register(\n      { name: \'conversation.details.summary\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
@@ -1138,7 +1137,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'conversation.session.header\' (client-ui-conversation), so it exists while that entry is mounted',
     occupants: [
       'client-ui-game-toolbox StageStrip id \'game-ui\'',
-      'client-ui-game-toolbox StageStrip id \'game-image\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.session.header.progress\', () => ctx.slots.register(\n      { name: \'conversation.session.header.progress\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',

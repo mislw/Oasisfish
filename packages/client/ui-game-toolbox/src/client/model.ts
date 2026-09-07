@@ -13,14 +13,6 @@ export const GAME_UI_STAGES = [
   { id: 'acceptance', label: '最终验收' },
 ] as const
 
-/** Canonical focused image-generation workflow stages in display order. */
-export const GAME_IMAGE_STAGES = [
-  { id: 'requirements', label: '需求' },
-  { id: 'specification', label: '规格' },
-  { id: 'generation', label: '生成' },
-  { id: 'confirmation', label: '确认' },
-] as const
-
 /** Durable status displayed for one game UI stage. */
 export type GameUiStageStatus = TodoItem['status']
 /** Canonical stage metadata combined with its current durable status. */

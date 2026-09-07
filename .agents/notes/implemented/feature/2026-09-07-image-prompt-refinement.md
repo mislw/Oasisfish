@@ -14,11 +14,11 @@ The `image_generate` schema requires the current conversation model to refine th
 
 Oasisfish packages an offline `ai-image-prompts` Skill adapted from YouMind OpenLab revision `6ef324c0aaf3bae6605e21be08f510a7a3fa0cfb`. The Skill supplies concise visual recipes for game assets, UI imagery, mockups, posters, products, portraits, illustrations, infographics, and reference edits. Its provenance and MIT license ship beside it. The packaged edition does not update itself, download examples, contact the upstream service, or append promotional attribution to model responses.
 
-The dedicated `game-image` and `game-ui` presets load the Skill and use explicit local `skill_search` retrieval before image generation. The standard preset sees the Skill in its catalog, has the same search tool when the desktop local provider is available, and receives the refinement requirement from the `image_generate` schema. All paths call the one default image provider selected in Settings.
+The dedicated `game-image` and `game-ui` presets load the Skill and use explicit local `skill_search` retrieval before image generation. The image-generation entry only opens a blank `game-image` session: it submits no bootstrap message and displays no stages. After the user enters a request, the Agent silently loads the Skills, retrieves a recipe, refines the prompt, and generates the image. The standard preset sees the Skill in its catalog, has the same search tool when the desktop local provider is available, and receives the refinement requirement from the `image_generate` schema. All paths call the one default image provider selected in Settings.
 
 ## Verification
 
-Package tests assert the refinement requirement in the generated tool schema. Preset assembly tests assert the dedicated image workflow exposes `skill_search` and carries the refinement instructions. Desktop resource and staged-inventory tests require the Skill, visual recipes, provenance, and license. A keyless assembled snapshot loads the real packaged Skill and retrieves its game-item visual recipe without calling a chat or image provider.
+Package tests assert the refinement requirement in the generated tool schema. Preset assembly tests assert the dedicated image workflow exposes `skill_search`, omits the stage tool, and carries the silent-refinement instructions. A browser end-to-end test asserts that clicking image generation submits no bootstrap message and displays no stages. Desktop resource and staged-inventory tests require the Skill, visual recipes, provenance, and license. A keyless assembled snapshot loads the real packaged Skill and retrieves its game-item visual recipe without calling a chat or image provider.
 
 ## Alternatives considered
 
