@@ -22,6 +22,8 @@ import { resolveProfiles } from './config.ts'
 import { supportedProtocols } from './provider.ts'
 
 const PROBE_TIMEOUT_MS = 15_000
+// Some OpenAI-compatible gateways reject smaller caps before model execution.
+const PROBE_MAX_TOKENS = 16
 const MAX_RESPONSE_TEXT = 200
 
 /** Dependencies needed to test one draft without joining the live adapter registry. */
@@ -144,7 +146,7 @@ export async function testProvider(
         content: [{ type: 'text', text: 'Reply with exactly OK.' }],
         source: { kind: 'plugin', plugin: 'llm-pi-ai' },
       })],
-      maxTokens: 8,
+      maxTokens: PROBE_MAX_TOKENS,
       signal,
     })) {
       if (chunk.type === 'text-delta') {

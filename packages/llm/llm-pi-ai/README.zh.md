@@ -142,7 +142,7 @@ pi-ai 依据提供方 id 与 baseURL 决定每个请求的形状：系统提示�
 
 ## 草稿连接测试
 
-插件还会注册 `ctx.llm.registerProviderProbe('llm-pi-ai', …)`，针对配置界面正在编辑的端点、协议、凭据、模型和取消 signal 发起一次真实生成。它会构建临时的单路由 profile 与 `PiAiAdapter`；该 profile 不会加入实时 adapter 注册表，不写入 settings 或 credentials，也不会产生 Session 事件。请求要求只回复 `OK`，输出上限为八个 token，通过 adapter 关闭 SDK 重试，并设置 15 秒整体时限。因此，即使测试成功，也可能消耗少量提供方额度。
+插件还会注册 `ctx.llm.registerProviderProbe('llm-pi-ai', …)`，针对配置界面正在编辑的端点、协议、凭据、模型和取消 signal 发起一次真实生成。它会构建临时的单路由 profile 与 `PiAiAdapter`；该 profile 不会加入实时 adapter 注册表，不写入 settings 或 credentials，也不会产生 Session 事件。请求要求只回复 `OK`，输出上限为十六个 token，避免 OpenAI 兼容中转站在模型执行前拒绝过小的请求；请求通过 adapter 关闭 SDK 重试，并设置 15 秒整体时限。因此，即使测试成功，也可能消耗少量提供方额度。
 
 草稿中键入的凭据优先于已有路由的已存凭据；草稿密钥输入为空时，使用与模型发现相同的 `apiKeyEnv` 解析取得已存密钥。凭据会在提供方 I/O 前校验；即使端点在 assistant 文本中回显密钥，结果也会将其移除。失败会被分类为端点、鉴权、协议、模型或响应阶段，并只返回简短且已净化的消息；提供方响应体和凭据绝不会进入结果。
 

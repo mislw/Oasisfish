@@ -198,6 +198,25 @@ describe('ProviderProbe', () => {
     />)
     expect(screen.queryByText(en.testSucceeded)).toBeNull()
   })
+
+  it('keeps image-only models out of the text connection probe', () => {
+    const scripted = scriptedFace()
+    render(<ProviderProbe
+      api={scripted.face as never}
+      target={{ settingsNs: 'llm-pi-ai', provider: 'openai' }}
+      models={[
+        { id: 'gpt-image-2' },
+        { id: '[l-o]gpt-image-2' },
+        { id: 'gpt-5.6-sol' },
+      ]}
+      t={t}
+      disabled={false}
+    />)
+
+    const options = [...screen.getByLabelText(en.testModel).querySelectorAll('option')]
+    expect(options.map(option => option.value)).toEqual(['gpt-5.6-sol'])
+    expect(screen.getByText(en.testTextModelsOnly)).toBeTruthy()
+  })
 })
 
 /** Open the editor of one configured row and expand its customized fold. */

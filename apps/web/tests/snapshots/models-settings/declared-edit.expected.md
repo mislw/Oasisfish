@@ -28,9 +28,23 @@
     - text: 默认模型
     - combobox "默认模型":
       - option "probe-model"
+      - option "gpt-image-2"
       - option "acme-large" [selected]
       - option "acme-small"
     - button "设为默认" [disabled]
+  - region "默认生图模型":
+    - text: 默认生图模型 生图提供方
+    - combobox "生图提供方":
+      - option "未配置" [selected]
+      - option "DeepSeek"
+      - option "minimax-cn"
+      - option "Acme Gateway"
+    - text: 生图模型
+    - combobox "生图模型" [disabled]
+    - button "设为生图模型" [disabled]
+    - text: Images API 路径
+    - textbox "Images API 路径": images/generations
+    - paragraph: 用户提出生图需求时，Agent 会通过 image_generate 调用这里的模型，不会切换当前对话模型。
   - list:
     - listitem:
       - text: minimax-cn
@@ -43,7 +57,7 @@
       - img "API 密钥已配置"
       - button "编辑 Acme Gateway (acme-gateway)": 编辑
       - button "先切换默认模型再删除" [disabled]: 删除
-      - text: "端点: 127.0.0.1:{{relay-port}} 协议: openai-completions 3 个模型 Acme Gateway acme-gateway API 密钥"
+      - text: "端点: 127.0.0.1:{{relay-port}} 协议: openai-completions 4 个模型 Acme Gateway acme-gateway API 密钥"
       - textbox "API 密钥":
         - /placeholder: 已配置——输入新值可替换
       - group:
@@ -69,22 +83,29 @@
             - text: probe-model
           - textbox "显示名称 1":
             - /placeholder: 显示名称
-          - button "容量 1"
+          - button "模型高级设置 1"
           - button "删除模型 1"
           - textbox "模型 ID 2":
             - /placeholder: 模型 ID
-            - text: acme-large
+            - text: gpt-image-2
           - textbox "显示名称 2":
             - /placeholder: 显示名称
-          - button "容量 2"
+          - button "模型高级设置 2"
           - button "删除模型 2"
           - textbox "模型 ID 3":
             - /placeholder: 模型 ID
-            - text: acme-small
+            - text: acme-large
           - textbox "显示名称 3":
             - /placeholder: 显示名称
-          - button "容量 3"
+          - button "模型高级设置 3"
           - button "删除模型 3"
+          - textbox "模型 ID 4":
+            - /placeholder: 模型 ID
+            - text: acme-small
+          - textbox "显示名称 4":
+            - /placeholder: 显示名称
+          - button "模型高级设置 4"
+          - button "删除模型 4"
           - button "添加模型"
         - region "测试连接":
           - text: 测试模型
@@ -94,6 +115,7 @@
             - option "acme-small"
           - button "测试连接"
           - paragraph: 连接成功可能会消耗少量提供方额度。
+          - paragraph: 纯生图 gpt-image 模型通过默认生图配置验证，不参与这里的文本连接测试。
       - button "取消"
       - button "保存"
   - button "添加提供方":

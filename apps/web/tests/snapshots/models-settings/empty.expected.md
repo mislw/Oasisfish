@@ -27,6 +27,17 @@
     - combobox "默认模型":
       - option "DeepSeek-V4-Flash" [selected]
     - button "设为默认" [disabled]
+  - region "默认生图模型":
+    - text: 默认生图模型 生图提供方
+    - combobox "生图提供方":
+      - option "未配置" [selected]
+      - option "DeepSeek"
+    - text: 生图模型
+    - combobox "生图模型" [disabled]
+    - button "设为生图模型" [disabled]
+    - text: Images API 路径
+    - textbox "Images API 路径": images/generations
+    - paragraph: 用户提出生图需求时，Agent 会通过 image_generate 调用这里的模型，不会切换当前对话模型。
   - list
   - text: 提供方
   - combobox "提供方":

@@ -16,11 +16,18 @@ export interface ProviderProbeProps {
   disabled: boolean
 }
 
+/** Whether the text-generation probe can meaningfully test this model id. */
+function supportsTextProbe(model: string): boolean {
+  return !/(?:^|[\]/])gpt-image(?:-|$)/iu.test(model)
+}
+
 /** Test one drafted provider and model without saving either. */
 export function ProviderProbe(props: ProviderProbeProps): ReactNode {
-  const modelIds = useMemo(() => props.models
+  const allModelIds = useMemo(() => props.models
     .map(model => model.id)
     .filter((id): id is string => typeof id === 'string' && id.length > 0), [props.models])
+  const modelIds = useMemo(() => allModelIds.filter(supportsTextProbe), [allModelIds])
+  const hasImageOnlyModels = modelIds.length !== allModelIds.length
   const [model, setModel] = useState(() => modelIds[0] ?? '')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<ProviderProbeView | undefined>(undefined)
@@ -84,6 +91,7 @@ export function ProviderProbe(props: ProviderProbeProps): ReactNode {
         </button>
       </div>
       <p className={styles['quota']}>{props.t('testQuotaNotice')}</p>
+      {hasImageOnlyModels ? <p className={styles['quota']}>{props.t('testTextModelsOnly')}</p> : null}
       {failure === undefined ? null : <p className={styles['failure']}>{failure}</p>}
       {result === undefined
         ? null

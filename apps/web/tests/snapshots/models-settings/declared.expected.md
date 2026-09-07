@@ -29,6 +29,19 @@
     - combobox "默认模型":
       - option "DeepSeek-V4-Flash" [selected]
     - button "设为默认" [disabled]
+  - region "默认生图模型":
+    - text: 默认生图模型 生图提供方
+    - combobox "生图提供方":
+      - option "未配置" [selected]
+      - option "DeepSeek"
+      - option "minimax-cn"
+      - option "Acme Gateway"
+    - text: 生图模型
+    - combobox "生图模型" [disabled]
+    - button "设为生图模型" [disabled]
+    - text: Images API 路径
+    - textbox "Images API 路径": images/generations
+    - paragraph: 用户提出生图需求时，Agent 会通过 image_generate 调用这里的模型，不会切换当前对话模型。
   - list:
     - listitem:
       - text: minimax-cn
@@ -41,7 +54,7 @@
       - img "API 密钥已配置"
       - button "编辑 Acme Gateway (acme-gateway)": 编辑
       - button "删除 Acme Gateway (acme-gateway)": 删除
-      - text: "端点: 127.0.0.1:{{relay-port}} 协议: openai-completions 3 个模型"
+      - text: "端点: 127.0.0.1:{{relay-port}} 协议: openai-completions 4 个模型"
   - button "添加提供方":
     - img
     - text: 添加提供方

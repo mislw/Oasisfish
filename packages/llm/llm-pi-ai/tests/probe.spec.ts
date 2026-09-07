@@ -74,6 +74,7 @@ describe('draft provider probe', () => {
 
     expect(result).toMatchObject({ ok: true, stage: 'response', model: 'probe-model', text: 'OK' })
     expect(server.paths).toEqual(['/chat/completions'])
+    expect(server.requests[0]).toMatchObject({ max_completion_tokens: 16 })
     expect(server.headers[0]?.authorization).toBe('Bearer sk-draft')
     expect(JSON.stringify(result)).not.toContain('sk-draft')
   })

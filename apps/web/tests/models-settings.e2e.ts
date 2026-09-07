@@ -272,6 +272,12 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     expect(await dialog.getByLabel('推理强度').count()).toBe(0)
     await dialog.getByRole('button', { name: '添加模型' }).click()
     await dialog.getByLabel('模型 ID 1').fill('probe-model')
+    await dialog.getByRole('button', { name: '添加模型' }).click()
+    await dialog.getByLabel('模型 ID 2').fill('gpt-image-2')
+    expect(await dialog.getByLabel('测试模型').locator('option').allTextContents()).toEqual(['probe-model'])
+    await dialog.getByText('纯生图 gpt-image 模型通过默认生图配置验证，不参与这里的文本连接测试。', {
+      exact: true,
+    }).waitFor()
     await dialog.getByRole('button', { name: '测试连接', exact: true }).click()
     const rejected = dialog.getByRole('status')
     await rejected.getByText('Provider rejected the credential.', { exact: true }).waitFor({ timeout: 10_000 })
