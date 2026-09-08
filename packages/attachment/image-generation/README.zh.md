@@ -4,6 +4,8 @@
 
 Host 侧的辅助生图能力，调用 OpenAI-compatible Images API 路由。`image-generation` 设置命名空间保存 `provider`、`model`、`endpointPath` 和 `editEndpointPath`；执行时从 `llm-pi-ai` 读取所选中转站，通过 `ctx.credentials` 解析凭证，并根据请求调用文本生图或参考图编辑。服务接受 Base64 图片或 HTTP(S) URL 响应，验证图片格式后通过 `ctx.attachments` 持久化结果。
 
+JSON 失败响应中的短 `error.message` 或顶层 `message` 可以进入工具错误。服务会统一空白、截断详情并隐藏解析出的 API Key；非 JSON 和无法识别的响应正文不会显示。
+
 ## 配置
 
 | 键 | 默认值 | 含义 |

@@ -290,6 +290,48 @@ describe('ImageGenerationService', () => {
     await expect(failed.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow('HTTP 503')
   })
 
+  it('reports a short sanitized provider error message without exposing response bodies', async () => {
+    const failed = await setup({
+      providers: { relay: { baseURL: 'https://relay.example/v1', apiKeyEnv: 'IMAGE_API_KEY' } },
+      credential: 'test-image-credential',
+    })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      error: { message: 'No available image channel for test-image-credential.\nTry another model.' },
+    }), { status: 503, headers: { 'content-type': 'application/json' } }))))
+    await expect(failed.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow(
+      'HTTP 503: No available image channel for [redacted]. Try another model.',
+    )
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('<html>gateway details</html>', {
+      status: 503, headers: { 'content-type': 'text/html' },
+    }))))
+    await expect(failed.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow(
+      'image-generation: provider request failed with HTTP 503',
+    )
+
+    const publicRoute = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      error: null, message: 'Relay is busy.',
+    }), { status: 503 }))))
+    await expect(publicRoute.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow(
+      'HTTP 503: Relay is busy.',
+    )
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      error: { message: 'x'.repeat(400) },
+    }), { status: 503 }))))
+    await expect(publicRoute.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow(
+      `HTTP 503: ${'x'.repeat(300)}`,
+    )
+
+    for (const responseBody of [null, [], { error: [] }, { error: { code: 'busy' } }, { message: ' \n ' }]) {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(responseBody), { status: 503 }))))
+      await expect(publicRoute.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow(
+        'image-generation: provider request failed with HTTP 503',
+      )
+    }
+  })
+
   it('rejects malformed JSON, malformed image records, and failed downloads', async () => {
     const malformedJson = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{', { status: 200 }))))

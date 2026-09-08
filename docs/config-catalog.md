@@ -895,7 +895,7 @@ export interface ImageGenerationSettings {
 }
 ```
 
-Source: [`packages/attachment/image-generation/src/index.ts:39`](../packages/attachment/image-generation/src/index.ts)
+Source: [`packages/attachment/image-generation/src/index.ts:40`](../packages/attachment/image-generation/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 

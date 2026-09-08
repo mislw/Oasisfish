@@ -22,6 +22,7 @@ declare module '@deepseek-ai/cordis' {
 /** User-settings namespace for the auxiliary image model. */
 export const IMAGE_GENERATION_SETTINGS_NAMESPACE = settingsNamespace('image-generation')
 const PI_AI_SETTINGS_NAMESPACE = settingsNamespace('llm-pi-ai')
+const MAX_PROVIDER_ERROR_MESSAGE = 300
 
 /** Persisted default image route. */
 export interface ImageGenerationSettings {
@@ -94,6 +95,26 @@ function boundedBytes(response: Response, maxResponseBytes: number): Promise<Uin
     }
     return new Uint8Array(buffer)
   })
+}
+
+function providerErrorMessage(responseBytes: Uint8Array, apiKey: string | undefined): string | undefined {
+  let value: unknown
+  try {
+    value = JSON.parse(new TextDecoder().decode(responseBytes))
+  } catch (_nonJsonProviderBody) {
+    return undefined
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  const record = value as Record<string, unknown>
+  const nested = record.error
+  const message = typeof nested === 'object' && nested !== null && !Array.isArray(nested)
+    ? (nested as Record<string, unknown>).message
+    : record.message
+  if (typeof message !== 'string') return undefined
+  const normalized = message.replace(/\s+/gu, ' ').trim()
+  if (normalized.length === 0) return undefined
+  const sanitized = apiKey === undefined ? normalized : normalized.replaceAll(apiKey, '[redacted]')
+  return sanitized.slice(0, MAX_PROVIDER_ERROR_MESSAGE)
 }
 
 /** Host-owned generated-image capability and OpenAI-compatible provider. */
@@ -206,7 +227,8 @@ export class ImageGenerationService extends Service {
     })
     const responseBytes = await boundedBytes(response, this.maxResponseBytes)
     if (!response.ok) {
-      throw new Error(`image-generation: provider request failed with HTTP ${String(response.status)}`)
+      const detail = providerErrorMessage(responseBytes, apiKey)
+      throw new Error(`image-generation: provider request failed with HTTP ${String(response.status)}${detail === undefined ? '' : `: ${detail}`}`)
     }
     let decoded: ReturnType<typeof decodeOpenAiImageResponse>
     try {

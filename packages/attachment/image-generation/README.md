@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 Host-owned generated-image capability for auxiliary OpenAI-compatible Images API routes. The `image-generation` settings namespace stores `provider`, `model`, `endpointPath`, and `editEndpointPath`; execution resolves the selected route from `llm-pi-ai`, resolves its credential through `ctx.credentials`, and calls either text generation or reference-image editing. It accepts a Base64 image or HTTP(S) URL response, validates the raster signature, and persists the result through `ctx.attachments`.
 
+Failed JSON responses may contribute a short `error.message` or top-level `message` to the tool error. The service normalizes whitespace, truncates the detail, and redacts the resolved API key; non-JSON and unrecognized response bodies remain hidden.
+
 ## Config
 
 | Key | Default | Meaning |

@@ -19,7 +19,7 @@ interface ImageServer {
 }
 
 /** Serve deterministic OpenAI-compatible Images API responses. */
-async function startImageServer(): Promise<ImageServer> {
+async function startImageServer(failure?: string): Promise<ImageServer> {
   const requests: unknown[] = []
   const server = createServer((request: IncomingMessage, response: ServerResponse) => {
     let body = ''
@@ -31,6 +31,11 @@ async function startImageServer(): Promise<ImageServer> {
         return
       }
       requests.push(JSON.parse(body) as unknown)
+      if (failure !== undefined) {
+        response.writeHead(503, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ error: { message: failure } }))
+        return
+      }
       response.writeHead(200, { 'content-type': 'application/json' })
       response.end(JSON.stringify({ data: [{ b64_json: PNG_1X1.toString('base64') }] }))
     })
@@ -94,6 +99,38 @@ describe('headless generated-image snapshot', () => {
         'Generated image with snapshot-image/gpt-image-1.',
       )
       expect(JSON.stringify(events.filter(event => event.type === 'tool/result'))).toContain('"type":"image"')
+    } finally {
+      await server.close()
+    }
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+
+  it('records a bounded provider failure detail in the tool result', async () => {
+    const server = await startImageServer('No image channel is currently available.')
+    try {
+      const result = await runLoaderSmoke({
+        label: 'generated-image provider failure snapshot',
+        tempDirPrefix: 'headless-snapshot-image-generation-failure-',
+        binScript,
+        libBinScript: binScript,
+        configPath,
+        binArgs: [configPath, 'Generate a game inventory panel image.'],
+        tsconfigPath,
+        env: {
+          DSH_IMAGE_SNAPSHOT_BASE_URL: server.url,
+          NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
+        },
+      })
+
+      expect(result.stderr).toBe('')
+      const events = records(result.stdout).flatMap(record => (
+        record.type === 'session_event' && typeof record.event === 'object' && record.event !== null
+          ? [record.event as Record<string, unknown>]
+          : []
+      ))
+      const toolResults = JSON.stringify(events.filter(event => event.type === 'tool/result'))
+      expect(toolResults).toContain(
+        'image-generation: provider request failed with HTTP 503: No image channel is currently available.',
+      )
     } finally {
       await server.close()
     }

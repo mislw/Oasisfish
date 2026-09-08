@@ -14,6 +14,8 @@ Image generation is an auxiliary capability, not a conversation-model switch. Th
 
 The OpenAI-compatible provider reuses `llm-pi-ai` route configuration and credential references. API keys remain in the credential service, and one custom relay can serve chat and image requests without duplicating secrets. The route must expose an explicit Base URL because the image provider does not depend on pi-ai's private catalog endpoint resolution.
 
+When an Images API request fails, the provider includes a bounded standard JSON error message when available. It normalizes whitespace and redacts the resolved API key before the detail enters the tool result; arbitrary response bodies remain hidden.
+
 ## Alternatives considered
 
 **Switch the Session model when image intent is detected.** This couples image generation to conversation routing, makes subsequent coding turns use the wrong model, and requires intent interception in the Agent Loop.
