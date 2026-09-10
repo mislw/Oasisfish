@@ -6,7 +6,7 @@
 
 ## 运行时行为
 
-Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-open` 入口，等待 HTTP 就绪后，只在沙箱化 BrowserWindow 中打开该来源，不会将其交给系统浏览器。应用拒绝外部导航和新窗口。标题栏最小化按钮会将窗口隐藏到 Windows 系统托盘；标题栏关闭按钮会先请求确认，确认后隐藏到托盘，取消则保持窗口打开。用户可以从托盘重新打开窗口；只有托盘菜单中的“退出 Oasisfish”会主动终止应用及完整的 Harness 进程树。
+Electron 会先复用共享桌面用户数据目录中已公布且仍可响应的 Harness；否则由一个桌面进程持有原子启动锁，在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-open` 入口，并向其他 Oasisfish 发行目录公布就绪状态。这样可以防止安装版和多个解包版并发修改同一份 profile 模块回退目录。HTTP 就绪后，应用只在沙箱化 BrowserWindow 中打开该来源，不会将其交给系统浏览器。应用拒绝外部导航和新窗口。标题栏最小化按钮会将窗口隐藏到 Windows 系统托盘；标题栏关闭按钮会先请求确认，确认后隐藏到托盘，取消则保持窗口打开。用户可以从托盘重新打开窗口；只有托盘菜单中的“退出 Oasisfish”会主动终止该桌面进程自己启动的 Harness。
 
 只有 Harness 子进程会在 `PATH` 前端获得内置工具目录。桌面应用不会修改用户的全局环境。不可变应用文件保留在安装目录中；profile、设置、凭据、会话、缓存和日志保留在 Electron 的用户数据目录中。
 
@@ -14,7 +14,7 @@ Electron 在操作系统分配的 `127.0.0.1` 端口启动内置 `dsh web --no-o
 
 安装资源包含作为默认领域 Skill 的 Oasis Wiki `1.260827.1`，以及用于离线优化生图提示词的 `ai-image-prompts` Skill。监督器将 `DSH_BUNDLED_SKILL_DIR` 指向打包后的 `skills` 目录，因此标准 agent（智能体）目录无需单独安装或联网，即可公布并加载两者。项目与用户 Skill 根目录的优先级高于内置根目录，因此显式安装的更新可以覆盖安装包中的兜底版本，而无需修改应用文件。[`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) 记录 Oasis 快照的源仓库、源路径、版本与精确 revision。[`ai-image-prompts.provenance.json`](bundled-skills/ai-image-prompts.provenance.json) 固定经适配的 YouMind 上游 revision；内置 MIT 许可证保留在该 Skill 目录中。
 
-生图请求仍只使用设置中选择的一个默认生图模型。当前对话模型会在现有轮次内优化用户描述，按需检索本地视觉配方，并把所得英文 prompt 交给 `image_generate`；Oasisfish 不会在后台额外请求第二次对话模型，也不会增加第二个生图提供方。
+生图请求优先使用设置中选择的主生图模型；主路由非取消失败后，可以使用单独配置的一条备用路由。当前对话模型会在现有轮次内优化用户描述，按需检索本地视觉配方，并把所得英文 prompt 交给 `image_generate`；生图成功后会把“已生成。”和图片附件写入结果并立即结束本轮，不会在后台额外请求对话模型生成收尾文字。
 
 ## 内置本地检索模型
 
@@ -69,7 +69,7 @@ staging 检查要求 Harness 入口、Web 前端、更新元数据、便携清�
 
 ## 用户数据与日志
 
-默认数据根目录继续使用 `%APPDATA%\DeepSeek Harness`，因此升级到 Oasisfish 后仍会保留现有 profile、设置、凭据、会话、缓存、浏览器状态和日志。更新下载、安装回执、清理副本和清理诊断都保存在其 `updates` 目录下。`desktop-ready.json` 记录当前回环 URL 与 Harness PID，供诊断使用。启动过程和 Harness 输出写入 `logs\desktop.log`；日志轮转后，上一份文件保留为 `desktop.log.previous`。
+默认数据根目录继续使用 `%APPDATA%\DeepSeek Harness`，因此升级到 Oasisfish 后仍会保留现有 profile、设置、凭据、会话、缓存、浏览器状态和日志。更新下载、安装回执、清理副本和清理诊断都保存在其 `updates` 目录下。`desktop-ready.json` 记录当前回环 URL 与 Harness PID，供诊断和复用。`desktop-harness-startup.lock` 只在某个桌面进程启动共享 Harness 时存在；记录的所有者进程已经退出时，恢复流程会移除该锁。启动过程和 Harness 输出写入 `logs\desktop.log`；日志轮转后，上一份文件保留为 `desktop.log.previous`。
 
 ## 许可证与限制
 

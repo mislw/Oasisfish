@@ -189,6 +189,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Plugins register namespace schemas and resolve layered values; providers store the raw document. The LLM adapters register their entry config as the composition base under the user section; the web gateway serves redacted layered descriptors and writes the user layer.',
   },
   {
+    key: 'memory',
+    pkg: 'memory',
+    title: 'Native durable memory seam',
+    mode: 'seam',
+    implementations: ['memory-local'],
+    consumers: ['tool-memory'],
+    note: 'The service routes global user and cwd-derived project records through one provider; the tool owns explicit model writes and logged first-step context injection, while Settings uses the service Remote methods.',
+  },
+  {
     key: 'credentials',
     pkg: 'credentials',
     title: 'Credential seam',

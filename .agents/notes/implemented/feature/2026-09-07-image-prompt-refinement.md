@@ -10,21 +10,23 @@ The image-generation capability accepted any prompt string, so an Agent could fo
 
 ## Decision
 
-The `image_generate` schema requires the current conversation model to refine the user's request into one coherent generation-ready English prompt before calling the configured image model. Refinement preserves explicit subjects, counts, visible text, aspect ratios, styles, exclusions, and reference-image constraints, and adds only task-relevant visual detail. It happens inside the existing conversation-model turn; the Harness does not issue a hidden second model request or change the Session's selected conversation model.
+The `image_generate` schema requires the current conversation model to refine the user's request into one coherent generation-ready English prompt and four concise candidate differences before calling the configured image model. Refinement preserves explicit subjects, counts, visible text, aspect ratios, styles, exclusions, and reference-image constraints, and adds only task-relevant visual detail. It happens inside the existing conversation-model turn; the Harness does not issue a hidden second model request or change the Session's selected conversation model.
 
 Oasisfish packages an offline `ai-image-prompts` Skill adapted from YouMind OpenLab revision `6ef324c0aaf3bae6605e21be08f510a7a3fa0cfb`. The Skill supplies concise visual recipes for game assets, UI imagery, mockups, posters, products, portraits, illustrations, infographics, and reference edits. Its provenance and MIT license ship beside it. The packaged edition does not update itself, download examples, contact the upstream service, or append promotional attribution to model responses.
 
-The dedicated `game-image` and `game-ui` presets load the Skill and use explicit local `skill_search` retrieval before image generation. The image-generation entry only opens a blank `game-image` session: it submits no bootstrap message and displays no stages. After the user enters a request, the Agent silently loads the Skills, retrieves a recipe, refines the prompt, and generates the image. The standard preset sees the Skill in its catalog, has the same search tool when the desktop local provider is available, and receives the refinement requirement from the `image_generate` schema. All paths call the one default image provider selected in Settings.
+The dedicated `game-image` and `game-ui` presets use explicit local `skill_search` retrieval before image generation. The focused `game-image` path loads only `ai-image-prompts`, searches it exactly once, and does not load or search `oasis-wiki`. The image-generation entry only opens a blank `game-image` session: it submits no bootstrap message and displays no stages. After the user enters a request, the Agent silently loads the Skill, retrieves a recipe, refines the prompt, and generates the image. The standard preset sees the Skill in its catalog, has the same search tool when the desktop local provider is available, and receives the refinement requirement from the `image_generate` schema. The Models page excludes explicit `gpt-image-*` routes from the conversation-default selector so prompt refinement cannot be sent to an image-only Chat Completions route. Image generation uses its separately configured primary route and tries one optional fallback route after a non-cancellation failure.
+
+Each tool call launches four independent candidates from the shared prompt plus one candidate difference. Every candidate applies the primary-to-fallback route order independently. The result retains successful candidates in request order and concludes the turn with `已生成 N 个方案，请选择。`; failures in some candidates do not discard the others. The desktop presents the candidates as a two-column grid with original preview, download, and a selection action that adds only the chosen image to the current composer draft.
 
 ## Verification
 
-Package tests assert the refinement requirement in the generated tool schema. Preset assembly tests assert the dedicated image workflow exposes `skill_search`, omits the stage tool, and carries the silent-refinement instructions. A browser end-to-end test asserts that clicking image generation submits no bootstrap message and displays no stages. Desktop resource and staged-inventory tests require the Skill, visual recipes, provenance, and license. A keyless assembled snapshot loads the real packaged Skill and retrieves its game-item visual recipe without calling a chat or image provider.
+Package tests assert the refinement and four-candidate requirements in the generated tool schema, independent fallback attempts, partial success, and durable result blocks. Preset assembly tests assert the dedicated image workflow exposes `skill_search`, omits the stage tool, carries the silent-refinement instructions, searches `ai-image-prompts` once, and does not search `oasis-wiki`. A browser end-to-end test asserts that clicking image generation submits no bootstrap message and displays no stages. Desktop resource and staged-inventory tests require the Skill, visual recipes, provenance, and license. A keyless assembled snapshot performs four deterministic provider requests and records four image blocks without a closing conversation-model request.
 
 ## Alternatives considered
 
 **Make a second GPT request dedicated to prompt rewriting.** Rejected because it adds hidden latency, cost, failure handling, and another model-visible operation when the current conversation model can produce the tool argument in its existing turn.
 
-**Replace the configured image provider or add a provider router.** Rejected because prompt detail and rendering capability are separate concerns. This change improves the request sent to the selected model without pretending to add model diversity or provider-native features.
+**Route image generation through the conversation default.** Rejected because prompt refinement and rendering require different provider endpoints. The conversation model produces the tool arguments; the image-generation service owns its primary and optional fallback routes.
 
 **Vendor the upstream Skill unchanged.** Rejected because runtime updates, example downloads, and response promotion are unnecessary for a self-contained desktop workflow. A pinned offline adaptation retains the useful visual guidance and its license while removing external side effects.
 
@@ -33,6 +35,7 @@ Package tests assert the refinement requirement in the generated tool schema. Pr
 ## Consequences
 
 - Brief image requests reach the configured image model as richer, task-specific English prompts.
-- The product still has one selected default image model; prompt refinement does not improve unsupported provider features or guarantee rendering quality.
+- The product has one primary image model and one optional fallback; prompt refinement does not improve unsupported provider features or guarantee rendering quality.
 - Dedicated image workflows spend local retrieval work before generation, while the actual chat and image requests retain their existing credential and network requirements.
 - Literal user-visible text remains in its original language even though the surrounding generation prompt is English.
+- One image request now spends up to four provider generations, and a failed primary route may add a fallback attempt for each candidate.

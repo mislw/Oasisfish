@@ -57,7 +57,7 @@ function records(stdout: string): Array<Record<string, unknown>> {
 }
 
 describe('headless generated-image snapshot', () => {
-  it('keeps the chat model active around one image_generate call', async () => {
+  it('ends the turn after one successful four-candidate image_generate call', async () => {
     const server = await startImageServer()
     try {
       const result = await runLoaderSmoke({
@@ -75,17 +75,22 @@ describe('headless generated-image snapshot', () => {
       })
 
       expect(result.stderr).toBe('')
-      expect(server.requests).toEqual([{
+      expect(server.requests).toEqual([
+        'symmetrical front view',
+        'slightly elevated three-quarter view',
+        'soft diffuse studio lighting',
+        'stronger rim light and deeper material contrast',
+      ].map(variation => ({
         model: 'gpt-image-1',
-        prompt: 'A clean game inventory panel with six item slots',
+        prompt: `A clean game inventory panel with six item slots\n\nCandidate variation: ${variation}`,
         n: 1,
         response_format: 'b64_json',
         size: '1024x1024',
-      }])
+      })))
       const emitted = records(result.stdout)
       expect(emitted.at(-1)).toMatchObject({
         type: 'result',
-        output: 'IMAGE_GENERATION_OK: the chat model stayed active after the generated image was attached.',
+        output: '',
       })
       const events = emitted.flatMap(record => (
         record.type === 'session_event' && typeof record.event === 'object' && record.event !== null
@@ -96,9 +101,11 @@ describe('headless generated-image snapshot', () => {
         data: { name: 'image_generate' },
       }])
       expect(JSON.stringify(events.filter(event => event.type === 'tool/result'))).toContain(
-        'Generated image with snapshot-image/gpt-image-1.',
+        '已生成 4 个方案，请选择。',
       )
-      expect(JSON.stringify(events.filter(event => event.type === 'tool/result'))).toContain('"type":"image"')
+      const toolResults = JSON.stringify(events.filter(event => event.type === 'tool/result'))
+      expect(toolResults.match(/"type":"image"/gu)).toHaveLength(4)
+      expect(events.filter(event => event.type === 'request/assistant')).toHaveLength(0)
     } finally {
       await server.close()
     }

@@ -6,7 +6,7 @@ This reference describes the self-contained Oasisfish distribution for Windows 1
 
 ## Runtime behavior
 
-Electron starts the bundled `dsh web --no-open` entry on an operating-system-assigned `127.0.0.1` port, waits for HTTP readiness, and then opens that origin only in a sandboxed BrowserWindow without handing it to the system browser. External navigation and new windows are denied. The title-bar minimize control hides the window in the Windows system tray. The title-bar close control asks for confirmation and then hides the window in the tray; cancelling keeps the window open. The tray can reopen the window, and its **Exit Oasisfish** command is the only user-initiated action that terminates the application and complete Harness process tree.
+Electron reuses a responding Harness announced by the shared desktop user-data directory; otherwise one desktop process holds an atomic startup lock, starts the bundled `dsh web --no-open` entry on an operating-system-assigned `127.0.0.1` port, and publishes readiness for other Oasisfish distributions. This prevents two installed or unpacked copies from mutating the same profile fallback concurrently. After HTTP readiness, the app opens that origin only in a sandboxed BrowserWindow without handing it to the system browser. External navigation and new windows are denied. The title-bar minimize control hides the window in the Windows system tray. The title-bar close control asks for confirmation and then hides the window in the tray; cancelling keeps the window open. The tray can reopen the window, and its **Exit Oasisfish** command is the only user-initiated action that terminates a Harness process owned by that desktop process.
 
 Only the Harness child process receives the bundled tool directories at the front of `PATH`. The desktop application does not modify the user's global environment. Immutable application files remain under the installation directory; profiles, settings, credentials, sessions, caches, and logs remain under Electron's per-user data directory.
 
@@ -14,7 +14,7 @@ Only the Harness child process receives the bundled tool directories at the fron
 
 The installed resources include Oasis Wiki `1.260827.1` as the default domain Skill and `ai-image-prompts` as an offline image-prompt refinement Skill. The supervisor sets `DSH_BUNDLED_SKILL_DIR` to the packaged `skills` directory, so the standard agent catalog can advertise and load both without a separate installation or network request. Project and user Skill roots have higher precedence than the bundled root, allowing an explicitly installed update to replace a packaged fallback without modifying application files. [`oasis-wiki.provenance.json`](bundled-skills/oasis-wiki.provenance.json) records the source repository, source path, version, and exact revision of the Oasis snapshot. [`ai-image-prompts.provenance.json`](bundled-skills/ai-image-prompts.provenance.json) pins the adapted YouMind source revision; its packaged MIT license remains beside the Skill.
 
-Image requests still use the single default image model selected in Settings. The current conversation model refines the user's wording in its existing turn, optionally searches the local visual recipes, and sends the resulting English prompt to `image_generate`; Oasisfish does not issue a hidden second conversation-model request or add a second image provider.
+Image requests use the primary image model selected in Settings and may use one separately configured fallback route after a non-cancellation failure. The current conversation model refines the user's wording in its existing turn, optionally searches the local visual recipes, and sends the resulting English prompt to `image_generate`; a successful image call records `已生成。` with the attachment and ends the turn without a hidden closing model request.
 
 ## Bundled local retrieval model
 
@@ -69,7 +69,7 @@ The staging check requires the Harness entry, Web frontend, update metadata, por
 
 ## User data and logs
 
-The default data root remains `%APPDATA%\DeepSeek Harness` so an Oasisfish upgrade retains existing profiles, settings, credentials, sessions, caches, browser state, and logs. Update downloads, installation receipts, cleanup copies, and cleanup diagnostics remain below its `updates` directory. `desktop-ready.json` records the active loopback URL and Harness PID for diagnostics. Startup and Harness output are written to `logs\desktop.log`; the previous file is retained as `desktop.log.previous` after rotation.
+The default data root remains `%APPDATA%\DeepSeek Harness` so an Oasisfish upgrade retains existing profiles, settings, credentials, sessions, caches, browser state, and logs. Update downloads, installation receipts, cleanup copies, and cleanup diagnostics remain below its `updates` directory. `desktop-ready.json` records the active loopback URL and Harness PID for diagnostics and reuse. `desktop-harness-startup.lock` exists only while one desktop process is starting that shared Harness; a dead owner's lock is removed before recovery. Startup and Harness output are written to `logs\desktop.log`; the previous file is retained as `desktop.log.previous` after rotation.
 
 ## Licenses and limits
 

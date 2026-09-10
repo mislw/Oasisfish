@@ -8,6 +8,7 @@
 
 import { pathToFileURL } from 'node:url'
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { parseEnv } from 'node:util'
 import { basename, dirname, isAbsolute, resolve } from 'node:path'
 import * as yaml from 'js-yaml'
@@ -492,14 +493,14 @@ export async function mountRootInclude(
   ctx.loader.builtins.include = bareModuleBaseUrl === undefined
     ? Include
     : class HostResolvedRootInclude extends Include {
-      override import(name: string, getOuterStack?: () => string[]): unknown {
-        const specifier = isAbsolute(name) ? pathToFileURL(name).href : name
-        if (name.startsWith('.') || name.startsWith('cordis:')) return super.import(specifier, getOuterStack)
-        const internal = this.ctx.loader.internal
-        /* v8 ignore next -- Node supplies the internal loader; this preserves the
-           original diagnostic for hypothetical embedders without it. */
-        if (internal === undefined) return super.import(specifier, getOuterStack)
-        return internal.import(specifier, bareModuleBaseUrl, {})
+      override async import(name: string, getOuterStack?: () => string[]): Promise<unknown> {
+        return importInstalledHostModule(
+          this.ctx.loader.internal,
+          bareModuleBaseUrl,
+          name,
+          getOuterStack,
+          (specifier, outerStack) => super.import(specifier, outerStack),
+        )
       }
     }
   // `cordis:group` alongside it: a group row is how a composition gives one
@@ -526,6 +527,66 @@ export async function mountRootInclude(
   const entry = loader.resolve(includeId)
   bootstrapIncludes.set(ctx, entry)
   return entry
+}
+
+/** Return the package part of a bare module specifier, excluding any export subpath. */
+function barePackageName(specifier: string): string {
+  const parts = specifier.split('/')
+  return specifier.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0] ?? specifier
+}
+
+/**
+ * Whether an installed-host import failed because the requested package itself
+ * is absent. A dependency missing from inside an installed package must retain
+ * its original error instead of selecting a profile-local package with the same
+ * top-level name.
+ */
+function isMissingImportedPackage(error: unknown, specifier: string): boolean {
+  if ((error as NodeJS.ErrnoException | null)?.code !== 'ERR_MODULE_NOT_FOUND') return false
+  const message = error instanceof Error ? error.message : String(error)
+  return message.startsWith(`Cannot find package '${barePackageName(specifier)}' imported from `)
+}
+
+/** Whether package metadata resolution failed because the requested package is absent at this base. */
+function isMissingPackageJson(error: unknown, specifier: string): boolean {
+  if ((error as NodeJS.ErrnoException | null)?.code !== 'MODULE_NOT_FOUND') return false
+  const message = error instanceof Error ? error.message : String(error)
+  return message.startsWith(`Cannot find module '${specifier}/package.json'`)
+}
+
+/** Resolve package metadata from the installed host, falling back only when that package is absent there. */
+function resolveInstalledHostPackageJson(
+  bareModuleBaseUrl: string,
+  profileBaseUrl: string,
+  specifier: string,
+): string {
+  try {
+    return createRequire(bareModuleBaseUrl).resolve(`${specifier}/package.json`)
+  } catch (error) {
+    if (!isMissingPackageJson(error, specifier)) throw error
+    return createRequire(profileBaseUrl).resolve(`${specifier}/package.json`)
+  }
+}
+
+/** Import a bare package from the installed host, falling back only when that package is absent there. */
+async function importInstalledHostModule(
+  internal: Loader['internal'],
+  bareModuleBaseUrl: string,
+  name: string,
+  getOuterStack: (() => string[]) | undefined,
+  fallback: (specifier: string, getOuterStack?: () => string[]) => unknown,
+): Promise<unknown> {
+  const specifier = isAbsolute(name) ? pathToFileURL(name).href : name
+  if (name.startsWith('.') || name.startsWith('cordis:')) return fallback(specifier, getOuterStack)
+  /* v8 ignore next -- Node supplies the internal loader; this preserves the
+     original diagnostic for hypothetical embedders without it. */
+  if (internal === undefined) return fallback(specifier, getOuterStack)
+  try {
+    return await internal.import(specifier, bareModuleBaseUrl, {})
+  } catch (error) {
+    if (!isMissingImportedPackage(error, name)) throw error
+    return fallback(specifier, getOuterStack)
+  }
 }
 
 /**
@@ -768,7 +829,27 @@ export async function boot(
   try {
     ctx.baseUrl = pathToFileURL(dirname(absoluteConfigPath)).href + '/'
     ctx.provide('dshHomePath', dshHomePath)
-    await ctx.plugin(Loader)
+    const RootLoader = bareModuleBaseUrl === undefined
+      ? Loader
+      : class HostResolvedRootLoader extends Loader {
+        /** Resolve package metadata with the same installed-host-first policy as plugin imports. */
+        resolvePackageJson(specifier: string): string {
+          const loaderBaseUrl = this.ctx.baseUrl
+          if (loaderBaseUrl === undefined) throw new Error('dsh: root Loader baseUrl is unset')
+          return resolveInstalledHostPackageJson(bareModuleBaseUrl, loaderBaseUrl, specifier)
+        }
+
+        override async import(name: string, getOuterStack?: () => string[]): Promise<unknown> {
+          return importInstalledHostModule(
+            this.internal,
+            bareModuleBaseUrl,
+            name,
+            getOuterStack,
+            (specifier, outerStack) => super.import(specifier, outerStack),
+          )
+        }
+      }
+    await ctx.plugin(RootLoader)
     await prepare?.(ctx)
     stage = 'plugin tree failed to load'
     await mountRootInclude(ctx, absoluteConfigPath, patches, bareModuleBaseUrl)

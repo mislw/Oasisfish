@@ -11,6 +11,7 @@ export interface UnpackedSmokeResult {
   search: SkillSearchSmokeResult
   restartSearch: SkillSearchSmokeResult
   cacheReused: boolean
+  profileModuleFallbackPreserved: boolean
   corpusRevisions: Array<{ corpusKey: string; revision: number }>
 }
 

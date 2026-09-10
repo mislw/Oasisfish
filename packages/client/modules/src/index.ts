@@ -308,7 +308,19 @@ export class ClientModuleRegistry extends Service {
       throw new Error('client-modules: ctx.baseUrl is unset — the node half needs the config-tree anchor to resolve plugin packages')
     }
     const require = createRequire(ctx.baseUrl)
-    this.resolvePkgJson = spec => require.resolve(`${spec}/package.json`)
+    const rootLoader = ctx.loader as typeof ctx.loader & {
+      resolvePackageJson?(specifier: string): string
+    }
+    if (rootLoader.resolvePackageJson === undefined) {
+      this.resolvePkgJson = spec => require.resolve(`${spec}/package.json`)
+    } else {
+      this.resolvePkgJson = (spec) => {
+        if (rootLoader.resolvePackageJson === undefined) {
+          throw new Error('client-modules: root Loader package resolver disappeared')
+        }
+        return rootLoader.resolvePackageJson(spec)
+      }
+    }
 
     // Subscribe before seeding so a fiber arriving mid-activation lands in the
     // same dirty set (Set idempotence makes the overlap harmless). An entry-less

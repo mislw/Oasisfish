@@ -129,6 +129,22 @@ describe('ConversationController', () => {
     await b.runtime.dispose()
   })
 
+  it('adds a durable generated image to the current draft without sending it', async () => {
+    const stored = {
+      attachment: {
+        attachmentId: AttachmentId('image-choice'), mediaType: 'image/png' as const,
+        bytes: 1, width: 1, height: 1, name: 'choice.png',
+      },
+      data: Uint8Array.of(1),
+    }
+    const b = await bench(() => Promise.resolve({ ok: true, value: stored }))
+    await expect(b.root.addImageToDraft('s1' as never, stored.attachment)).resolves.toBe(true)
+
+    expect(b.shell.state.getSnapshot().imageIds).toHaveLength(1)
+    expect(b.prompt).not.toHaveBeenCalled()
+    await b.runtime.dispose()
+  })
+
   it('fails loudly from the root scope, on an unbound session, or without SessionRuntime', async () => {
     const b = await bench()
     await expect(b.root.send('x')).rejects.toThrow(/requires a session scope/)

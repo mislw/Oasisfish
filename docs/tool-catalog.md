@@ -31,6 +31,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-goal` | `create_goal`, `get_goal`, `update_goal` | `ctx.tools`, `ctx.agents`, `ctx.goals`, `ctx.systemPrompt`, `a calling Agent in an authorized open turn` | `tool/call`, `goal/change for mutations`, `tool/result` | - | create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds. |
 | `@deepseek-ai/dsh-schedule` | `schedule_create`, `schedule_delete`, `schedule_list` | `ctx.tools`, `ctx.sessions`, `Session persistence`, `a future live root Agent` | `tool/call`, `schedule/change create or delete`, `tool/result` | - | Registered only inside live root Agent scopes created after the opt-in Schedule plugin loads. Version 1 accepts after_seconds, explicit absolute at, and bounded fixed-rate every_seconds, and discloses session-local delivery; management reads and mutations require the shared Session persistence barrier. |
 | `@deepseek-ai/dsh-tool-lsp` | `lsp` | `ctx.tools`, `ctx.lsp`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@deepseek-ai/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
+| `@deepseek-ai/dsh-tool-memory` | `memory_manage` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agents`, `ctx.memory`, `a calling Agent for Session cwd and provenance` | `tool/call`, `durable native-memory storage`, `tool/result`, `sourced user/message snapshots on the first step of later turns` | - | The current conversation model chooses explicit durable writes. Enabled records are also injected as a separately logged native-memory-context message on the first accepted step of each turn. |
 | `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
 | `@deepseek-ai/dsh-tool-skill` | `skill` | `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
 | `@deepseek-ai/dsh-tool-skill-search` | `skill_search` | `ctx.tools`, `ctx.skillSearch`, `ctx.skills` | `tool/call`, `tool/result` | - | Searches one explicitly declared Skill corpus and returns relative source citations with line ranges. |
@@ -820,6 +821,13 @@ Generate or edit an image with the configured default image model. Refine the us
       "type": "string",
       "description": "A generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged."
     },
+    "variation_prompts": {
+      "type": "array",
+      "description": "Exactly four concise candidate differences. Vary composition, material, lighting, camera, or graphic structure without changing the shared requirements.",
+      "items": {
+        "type": "string"
+      }
+    },
     "size": {
       "type": "string",
       "description": "Optional provider-supported pixel size such as 1024x1024 or 1536x1024."
@@ -839,7 +847,8 @@ Generate or edit an image with the configured default image model. Refine the us
     }
   },
   "required": [
-    "prompt"
+    "prompt",
+    "variation_prompts"
   ]
 }
 ```
@@ -1251,6 +1260,54 @@ Query a language server for precise code navigation. operation is one of goToDef
 Source: [`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/index.ts)
 
 The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@deepseek-ai/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema.
+
+<a id="deepseek-aidsh-tool-memory"></a>
+
+## `@deepseek-ai/dsh-tool-memory`
+
+### `memory_manage`
+
+List or maintain durable, reusable facts for future work. Use user scope for cross-project preferences and project scope for stable facts about the current working directory.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "list",
+        "add",
+        "update",
+        "remove"
+      ]
+    },
+    "scope": {
+      "type": "string",
+      "description": "Required for add.",
+      "enum": [
+        "user",
+        "project"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "description": "Required for update or remove."
+    },
+    "content": {
+      "type": "string",
+      "description": "Required for add or update."
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+The current conversation model chooses explicit durable writes. Enabled records are also injected as a separately logged native-memory-context message on the first accepted step of each turn.
 
 <a id="deepseek-aidsh-tool-ralph"></a>
 

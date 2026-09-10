@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { IApiClient, ProviderProbeView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ProbeTarget } from './ModelListEditor.tsx'
+import { supportsTextConversation } from './model-support.ts'
 import { messageOf } from './store.ts'
 import type { en } from './locales.ts'
 import styles from './ProviderProbe.module.css'
@@ -16,17 +17,12 @@ export interface ProviderProbeProps {
   disabled: boolean
 }
 
-/** Whether the text-generation probe can meaningfully test this model id. */
-function supportsTextProbe(model: string): boolean {
-  return !/(?:^|[\]/])gpt-image(?:-|$)/iu.test(model)
-}
-
 /** Test one drafted provider and model without saving either. */
 export function ProviderProbe(props: ProviderProbeProps): ReactNode {
   const allModelIds = useMemo(() => props.models
     .map(model => model.id)
     .filter((id): id is string => typeof id === 'string' && id.length > 0), [props.models])
-  const modelIds = useMemo(() => allModelIds.filter(supportsTextProbe), [allModelIds])
+  const modelIds = useMemo(() => allModelIds.filter(supportsTextConversation), [allModelIds])
   const hasImageOnlyModels = modelIds.length !== allModelIds.length
   const [model, setModel] = useState(() => modelIds[0] ?? '')
   const [busy, setBusy] = useState(false)

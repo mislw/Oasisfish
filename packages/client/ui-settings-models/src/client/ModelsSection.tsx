@@ -22,6 +22,7 @@ import { deriveKeyRef, messageOf, protocolChoices, providerUsable } from './stor
 import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
 import { ProviderEditor, type ProviderEditorProps } from './ProviderEditor.tsx'
+import { supportsTextConversation } from './model-support.ts'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
 
@@ -208,6 +209,15 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
   const [imageEndpointPath, setImageEndpointPath] = useState(
     state.defaultImageSelection?.endpointPath ?? 'images/generations',
   )
+  const [fallbackImageProvider, setFallbackImageProvider] = useState(
+    state.defaultImageSelection?.fallbackProvider ?? '',
+  )
+  const [fallbackImageModel, setFallbackImageModel] = useState(
+    state.defaultImageSelection?.fallbackModel ?? '',
+  )
+  const [fallbackImageEndpointPath, setFallbackImageEndpointPath] = useState(
+    state.defaultImageSelection?.fallbackEndpointPath ?? 'images/generations',
+  )
   const [savingImageDefault, setSavingImageDefault] = useState(false)
   const [imageDefaultFailure, setImageDefaultFailure] = useState<string | undefined>(undefined)
 
@@ -220,10 +230,16 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
     setImageProvider(state.defaultImageSelection?.provider ?? '')
     setImageModel(state.defaultImageSelection?.model ?? '')
     setImageEndpointPath(state.defaultImageSelection?.endpointPath ?? 'images/generations')
+    setFallbackImageProvider(state.defaultImageSelection?.fallbackProvider ?? '')
+    setFallbackImageModel(state.defaultImageSelection?.fallbackModel ?? '')
+    setFallbackImageEndpointPath(state.defaultImageSelection?.fallbackEndpointPath ?? 'images/generations')
   }, [
     state.defaultImageSelection?.provider,
     state.defaultImageSelection?.model,
     state.defaultImageSelection?.endpointPath,
+    state.defaultImageSelection?.fallbackProvider,
+    state.defaultImageSelection?.fallbackModel,
+    state.defaultImageSelection?.fallbackEndpointPath,
   ])
 
   const announceSaved = (target: ProviderIdentity): void => {
@@ -311,15 +327,20 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
   // there is nothing to declare and the entry point stays disabled.
   const protocols = protocolChoices(state.namespaces.get('llm-pi-ai'), schema)
   const defaultGroup = state.groups.find(group => group.id === defaultProvider)
-  const defaultModels = defaultGroup?.models ?? []
+  const defaultModels = defaultGroup?.models.filter(model => supportsTextConversation(model.id)) ?? []
   const defaultUnavailable = state.catalogFailures.some(failure => failure.id === defaultProvider)
   const defaultUnchanged = state.defaultSelection?.provider === defaultProvider
     && state.defaultSelection.model === defaultModel
   const imageGroup = state.groups.find(group => group.id === imageProvider)
   const imageModels = imageGroup?.models ?? []
+  const fallbackImageGroup = state.groups.find(group => group.id === fallbackImageProvider)
+  const fallbackImageModels = fallbackImageGroup?.models ?? []
   const imageDefaultUnchanged = state.defaultImageSelection?.provider === imageProvider
     && state.defaultImageSelection.model === imageModel
     && state.defaultImageSelection.endpointPath === imageEndpointPath
+    && state.defaultImageSelection.fallbackProvider === fallbackImageProvider
+    && state.defaultImageSelection.fallbackModel === fallbackImageModel
+    && state.defaultImageSelection.fallbackEndpointPath === fallbackImageEndpointPath
 
   const saveDefault = (): void => {
     if (savingDefault || defaultProvider.length === 0 || defaultModel.length === 0) return
@@ -339,6 +360,9 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
       provider: imageProvider,
       model: imageModel,
       endpointPath: imageEndpointPath,
+      fallbackProvider: fallbackImageProvider,
+      fallbackModel: fallbackImageModel,
+      fallbackEndpointPath: fallbackImageEndpointPath,
     }).then((failure) => { setImageDefaultFailure(failure) })
       .finally(() => { setSavingImageDefault(false) })
   }
@@ -359,7 +383,8 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
             onChange={(event) => {
               const provider = event.target.value
               setDefaultProvider(provider)
-              setDefaultModel(state.groups.find(group => group.id === provider)?.models[0]?.id ?? '')
+              setDefaultModel(state.groups.find(group => group.id === provider)?.models
+                .find(model => supportsTextConversation(model.id))?.id ?? '')
             }}
           >
             {state.groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
@@ -434,6 +459,45 @@ function Loaded({ injected }: { injected: ModelsSectionFace }): ReactNode {
             value={imageEndpointPath}
             disabled={savingImageDefault}
             onChange={(event) => { setImageEndpointPath(event.target.value) }}
+          />
+        </label>
+        <label className={styles['defaultField']}>
+          <span>{t('fallbackImageProvider')}</span>
+          <select
+            className={styles['selectInput']}
+            aria-label={t('fallbackImageProvider')}
+            value={fallbackImageProvider}
+            disabled={savingImageDefault}
+            onChange={(event) => {
+              const provider = event.target.value
+              setFallbackImageProvider(provider)
+              setFallbackImageModel(state.groups.find(group => group.id === provider)?.models[0]?.id ?? '')
+            }}
+          >
+            <option value="">{t('fallbackImageProviderUnset')}</option>
+            {state.groups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </select>
+        </label>
+        <label className={styles['defaultField']}>
+          <span>{t('fallbackImageModel')}</span>
+          <select
+            className={styles['selectInput']}
+            aria-label={t('fallbackImageModel')}
+            value={fallbackImageModel}
+            disabled={savingImageDefault || fallbackImageProvider.length === 0 || fallbackImageModels.length === 0}
+            onChange={(event) => { setFallbackImageModel(event.target.value) }}
+          >
+            {fallbackImageModels.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}
+          </select>
+        </label>
+        <label className={`${styles['defaultField']} ${styles['fallbackImageEndpointField']}`}>
+          <span>{t('fallbackImageEndpointPath')}</span>
+          <input
+            className={styles['input']}
+            aria-label={t('fallbackImageEndpointPath')}
+            value={fallbackImageEndpointPath}
+            disabled={savingImageDefault || fallbackImageProvider.length === 0}
+            onChange={(event) => { setFallbackImageEndpointPath(event.target.value) }}
           />
         </label>
         <p className={styles['imageHint']}>{t('imageDefaultHint')}</p>

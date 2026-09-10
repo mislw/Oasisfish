@@ -54,6 +54,7 @@ type TestProps = {
   loadImage: (image: ImageAttachmentRef) => Promise<string>
   t: TranslateNS<'conversation'>
   inspect?: () => void
+  selectImage?: (image: ImageAttachmentRef) => Promise<void>
 }
 
 const Component = ImageGenerateResult as ComponentType<TestProps>
@@ -91,5 +92,33 @@ describe('ImageGenerateResult', () => {
     fireEvent.click(await view.findByRole('button', { name: '图片加载失败，点击重试' }))
     await waitFor(() => { expect(view.getByAltText('generated.png')).toBeTruthy() })
     expect(loadImage).toHaveBeenCalledTimes(2)
+  })
+
+  it('renders four candidates in a selectable grid with preview and download actions', async () => {
+    const images = Array.from({ length: 4 }, (_, index) => ({
+      ...attachment,
+      attachmentId: AttachmentId(`sha256:${String(index + 1).repeat(64)}`),
+      name: `candidate-${String(index + 1)}.png`,
+    }))
+    const loadImage = vi.fn(async (image: ImageAttachmentRef) => `blob:${image.name}`)
+    const selectImage = vi.fn(() => Promise.resolve())
+    const view = render(<Component
+      block={settled([
+        { type: 'text', text: '已生成 4 个方案，请选择。' },
+        ...images.map(image => ({ type: 'image' as const, attachment: image })),
+      ])}
+      loadImage={loadImage}
+      selectImage={selectImage}
+      t={t}
+    />)
+
+    await waitFor(() => { expect(view.getAllByRole('img')).toHaveLength(4) })
+    const grid = view.getByTestId('generated-image-grid')
+    expect(grid.getAttribute('data-count')).toBe('4')
+    fireEvent.click(view.getByRole('button', { name: 'candidate-1.png，点击查看原图' }))
+    expect(view.getByRole('dialog', { name: '原图预览' })).toBeTruthy()
+    expect(view.getAllByRole('link', { name: '下载图片' })).toHaveLength(4)
+    fireEvent.click(view.getAllByRole('button', { name: '以此图继续修改' })[2]!)
+    await waitFor(() => { expect(selectImage).toHaveBeenCalledWith(images[2]) })
   })
 })

@@ -12,6 +12,7 @@ const shutdownTimeoutMs = 15_000
 const backgroundCloseObservationMs = 1_000
 const rpcTimeoutMs = 600_000
 const searchQuery = '如何用 UGCAskQ 读取 DataTable？'
+const unavailableProfileModuleFallback = 'unavailable'
 let rpcSequence = 0
 
 const toolChecks = Object.freeze([
@@ -255,6 +256,9 @@ export async function smokeUnpacked(unpackedRoot) {
   const tools = await verifyBundledTools(join(resourcesRoot, 'runtime'))
   const userData = await mkdtemp(join(tmpdir(), 'dsh-desktop-unpacked-'))
   try {
+    const profileModuleFallback = join(userData, 'dsh', 'profiles', 'node_modules')
+    await mkdir(dirname(profileModuleFallback), { recursive: true })
+    await writeFile(profileModuleFallback, unavailableProfileModuleFallback)
     await writeSearchCommandPlugin(userData)
     const first = await runDesktopCycle(executable, userData)
     const databasePath = join(userData, 'cache', 'skill-search', 'skill-search.sqlite')
@@ -263,6 +267,8 @@ export async function smokeUnpacked(unpackedRoot) {
     const secondRevisions = readCorpusRevisions(databasePath)
     const cacheReused = firstRevisions.length > 0
       && JSON.stringify(firstRevisions) === JSON.stringify(secondRevisions)
+    const profileModuleFallbackPreserved = await readFile(profileModuleFallback, 'utf8')
+      === unavailableProfileModuleFallback
     return {
       backgroundClosePreserved: first.backgroundClosePreserved && second.backgroundClosePreserved,
       httpStatus: second.httpStatus,
@@ -271,6 +277,7 @@ export async function smokeUnpacked(unpackedRoot) {
       search: first.search,
       restartSearch: second.search,
       cacheReused,
+      profileModuleFallbackPreserved,
       corpusRevisions: secondRevisions,
     }
   } finally {

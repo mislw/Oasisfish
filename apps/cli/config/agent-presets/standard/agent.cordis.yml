@@ -89,6 +89,14 @@
 - id: tool-skill-search
   name: '@deepseek-ai/dsh-tool-skill-search'
 
+# Durable memory and prior-session search consume Host services. Both tools
+# register into this preset's scoped tool layer and publish no service.
+- id: tool-memory
+  name: '@deepseek-ai/dsh-tool-memory'
+
+- id: tool-session-query
+  name: '@deepseek-ai/dsh-tool-session-query'
+
 # ── goals ───────────────────────────────────────────────────────────────────
 
 # Only the model-facing tool. The goal SERVICE, its session driver, and the

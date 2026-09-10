@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, Menu, Tray } from 'electron'
 import { buildHarnessEnvironment } from './environment.ts'
+import { coordinateHarnessStartup } from './harness-startup.ts'
 import { resolveDesktopDataRoot, resolveDesktopPaths, type DesktopPaths } from './paths.ts'
 import {
   preparePortableCleanup,
@@ -234,8 +235,11 @@ async function boot(): Promise<void> {
     controller: updateController,
     windows: () => BrowserWindow.getAllWindows().map(window => window.webContents),
   })
-  const port = await reserveLoopbackPort()
-  const url = await startHarness(paths, port)
+  const startup = await coordinateHarnessStartup(paths.dataRoot, async () => {
+    const port = await reserveLoopbackPort()
+    return await startHarness(paths, port)
+  })
+  const url = startup.url
   const desktopWindow = createWindow(url)
   mainWindow = desktopWindow.window
   mainWindowLifecycle = desktopWindow.lifecycle

@@ -10,7 +10,8 @@ async function bench() {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   const resolveImage = vi.fn(async () => 'blob:test')
-  ctx.provide('conversation', { resolveImage } as never)
+  const addImageToDraft = vi.fn(async () => true)
+  ctx.provide('conversation', { resolveImage, addImageToDraft } as never)
   ctx.slots.register({
     name: 'root',
     children: {
@@ -21,7 +22,7 @@ async function bench() {
   } as never, () => null)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { ctx, fiber, resolveImage }
+  return { ctx, fiber, resolveImage, addImageToDraft }
 }
 
 describe('attachment plugin', () => {
@@ -30,7 +31,7 @@ describe('attachment plugin', () => {
   })
 
   it('registers attachment entries and the generated-image tool view, then removes them with the plugin fiber', async () => {
-    const { ctx, fiber, resolveImage } = await bench()
+    const { ctx, fiber, resolveImage, addImageToDraft } = await bench()
     expect(inject).toEqual(['slots', 'conversation'])
     expect(ctx.slots.entries('conversation.input.attachments')).toMatchObject([{
       locale: 'conversation',
@@ -47,10 +48,13 @@ describe('attachment plugin', () => {
     const toolview = ctx.slots.entries('tool.call.toolview')[0]!
     const injected = (toolview.inject as (sessionId: string) => {
       loadImage: (attachment: { attachmentId: string }) => Promise<string>
+      selectImage: (attachment: { attachmentId: string }) => Promise<void>
     })('session-1')
     const attachment = { attachmentId: 'fixture:image' }
     await expect(injected.loadImage(attachment)).resolves.toBe('blob:test')
     expect(resolveImage).toHaveBeenCalledWith('session-1', attachment)
+    await injected.selectImage(attachment)
+    expect(addImageToDraft).toHaveBeenCalledWith('session-1', attachment)
 
     await fiber.dispose()
 

@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 Browser surfaces for the game-development toolbox. The sidebar offers a complete Oasis UI workflow and a focused image-generation workflow. Each tool creates or resumes its own Agent Preset session. The UI workflow also opens its details panel and renders the durable `todos` projection in both the conversation header and details summary.
 
-The `game-ui` preset owns the eight-stage UI production process. Clicking the image-generation entry only opens a blank `game-image` session; it does not submit a user message or display task stages. After the user enters an image request, the preset silently loads `oasis-wiki` and the bundled `ai-image-prompts` Skill, searches the matching local visual recipe, refines a complete English prompt in the current model turn, and directly calls the one configured default image model. It has no filesystem, shell, UMG, Lua, or editor tools and creates no hidden model request.
+The `game-ui` preset owns the eight-stage UI production process. Clicking the image-generation entry only opens a blank `game-image` session; it does not submit a user message or display task stages. After the user enters an image request, the preset silently loads only the bundled `ai-image-prompts` Skill, searches it once for the matching local visual recipe, refines a complete English prompt in the current model turn, and directly calls the configured primary image model with one optional fallback. It has no filesystem, shell, UMG, Lua, editor, or unrelated Skill tools and creates no hidden model request.
 
 Toolbox entries use translucent theme-token surfaces so the sidebar's persistent Oasisfish scene remains visible without reducing label contrast.
 

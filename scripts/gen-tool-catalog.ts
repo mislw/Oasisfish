@@ -26,7 +26,8 @@ import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import LocalFileSystem from '@deepseek-ai/dsh-fs-local'
 import { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { ImageAttachmentLimits, ImageAttachmentRef, SaveImageAttachment, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
-import type { GenerateImageRequest, GeneratedImage } from '@deepseek-ai/dsh-image-generation'
+import type { GenerateImageRequest, GeneratedImageBatch } from '@deepseek-ai/dsh-image-generation'
+import MemoryService, { type MemoryProvider } from '@deepseek-ai/dsh-memory'
 import UserQuestionService from '@deepseek-ai/dsh-user-questions'
 import PlanModeController from '@deepseek-ai/dsh-plan-mode'
 import WebRuntime from '@deepseek-ai/dsh-web'
@@ -57,6 +58,7 @@ import * as ToolGoal from '@deepseek-ai/dsh-tool-goal'
 import * as ToolSchedule from '@deepseek-ai/dsh-schedule'
 import Lsp from '@deepseek-ai/dsh-lsp'
 import * as ToolLsp from '@deepseek-ai/dsh-tool-lsp'
+import * as ToolMemory from '@deepseek-ai/dsh-tool-memory'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import SkillSearchRegistry from '@deepseek-ai/dsh-skill-search'
 import * as ToolSkillSearch from '@deepseek-ai/dsh-tool-skill-search'
@@ -102,7 +104,7 @@ class CatalogImageGenerationService extends Service {
     super(ctx, 'imageGeneration')
   }
 
-  generate(_request: GenerateImageRequest): Promise<GeneratedImage> {
+  generate(_request: GenerateImageRequest): Promise<GeneratedImageBatch> {
     return Promise.reject(new Error('gen-tool-catalog: image generation is unreachable during schema harvest'))
   }
 }
@@ -434,6 +436,28 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@deepseek-ai/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-memory',
+    dir: 'tool-memory',
+    source: 'packages/memory/tool-memory/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt', 'ctx.agents', 'ctx.memory', 'a calling Agent for Session cwd and provenance'],
+    writes: ['tool/call', 'durable native-memory storage', 'tool/result', 'sourced user/message snapshots on the first step of later turns'],
+    async mount(ctx) {
+      const provider: MemoryProvider = {
+        list: () => Promise.resolve({ enabled: true, records: [] }),
+        add: () => Promise.reject(new Error('tool-catalog memory provider cannot add')),
+        update: () => Promise.reject(new Error('tool-catalog memory provider cannot update')),
+        remove: () => Promise.reject(new Error('tool-catalog memory provider cannot remove')),
+        setEnabled: enabled => Promise.resolve(enabled),
+      }
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(MemoryService)
+      ctx.memory.registerProvider(provider)
+      await ctx.plugin(ToolMemory)
+    },
+    note:
+      'The current conversation model chooses explicit durable writes. Enabled records are also injected as a separately logged native-memory-context message on the first accepted step of each turn.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-ralph',

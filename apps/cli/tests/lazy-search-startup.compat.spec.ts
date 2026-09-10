@@ -30,7 +30,7 @@ const requireBuiltArtifacts = process.env.DSH_REQUIRE_BUILT_CLI_SMOKE === '1'
 interface ConfigRow {
   id?: string
   disabled?: unknown
-  config?: { openAt?: unknown }
+  config?: { openAt?: unknown; path?: string }
 }
 
 interface PatchEntry extends ConfigRow {
@@ -100,7 +100,7 @@ function runBuiltWeb(cwd: string): Promise<{ stdout: string; stderr: string; cod
 }
 
 describe.skipIf(!requireBuiltArtifacts)('built CLI lazy-search startup', () => {
-  it('boots and disposes the shipped composition with full-text search off by default', async () => {
+  it('boots and disposes the shipped composition with Web full-text search opening lazily', async () => {
     expect(existsSync(builtBin), `missing built CLI ${resolve(builtBin)}; run pnpm build`).toBe(true)
     expect(existsSync(webDist), `missing Web dist ${resolve(webDist)}; run pnpm run build:web`).toBe(true)
     const baseRows = (yaml.load(await readFile(baseConfigPath, 'utf8'), { schema: configSchema }) as PatchEntry[])
@@ -111,8 +111,8 @@ describe.skipIf(!requireBuiltArtifacts)('built CLI lazy-search startup', () => {
     const webRow = webRows.find(row => row.id === 'session-query-sqlite')
     expect(baseRow?.config?.openAt).toBe('never')
     expect(baseRow?.disabled).toBeUndefined()
-    // The web restatement keeps the shipped default; opting in is a later layer's override.
-    expect(webRow?.config?.openAt).toBe('never')
+    expect(webRow?.config?.openAt).toBe('first-search')
+    expect(webRow?.config?.path).toContain('session-search.sqlite')
     expect(webRow?.disabled).toBeUndefined()
 
     const cwd = await mkdtemp(join(tmpdir(), 'dsh-cli-lazy-search-'))

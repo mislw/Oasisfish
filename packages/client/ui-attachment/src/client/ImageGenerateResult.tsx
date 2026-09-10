@@ -1,15 +1,19 @@
+import { useCallback, useEffect, useState } from 'react'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { IconInspectOutline12, IconSparkle16, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  IconDownloadOutline16, IconEditOutline16, IconInspectOutline12, IconSparkle16, StateDot,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ToolCallViewProps } from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import { ImageGallery } from '../MessageImage.tsx'
-import { messageImageLabels } from './labels.ts'
+import { ImageLightbox } from '../ImageLightbox.tsx'
 import css from './ImageGenerateResult.module.css'
 
 /** Session-authorized attachment loader supplied by this plugin's slot registration. */
 export interface ImageGenerateResultInjected {
   /** Resolve one durable result attachment inside the owning session. */
   loadImage: (attachment: ImageAttachmentRef) => Promise<string>
+  /** Add one generated candidate to the current composer without submitting it. */
+  selectImage: (attachment: ImageAttachmentRef) => Promise<void>
 }
 
 type ImageGenerateResultProps = ToolCallViewProps
@@ -68,8 +72,64 @@ function leading(state: ResultState) {
   return <IconSparkle16 size={16} />
 }
 
+function CandidateImage({ attachment, loadImage, selectImage, t }: {
+  attachment: ImageAttachmentRef
+  loadImage: (attachment: ImageAttachmentRef) => Promise<string>
+  selectImage: (attachment: ImageAttachmentRef) => Promise<void>
+  t: ImageGenerateResultProps['t']
+}) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    let live = true
+    setFailed(false)
+    setSrc(null)
+    void loadImage(attachment).then((url) => { if (live) setSrc(url) }).catch(() => { if (live) setFailed(true) })
+    return () => { live = false }
+  }, [attachment, loadImage, attempt])
+  const retry = useCallback(() => { setAttempt(value => value + 1) }, [])
+  const label = attachment.name ?? t('image.label')
+  if (failed) {
+    return <button type="button" className={css.candidateError} onClick={retry}>{t('image.loadFailed')}</button>
+  }
+  return (
+    <div className={css.candidate}>
+      <button
+        type="button"
+        className={css.preview}
+        title={t('image.openOriginal')}
+        aria-label={t('image.openOriginalLabel', { label })}
+        onClick={() => { if (src !== null) setOpen(true) }}
+      >
+        {src === null ? <span>{t('image.loading')}</span> : <img src={src} alt={label} />}
+      </button>
+      <div className={css.candidateActions}>
+        <button type="button" onClick={() => { void selectImage(attachment) }}>
+          <IconEditOutline16 />
+          以此图继续修改
+        </button>
+        {src !== null && (
+          <a href={src} download={label} aria-label="下载图片" title="下载图片">
+            <IconDownloadOutline16 />
+          </a>
+        )}
+      </div>
+      {open && src !== null && (
+        <ImageLightbox
+          src={src}
+          alt={label}
+          labels={{ dialog: t('image.preview'), close: t('image.closePreview') }}
+          onClose={() => { setOpen(false) }}
+        />
+      )}
+    </div>
+  )
+}
+
 /** Render one generated image result as an inline thumbnail and original-image preview. */
-export function ImageGenerateResult({ block, loadImage, inspect, t }: ImageGenerateResultProps) {
+export function ImageGenerateResult({ block, loadImage, selectImage, inspect, t }: ImageGenerateResultProps) {
   const state = stateOf(block)
   const images = imagesOf(block)
   const caption = captionOf(block)
@@ -83,7 +143,17 @@ export function ImageGenerateResult({ block, loadImage, inspect, t }: ImageGener
       </div>
       {images.length > 0 && (
         <div className={css.result}>
-          <ImageGallery images={images} load={loadImage} align="start" labels={messageImageLabels(t)} />
+          <div className={css.candidateGrid} data-testid="generated-image-grid" data-count={images.length}>
+            {images.map((image, index) => (
+              <CandidateImage
+                key={`${image.attachment.attachmentId}:${String(index)}`}
+                attachment={image.attachment}
+                loadImage={loadImage}
+                selectImage={selectImage}
+                t={t}
+              />
+            ))}
+          </div>
           {caption !== null && <div className={css.caption}>{caption}</div>}
         </div>
       )}

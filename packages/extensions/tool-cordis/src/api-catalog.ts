@@ -886,10 +886,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Host-owned generated-image capability and OpenAI-compatible provider.',
     methods: [
       {
-        signature: 'async generate(request: GenerateImageRequest): Promise<GeneratedImage>',
-        description: 'Generate one image and persist it through the attachment service.',
+        signature: 'async generate(request: GenerateImageRequest): Promise<GeneratedImageBatch>',
+        description: 'Generate independent image candidates and persist every successful result.',
         parameters: [{ name: 'request', description: 'prompt, optional reference images and output controls, and cancellation signal.' }],
-        returns: 'the serving route plus a durable generated-image attachment.',
+        returns: 'successful candidates in request order and the failed-candidate count.',
       },
     ],
   },
@@ -1074,6 +1074,79 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Select a provider by the file\'s extension and run one query. Selection is per-query and order-independent; no match throws `LspError` `LSP_UNAVAILABLE`.',
         parameters: [{ name: 'request', description: 'the normalized query.' }, { name: 'signal', description: 'optional cancellation forwarded to the selected provider.' }],
         returns: 'the normalized, closed-union result.',
+      },
+    ],
+  },
+  {
+    key: 'memory',
+    summary: 'Routes memory operations to the one active provider.',
+    description: 'Routes memory operations to the one active provider.',
+    methods: [
+      {
+        signature: 'registerProvider(provider: MemoryProvider): () => Promise<void>',
+        description: 'Register the sole provider for this service instance.',
+        parameters: [{ name: 'provider', description: 'Backend that owns persistence and validation.' }],
+        returns: 'An async disposer that removes this provider registration.',
+      },
+      {
+        signature: 'async list(context: MemoryContext): Promise<MemorySnapshot>',
+        description: 'List records visible to one caller context.',
+        parameters: [{ name: 'context', description: 'Project and provenance context used to select records.' }],
+        returns: 'The effective enable state and visible immutable records.',
+      },
+      {
+        signature: 'async add(request: MemoryAddRequest, context: MemoryContext): Promise<MemoryRecord>',
+        description: 'Add one record through the active provider.',
+        parameters: [{ name: 'request', description: 'Scope and durable content to store.' }, { name: 'context', description: 'Project and provenance context for the write.' }],
+        returns: 'The committed immutable record.',
+      },
+      {
+        signature: 'async update(request: MemoryUpdateRequest, context: MemoryContext): Promise<MemoryRecord>',
+        description: 'Update one visible record through the active provider.',
+        parameters: [{ name: 'request', description: 'Visible record id and replacement content.' }, { name: 'context', description: 'Project and provenance context for the write.' }],
+        returns: 'The committed immutable record.',
+      },
+      {
+        signature: 'async remove(request: MemoryRemoveRequest, context: MemoryContext): Promise<MemoryRemoveResult>',
+        description: 'Remove one visible record through the active provider.',
+        parameters: [{ name: 'request', description: 'Visible record id to remove.' }, { name: 'context', description: 'Project and provenance context for the write.' }],
+        returns: 'The idempotent removal result.',
+      },
+      {
+        signature: 'async setEnabled(enabled: boolean, context: MemoryContext): Promise<boolean>',
+        description: 'Change whether memory affects model requests.',
+        parameters: [{ name: 'enabled', description: 'Whether later turns receive memory context snapshots.' }, { name: 'context', description: 'Project context associated with this preference update.' }],
+        returns: 'The committed enable state.',
+      },
+      {
+        signature: '@Remote(\'list\') async listRemote(request: MemoryRemoteListRequest): Promise<MemorySnapshot>',
+        description: 'List records visible to the Session selected by the Settings page.',
+        parameters: [{ name: 'request', description: 'Optional selected Session working directory.' }],
+        returns: 'The effective enable state and visible immutable records.',
+      },
+      {
+        signature: '@Remote(\'add\') async addRemote(request: MemoryRemoteAddRequest): Promise<MemoryRecord>',
+        description: 'Add one record from the Settings page without model provenance.',
+        parameters: [{ name: 'request', description: 'Scope, content, and optional selected Session directory.' }],
+        returns: 'The committed immutable record.',
+      },
+      {
+        signature: '@Remote(\'update\') async updateRemote(request: MemoryRemoteUpdateRequest): Promise<MemoryRecord>',
+        description: 'Update one visible record from the Settings page.',
+        parameters: [{ name: 'request', description: 'Record id, replacement content, and optional Session directory.' }],
+        returns: 'The committed immutable record.',
+      },
+      {
+        signature: '@Remote(\'remove\') async removeRemote(request: MemoryRemoteRemoveRequest): Promise<MemoryRemoveResult>',
+        description: 'Remove one visible record from the Settings page.',
+        parameters: [{ name: 'request', description: 'Record id and optional selected Session directory.' }],
+        returns: 'The idempotent removal result.',
+      },
+      {
+        signature: '@Remote(\'setEnabled\') async setEnabledRemote(request: MemoryRemoteSetEnabledRequest): Promise<boolean>',
+        description: 'Enable or disable memory context injection from the Settings page.',
+        parameters: [{ name: 'request', description: 'Enable state and optional selected Session directory.' }],
+        returns: 'The committed enable state.',
       },
     ],
   },
@@ -3450,8 +3523,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GeneratedImage {\n    provider: string;\n    model: string;\n    attachment: ImageAttachmentRef;\n}',
   },
   {
+    name: 'GeneratedImageBatch',
+    declaration: 'export interface GeneratedImageBatch {\n    images: readonly GeneratedImage[];\n    failedCount: number;\n}',
+  },
+  {
     name: 'GenerateImageRequest',
-    declaration: 'export interface GenerateImageRequest {\n    prompt: string;\n    size?: string;\n    referenceImages?: readonly ImageAttachmentRef[];\n    quality?: \'low\' | \'medium\' | \'high\';\n    signal?: AbortSignal;\n}',
+    declaration: 'export interface GenerateImageRequest {\n    prompt: string;\n    count?: number;\n    variations?: readonly string[];\n    size?: string;\n    referenceImages?: readonly ImageAttachmentRef[];\n    quality?: \'low\' | \'medium\' | \'high\';\n    signal?: AbortSignal;\n}',
   },
   {
     name: 'GenerateOptions',
@@ -3756,6 +3833,70 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'MemoryAddRequest',
+    declaration: 'export interface MemoryAddRequest {\n    readonly scope: MemoryScope;\n    readonly content: string;\n}',
+  },
+  {
+    name: 'MemoryContext',
+    declaration: 'export interface MemoryContext {\n    readonly cwd?: string;\n    readonly sourceSessionId?: SessionId;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'MemoryId',
+    declaration: 'export type MemoryId = Branded<\'MemoryId\'>;',
+  },
+  {
+    name: 'MemoryProvider',
+    declaration: 'export interface MemoryProvider {\n    readonly list: (context: MemoryContext) => Promise<MemorySnapshot>;\n    readonly add: (request: MemoryAddRequest, context: MemoryContext) => Promise<MemoryRecord>;\n    readonly update: (request: MemoryUpdateRequest, context: MemoryContext) => Promise<MemoryRecord>;\n    readonly remove: (request: MemoryRemoveRequest, context: MemoryContext) => Promise<MemoryRemoveResult>;\n    readonly setEnabled: (enabled: boolean, context: MemoryContext) => Promise<boolean>;\n}',
+  },
+  {
+    name: 'MemoryRecord',
+    declaration: 'export interface MemoryRecord {\n    readonly id: MemoryId;\n    readonly scope: MemoryScope;\n    readonly projectKey?: string;\n    readonly projectLabel?: string;\n    readonly content: string;\n    readonly sourceSessionId?: SessionId;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n}',
+  },
+  {
+    name: 'MemoryRemoteAddRequest',
+    declaration: 'export interface MemoryRemoteAddRequest extends MemoryAddRequest, MemoryRemoteContext {\n}',
+  },
+  {
+    name: 'MemoryRemoteContext',
+    declaration: 'export interface MemoryRemoteContext {\n    readonly cwd?: string;\n}',
+  },
+  {
+    name: 'MemoryRemoteListRequest',
+    declaration: 'export interface MemoryRemoteListRequest extends MemoryRemoteContext {\n}',
+  },
+  {
+    name: 'MemoryRemoteRemoveRequest',
+    declaration: 'export interface MemoryRemoteRemoveRequest extends MemoryRemoveRequest, MemoryRemoteContext {\n}',
+  },
+  {
+    name: 'MemoryRemoteSetEnabledRequest',
+    declaration: 'export interface MemoryRemoteSetEnabledRequest extends MemoryRemoteContext {\n    readonly enabled: boolean;\n}',
+  },
+  {
+    name: 'MemoryRemoteUpdateRequest',
+    declaration: 'export interface MemoryRemoteUpdateRequest extends MemoryUpdateRequest, MemoryRemoteContext {\n}',
+  },
+  {
+    name: 'MemoryRemoveRequest',
+    declaration: 'export interface MemoryRemoveRequest {\n    readonly id: MemoryId;\n}',
+  },
+  {
+    name: 'MemoryRemoveResult',
+    declaration: 'export interface MemoryRemoveResult {\n    readonly id: MemoryId;\n    readonly absent: true;\n}',
+  },
+  {
+    name: 'MemoryScope',
+    declaration: 'export type MemoryScope = \'user\' | \'project\';',
+  },
+  {
+    name: 'MemorySnapshot',
+    declaration: 'export interface MemorySnapshot {\n    readonly enabled: boolean;\n    readonly records: readonly MemoryRecord[];\n}',
+  },
+  {
+    name: 'MemoryUpdateRequest',
+    declaration: 'export interface MemoryUpdateRequest {\n    readonly id: MemoryId;\n    readonly content: string;\n}',
   },
   {
     name: 'Message',

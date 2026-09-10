@@ -6,6 +6,8 @@ Per-preset agent composition. A **preset** is a directory holding one `agent.cor
 
 The mechanism is two seams. Entry contexts chain to the context a subtree was plugged into, and both [`dsh-tools`](../../core/tools/README.md) and [`dsh-system-prompt`](../../core/system-prompt/README.md) file registrations into the calling context's scope layer — so the standing mount's contributions land in the PRESET's layer. What carries them to each session is `dsh-scope`'s parent chain: an agent's views resolve `agent → preset → global` (nearest shadowing farthest), and the mount's listeners are admitted for every agent parented under it while a sibling preset's stay deaf.
 
+The shipped `standard` preset includes `memory_manage` plus prior-session query tools. Durable records and the search index remain Host-owned; the preset contributes only scoped model-facing Consumers.
+
 ## Service: `AgentPresets` (ctx key: `agentPresets`)
 
 Discovery is unmemoized: `list()` and `resolve()` re-read the roots on every call, so a preset authored while the process runs is visible immediately and a deleted one disappears from the next read. Discovery also owns preset **health**: a directory whose composition is missing or unloadable (unparsable YAML — checked with the loader's own dialect, `!!js` included — or not a list of named plugin rows) is listed with a `broken` reason rather than skipped, because a skipped directory would still occupy its id on disk while every surface shows nothing to delete. A directory whose name is not a usable preset id (`[a-z0-9][a-z0-9-]*`) is skipped outright: no copy could ever claim it.
@@ -62,7 +64,7 @@ The copied tree is re-tightened to owner-only (`0o600` files keeping their owner
 
 ### How a preset's rows resolve
 
-A row's **package name** resolves from the host composition, not from the preset directory. The Loader normally resolves an entry against its own tree's `baseUrl`, which for a preset is wherever the composition file sits; a locally authored preset lives under the user's home, where Node's upward `node_modules` walk never reaches the harness, so every `@deepseek-ai/dsh-*` row would fail to import. The mount records the host base before plugging the subtree and sends bare specifiers there.
+A row's **package name** resolves through the root Loader, not from the preset directory. The Loader normally resolves an entry against its own tree's `baseUrl`, which for a preset is wherever the composition file sits; a locally authored preset lives under the user's home, where Node's upward `node_modules` walk never reaches the harness, so every `@deepseek-ai/dsh-*` row would fail to import. The root Loader owns the deployment's package policy, including installed-host-first resolution in the closed desktop runtime, and the mount delegates bare specifiers to it.
 
 A **relative** path still resolves from the preset's own directory, so a preset's own plugin files and skill directories travel with it.
 

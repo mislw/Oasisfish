@@ -23,14 +23,17 @@
  */
 
 import { createRequire } from 'node:module'
+import { randomUUID } from 'node:crypto'
 import {
-  existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync,
+  existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmdirSync, symlinkSync, unlinkSync,
+  writeFileSync,
 } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import { applyEntryPatches, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { loadOverlayPatches } from './index.ts'
+import { acquireProfilesModuleFallbackHealLock } from './profile-heal-lock.ts'
 
 /** Directory under the Harness home holding every profile. */
 export const PROFILES_DIR = 'profiles'
@@ -93,6 +96,8 @@ export interface Profile {
   patchPath: string
   /** The profile's own patches; empty when the file is absent. */
   patches: PatchOptions[]
+  /** Whether the manifest contains only this installation's shipped template bundles. */
+  installationOwned: boolean
 }
 
 /**
@@ -142,6 +147,9 @@ nodeLinker: hoisted
 autoInstallPeers: false
 `
 
+const PROFILE_FALLBACK_NEXT_PREFIX = 'node_modules.dsh-next-'
+const PROFILE_FALLBACK_RETIRED_PREFIX = 'node_modules.dsh-retired-'
+
 /**
  * Initialize a profile directory: manifest, empty user patch layer, and the
  * pnpm settings out-of-tree plugins need. Existing files are never touched,
@@ -167,37 +175,119 @@ export function initProfile(dir: string, bundles: readonly string[]): void {
   if (!existsSync(workspacePath)) writeFileSync(workspacePath, PROFILE_PNPM_WORKSPACE)
 }
 
-/** Ensure `link` is a symlink to `target`, replacing a wrong or dangling link; a real directory throws. */
-function ensureSymlink(link: string, target: string): void {
-  let stat
+function profileLinkErrorCode(error: unknown): string | undefined {
+  return (error as NodeJS.ErrnoException | null)?.code
+}
+
+function profileFallbackStat(path: string): ReturnType<typeof lstatSync> | undefined {
   try {
-    stat = lstatSync(link)
-  } catch {
-    // Missing link (first run) — created below. Any other lstat failure on a
-    // path we just created the parent of would resurface on symlinkSync.
-    stat = undefined
-  }
-  if (stat !== undefined) {
-    if (!stat.isSymbolicLink()) {
-      throw new Error(`dsh: ${link} exists and is not a symlink; remove it so dsh can manage the installation fallback`)
-    }
-    if (readlinkSync(link) === target) return
-    // unlink deletes the reparse point itself on Windows too; rmSync treats a
-    // junction as a directory and throws EISDIR unless recursive.
-    unlinkSync(link)
-  }
-  try {
-    symlinkSync(target, link, 'junction')
+    return lstatSync(path)
   } catch (error) {
-    // Concurrent launches heal the same fallback; losing the race to a
-    // process writing the identical link is success, anything else is not.
-    // The window between the lstat miss above and this write cannot be
-    // staged deterministically from the public API.
-    /* v8 ignore next 4 */
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST'
-      || !lstatSync(link).isSymbolicLink() || readlinkSync(link) !== target) {
+    /* v8 ignore next -- a non-ENOENT lstat result requires a host filesystem fault. */
+    if (profileLinkErrorCode(error) !== 'ENOENT') throw error
+    return undefined
+  }
+}
+
+function assertManagedProfileFallbackDirectory(path: string): void {
+  const stat = profileFallbackStat(path)
+  if (stat === undefined) return
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new Error(`dsh: ${path} is not a managed profile module fallback directory`)
+  }
+  for (const entry of readdirSync(path, { withFileTypes: true })) {
+    const entryPath = join(path, entry.name)
+    if (entry.isSymbolicLink()) continue
+    if (!entry.isDirectory() || !entry.name.startsWith('@')) {
+      throw new Error(`dsh: ${entryPath} is not a managed profile module fallback entry`)
+    }
+    for (const scopedEntry of readdirSync(entryPath, { withFileTypes: true })) {
+      const scopedPath = join(entryPath, scopedEntry.name)
+      if (!scopedEntry.isSymbolicLink()) {
+        throw new Error(`dsh: ${scopedPath} is not a managed profile module fallback link`)
+      }
+    }
+  }
+}
+
+/**
+ * Remove a profile fallback directory after verifying that it contains only
+ * managed junctions and scope directories whose children are managed junctions.
+ * @param path - Directory to validate and remove without traversing link targets.
+ * @returns Nothing after the directory is absent.
+ */
+export function removeManagedProfileFallbackDirectory(path: string): void {
+  const stat = profileFallbackStat(path)
+  if (stat === undefined) return
+  assertManagedProfileFallbackDirectory(path)
+  for (const entry of readdirSync(path, { withFileTypes: true })) {
+    const entryPath = join(path, entry.name)
+    if (entry.isSymbolicLink()) {
+      unlinkSync(entryPath)
+      continue
+    }
+    for (const scopedEntry of readdirSync(entryPath, { withFileTypes: true })) {
+      unlinkSync(join(entryPath, scopedEntry.name))
+    }
+    rmdirSync(entryPath)
+  }
+  rmdirSync(path)
+}
+
+function profileFallbackMatches(modulesDir: string, links: ReadonlyMap<string, string>): boolean {
+  const stat = profileFallbackStat(modulesDir)
+  if (stat === undefined) return false
+  assertManagedProfileFallbackDirectory(modulesDir)
+  for (const [packageName, target] of links) {
+    const link = join(modulesDir, packageName)
+    try {
+      if (readlinkSync(link) !== target) return false
+    } catch (error) {
+      const code = profileLinkErrorCode(error)
+      if (code === 'ENOENT' || (process.platform === 'win32' && code === 'UNKNOWN')) return false
       throw error
     }
+  }
+  return true
+}
+
+/** Filesystem operation used by {@link publishProfileFallbackDirectory}. */
+export interface ProfileFallbackDirectoryOperations {
+  /** Rename one fallback directory without crossing the profiles directory. */
+  rename(source: string, destination: string): void
+}
+
+const defaultProfileFallbackDirectoryOperations: ProfileFallbackDirectoryOperations = { rename: renameSync }
+
+/**
+ * Replace the managed fallback directory and restore the previous directory
+ * if publication fails.
+ * @param current - published `$DSH_HOME/profiles/node_modules` directory.
+ * @param staged - complete unpublished replacement directory.
+ * @param retired - unique sibling path that receives the previous directory.
+ * @param operations - injectable rename operation.
+ */
+export function publishProfileFallbackDirectory(
+  current: string,
+  staged: string,
+  retired: string,
+  operations: ProfileFallbackDirectoryOperations = defaultProfileFallbackDirectoryOperations,
+): void {
+  const hasCurrent = profileFallbackStat(current) !== undefined
+  if (!hasCurrent) {
+    operations.rename(staged, current)
+    return
+  }
+  operations.rename(current, retired)
+  try {
+    operations.rename(staged, current)
+  } catch (error) {
+    try {
+      operations.rename(retired, current)
+    } catch (restoreError) {
+      throw new AggregateError([error, restoreError], `dsh: failed to publish and restore profile module fallback ${current}`)
+    }
+    throw error
   }
 }
 
@@ -221,36 +311,61 @@ function ensureSymlink(link: string, target: string): void {
  * @param home - the Harness home; defaults to {@link resolveDshHome}.
  */
 export function healProfilesModuleFallback(installAnchor: string, home: string = resolveDshHome()): void {
-  const profilesDir = join(home, PROFILES_DIR)
-  const modulesDir = join(profilesDir, 'node_modules')
-  mkdirSync(modulesDir, { recursive: true })
-  const appManifest = JSON.parse(readFileSync(installAnchor, 'utf8')) as ProfileManifest
-  const links = new Map<string, string>()
-  /* v8 ignore next -- a real app manifest always declares its name */
-  if (appManifest.name !== undefined) links.set(appManifest.name, dirname(installAnchor))
-  // BFS over the resolvable dependency graph; the visited set is the link
-  // map itself (first resolution wins, matching Node's own nearest-wins).
-  const queue: { anchor: string; manifest: ProfileManifest }[] = [{ anchor: installAnchor, manifest: appManifest }]
-  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
-    // Peer dependencies participate: Service Definition packages (dsh-subprocess,
-    // dsh-compaction, ...) are peers of their implementations, never plain
-    // dependencies, yet out-of-tree plugins import them directly.
-    /* v8 ignore next -- a real app manifest always declares dependencies */
-    for (const dep of [...Object.keys(next.manifest.dependencies ?? {}), ...Object.keys(next.manifest.peerDependencies ?? {})]) {
-      if (links.has(dep)) continue
-      const dir = packageDirFromAnchor(next.anchor, dep)
-      // A declared-but-uninstalled dependency cannot be a loader-visible
-      // plugin; skip it rather than fail the whole boot.
-      if (dir === undefined) continue
-      links.set(dep, dir)
-      const manifestPath = join(dir, 'package.json')
-      queue.push({ anchor: manifestPath, manifest: JSON.parse(readFileSync(manifestPath, 'utf8')) as ProfileManifest })
+  const releaseLock = acquireProfilesModuleFallbackHealLock(home)
+  try {
+    const profilesDir = join(home, PROFILES_DIR)
+    const modulesDir = join(profilesDir, 'node_modules')
+    mkdirSync(profilesDir, { recursive: true })
+    const realInstallAnchor = realpathSync.native(installAnchor)
+    const appManifest = JSON.parse(readFileSync(realInstallAnchor, 'utf8')) as ProfileManifest
+    const links = new Map<string, string>()
+    /* v8 ignore next -- a real app manifest always declares its name */
+    if (appManifest.name !== undefined) links.set(appManifest.name, dirname(realInstallAnchor))
+    // BFS over the resolvable dependency graph; the visited set is the link
+    // map itself (first resolution wins, matching Node's own nearest-wins).
+    const queue: { anchor: string; manifest: ProfileManifest }[] = [{ anchor: realInstallAnchor, manifest: appManifest }]
+    for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+      // Peer dependencies participate: Service Definition packages (dsh-subprocess,
+      // dsh-compaction, ...) are peers of their implementations, never plain
+      // dependencies, yet out-of-tree plugins import them directly.
+      /* v8 ignore next -- a real app manifest always declares dependencies */
+      for (const dep of [...Object.keys(next.manifest.dependencies ?? {}), ...Object.keys(next.manifest.peerDependencies ?? {})]) {
+        if (links.has(dep)) continue
+        const dir = packageDirFromAnchor(next.anchor, dep)
+        // A declared-but-uninstalled dependency cannot be a loader-visible
+        // plugin; skip it rather than fail the whole boot.
+        if (dir === undefined) continue
+        const realDir = realpathSync.native(dir)
+        links.set(dep, realDir)
+        const manifestPath = join(realDir, 'package.json')
+        queue.push({ anchor: manifestPath, manifest: JSON.parse(readFileSync(manifestPath, 'utf8')) as ProfileManifest })
+      }
     }
-  }
-  for (const [packageName, target] of links) {
-    const link = join(modulesDir, packageName)
-    mkdirSync(dirname(link), { recursive: true })
-    ensureSymlink(link, target)
+    if (profileFallbackMatches(modulesDir, links)) return
+    assertManagedProfileFallbackDirectory(modulesDir)
+    const token = `${String(process.pid)}-${randomUUID()}`
+    const stagedDir = join(profilesDir, `${PROFILE_FALLBACK_NEXT_PREFIX}${token}`)
+    const retiredDir = join(profilesDir, `${PROFILE_FALLBACK_RETIRED_PREFIX}${token}`)
+    mkdirSync(stagedDir)
+    try {
+      for (const [packageName, target] of links) {
+        const link = join(stagedDir, packageName)
+        mkdirSync(dirname(link), { recursive: true })
+        symlinkSync(target, link, 'junction')
+      }
+      publishProfileFallbackDirectory(modulesDir, stagedDir, retiredDir)
+    } catch (error) {
+      removeManagedProfileFallbackDirectory(stagedDir)
+      throw error
+    }
+    try {
+      removeManagedProfileFallbackDirectory(retiredDir)
+    } catch {
+      // The published directory is complete; retain recognizable residue
+      // rather than making successful startup depend on Windows releasing it.
+    }
+  } finally {
+    releaseLock()
   }
 }
 
@@ -309,6 +424,15 @@ function normalizeShippedProfile(name: string, dir: string, manifest: ProfileMan
   }
   writeProfileManifest(dir, normalized)
   return normalized
+}
+
+/** Return whether a profile contains only its installation-owned template bundles. */
+function isInstallationOwnedProfile(name: string, manifest: ProfileManifest): boolean {
+  const template = PROFILE_TEMPLATES[name]
+  const bundles = manifest.dsh?.profile?.bundles ?? []
+  return template !== undefined
+    && sameBundles(bundles, template)
+    && Object.keys(manifest.dependencies ?? {}).length === 0
 }
 
 /**
@@ -399,7 +523,14 @@ export function loadProfile(
   const patches = options.userLayer !== false && existsSync(patchPath)
     ? loadOverlayPatches(binName, patchPath)
     : []
-  return { name, dir, layers, patchPath, patches }
+  return {
+    name,
+    dir,
+    layers,
+    patchPath,
+    patches,
+    installationOwned: isInstallationOwnedProfile(name, manifest),
+  }
 }
 
 /**

@@ -22,15 +22,12 @@
 - id: hmr
   disabled: true
 
-# Full-text session search is opt-in (the base row's `openAt: never`). This
-# restatement keeps the Web values on one ephemeral in-memory index; a
-# deployment enabling content search overrides `openAt` to `first-search` in a
-# later patch layer, which defers the node:sqlite import and in-memory handle
-# to the first search so Node 22 startup stays quiet.
+# Web and desktop history search opens its durable derived index lazily. The
+# SQLite module and handle remain absent until the first search.
 - id: session-query-sqlite
   config:
-    path: ':memory:'
-    openAt: never
+    path: !!js dshHomePath('session-search.sqlite')
+    openAt: first-search
 
 - id: tools
   config:
@@ -60,6 +57,15 @@
       name: '@deepseek-ai/dsh-storage-domain'
       config:
         backend: json
+
+    - id: memory-local
+      name: '@deepseek-ai/dsh-memory-local'
+      config:
+        maxUserItems: 80
+        maxProjectItems: 120
+        maxItemChars: 1200
+        maxUserChars: 12000
+        maxProjectChars: 18000
 
     - id: message-feedback
       name: '@deepseek-ai/dsh-message-feedback'
@@ -205,6 +211,9 @@
 
     - id: ui-settings-plugin-inventory
       name: '@deepseek-ai/dsh-client-ui-settings-plugin-inventory'
+
+    - id: ui-settings-memory
+      name: '@deepseek-ai/dsh-client-ui-settings-memory'
 
     - id: ui-desktop-update
       name: '@deepseek-ai/dsh-client-ui-desktop-update'

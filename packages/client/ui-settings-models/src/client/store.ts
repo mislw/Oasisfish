@@ -67,6 +67,9 @@ export interface ImageGenerationSelection {
   provider: string
   model: string
   endpointPath: string
+  fallbackProvider: string
+  fallbackModel: string
+  fallbackEndpointPath: string
 }
 
 const IMAGE_GENERATION_NAMESPACE = 'image-generation'
@@ -77,7 +80,16 @@ function imageSelectionOf(namespace: SettingsNamespaceView | undefined): ImageGe
   if (typeof value.provider !== 'string' || typeof value.model !== 'string' || typeof value.endpointPath !== 'string') {
     return undefined
   }
-  return { provider: value.provider, model: value.model, endpointPath: value.endpointPath }
+  return {
+    provider: value.provider,
+    model: value.model,
+    endpointPath: value.endpointPath,
+    fallbackProvider: typeof value.fallbackProvider === 'string' ? value.fallbackProvider : '',
+    fallbackModel: typeof value.fallbackModel === 'string' ? value.fallbackModel : '',
+    fallbackEndpointPath: typeof value.fallbackEndpointPath === 'string'
+      ? value.fallbackEndpointPath
+      : 'images/generations',
+  }
 }
 
 /**
@@ -284,6 +296,9 @@ export class ModelsSettingsStore {
           { op: 'set', path: ['provider'], value: selection.provider },
           { op: 'set', path: ['model'], value: selection.model },
           { op: 'set', path: ['endpointPath'], value: selection.endpointPath },
+          { op: 'set', path: ['fallbackProvider'], value: selection.fallbackProvider },
+          { op: 'set', path: ['fallbackModel'], value: selection.fallbackModel },
+          { op: 'set', path: ['fallbackEndpointPath'], value: selection.fallbackEndpointPath },
         ],
       })
       if (!response.result.ok) return response.result.error.message

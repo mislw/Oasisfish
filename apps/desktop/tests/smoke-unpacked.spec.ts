@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   resolveUnpackedRootArgument,
@@ -25,7 +26,7 @@ describe('unpacked desktop smoke checks', () => {
       curl: '8.21.0',
       sevenzip: '26.02',
     })
-  })
+  }, 60_000)
 
   it('ignores the pnpm argument separator before a custom unpacked directory', () => {
     expect(resolveUnpackedRootArgument(['--', 'C:\\release\\win-unpacked'], 'C:\\default')).toBe(
@@ -34,7 +35,9 @@ describe('unpacked desktop smoke checks', () => {
   })
 
   it('runs real Oasis Skill search and reuses its persisted index after restart', async () => {
-    const unpackedRoot = fileURLToPath(new URL('../release/win-unpacked', import.meta.url))
+    const unpackedRoot = process.env.DSH_DESKTOP_UNPACKED_ROOT === undefined
+      ? fileURLToPath(new URL('../release/win-unpacked', import.meta.url))
+      : resolve(process.env.DSH_DESKTOP_UNPACKED_ROOT)
 
     const result = await smokeUnpacked(unpackedRoot)
 
@@ -50,5 +53,6 @@ describe('unpacked desktop smoke checks', () => {
     expect(result.restartSearch).toEqual(result.search)
     expect(result.cacheReused).toBe(true)
     expect(result.backgroundClosePreserved).toBe(true)
+    expect(result.profileModuleFallbackPreserved).toBe(true)
   }, 720_000)
 })

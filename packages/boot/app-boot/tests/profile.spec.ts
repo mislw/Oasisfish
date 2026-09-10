@@ -4,9 +4,13 @@
  * empty-root composition, and the installation module-fallback healing.
  */
 
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import {
+  existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, statSync,
+  symlinkSync, unlinkSync, writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   composeEntries,
@@ -20,8 +24,27 @@ import {
   resolveProfileDir,
   writeProfileManifest,
 } from '../src/index.ts'
+import { publishProfileFallbackDirectory, removeManagedProfileFallbackDirectory } from '../src/profile.ts'
+import {
+  acquireProfilesModuleFallbackHealLock,
+  PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME,
+  profileHealLockOwnerIsAlive,
+} from '../src/profile-heal-lock.ts'
 
 const tmp = (): string => mkdtempSync(join(tmpdir(), 'dsh-profile-'))
+
+function processProbeError(code: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(code), { code })
+}
+
+function waitForFile(path: string): void {
+  const deadline = Date.now() + 5_000
+  const sleeper = new Int32Array(new SharedArrayBuffer(4))
+  while (!existsSync(path)) {
+    if (Date.now() >= deadline) throw new Error(`timed out waiting for ${path}`)
+    Atomics.wait(sleeper, 0, 0, 10)
+  }
+}
 
 /** Stage a fake installed app: package.json with deps and a node_modules holding bundles. */
 function stageInstallation(bundles: Record<string, { patch?: string; deps?: Record<string, string> }>): string {
@@ -130,6 +153,7 @@ describe('loadProfile', () => {
     const profile = loadProfile('t', 'demo', anchor, home)
     expect(profile.layers.map(layer => layer.packageName)).toEqual(['bundle-a', 'bundle-b'])
     expect(profile.patches).toHaveLength(1)
+    expect(profile.installationOwned).toBe(false)
     const entries = composeEntries([
       ...profile.layers.map(layer => layer.patches),
       profile.patches,
@@ -174,6 +198,7 @@ describe('loadProfile', () => {
       '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless',
     ])
     loadProfile('t', 'headless', anchor, home)
+    expect(loadProfile('t', 'headless', anchor, home).installationOwned).toBe(true)
     expect(readProfileManifest('t', stock).dsh?.profile?.bundles)
       .toEqual(['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-headless'])
 
@@ -182,7 +207,7 @@ describe('loadProfile', () => {
     initProfile(custom, [
       '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless', 'custom-bundle',
     ])
-    loadProfile('t', 'headless', anchor, customHome)
+    expect(loadProfile('t', 'headless', anchor, customHome).installationOwned).toBe(false)
     expect(readProfileManifest('t', custom).dsh?.profile?.bundles).toEqual([
       '@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless', 'custom-bundle',
     ])
@@ -212,6 +237,117 @@ describe('composeEntries', () => {
 })
 
 describe('healProfilesModuleFallback', () => {
+  it('publishes a staged fallback directory and restores the previous one on failure', () => {
+    const root = tmp()
+    const current = join(root, 'node_modules')
+    const staged = join(root, 'node_modules.next')
+    const retired = join(root, 'node_modules.retired')
+    mkdirSync(current)
+    mkdirSync(staged)
+    const operations: string[] = []
+    publishProfileFallbackDirectory(current, staged, retired, {
+      rename: (source, destination) => {
+        operations.push(`${basename(source)}:${basename(destination)}`)
+        renameSync(source, destination)
+      },
+    })
+    expect(operations).toEqual(['node_modules:node_modules.retired', 'node_modules.next:node_modules'])
+    expect(existsSync(current)).toBe(true)
+    expect(existsSync(retired)).toBe(true)
+
+    const replacement = join(root, 'node_modules.next-2')
+    const failedRetired = join(root, 'node_modules.retired-2')
+    mkdirSync(replacement)
+    let renames = 0
+    expect(() => { publishProfileFallbackDirectory(current, replacement, failedRetired, {
+      rename: (source, destination) => {
+        renames++
+        if (renames === 2) throw new Error('publication failed')
+        renameSync(source, destination)
+      },
+    }) }).toThrow('publication failed')
+    expect(existsSync(current)).toBe(true)
+    expect(existsSync(replacement)).toBe(true)
+    expect(existsSync(failedRetired)).toBe(false)
+  })
+
+  it('publishes the first fallback and reports a failed restore', () => {
+    const root = tmp()
+    const current = join(root, 'node_modules')
+    const staged = join(root, 'node_modules.next')
+    const retired = join(root, 'node_modules.retired')
+    mkdirSync(staged)
+    publishProfileFallbackDirectory(current, staged, retired)
+    expect(existsSync(current)).toBe(true)
+
+    const replacement = join(root, 'node_modules.next-2')
+    mkdirSync(replacement)
+    let renames = 0
+    expect(() => { publishProfileFallbackDirectory(current, replacement, retired, {
+      rename: () => {
+        renames++
+        if (renames === 1) return
+        throw new Error(renames === 2 ? 'publication failed' : 'restore failed')
+      },
+    }) }).toThrow(AggregateError)
+  })
+
+  it('removes only a managed fallback directory without following targets', () => {
+    const root = tmp()
+    const fallback = join(root, 'node_modules')
+    const target = tmp()
+    writeFileSync(join(target, 'witness'), 'keep')
+    mkdirSync(join(fallback, '@scope'), { recursive: true })
+    symlinkSync(target, join(fallback, 'plain'), 'junction')
+    symlinkSync(target, join(fallback, '@scope', 'pkg'), 'junction')
+
+    removeManagedProfileFallbackDirectory(fallback)
+
+    expect(existsSync(fallback)).toBe(false)
+    expect(readFileSync(join(target, 'witness'), 'utf8')).toBe('keep')
+    expect(() => { removeManagedProfileFallbackDirectory(fallback) }).not.toThrow()
+  })
+
+  it('rejects unknown fallback directory contents', () => {
+    const anchor = stageInstallation({})
+
+    const fileHome = tmp()
+    mkdirSync(join(fileHome, 'profiles'), { recursive: true })
+    writeFileSync(join(fileHome, 'profiles', 'node_modules'), 'not a directory')
+    expect(() => { healProfilesModuleFallback(anchor, fileHome) }).toThrow('is not a managed profile module fallback directory')
+
+    const topLevelHome = tmp()
+    mkdirSync(join(topLevelHome, 'profiles', 'node_modules'), { recursive: true })
+    writeFileSync(join(topLevelHome, 'profiles', 'node_modules', 'foreign'), 'keep')
+    expect(() => { healProfilesModuleFallback(anchor, topLevelHome) }).toThrow('is not a managed profile module fallback entry')
+
+    const scopeHome = tmp()
+    mkdirSync(join(scopeHome, 'profiles', 'node_modules', '@scope'), { recursive: true })
+    writeFileSync(join(scopeHome, 'profiles', 'node_modules', '@scope', 'foreign'), 'keep')
+    expect(() => { healProfilesModuleFallback(anchor, scopeHome) }).toThrow('is not a managed profile module fallback link')
+  })
+
+  it('cleans the staged fallback when link construction fails', () => {
+    const anchor = stageInstallation({
+      '@scope/pkg': {},
+      '@scope': {},
+    })
+    const home = tmp()
+
+    expect(() => { healProfilesModuleFallback(anchor, home) }).toThrow('EEXIST')
+
+    const profiles = join(home, 'profiles')
+    expect(readdirSync(profiles).filter(name => name.startsWith('node_modules.dsh-next-'))).toEqual([])
+    expect(existsSync(join(profiles, PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME))).toBe(false)
+  })
+
+  it('treats only a missing process as a dead lock owner', () => {
+    expect(profileHealLockOwnerIsAlive(process.pid)).toBe(true)
+    expect(profileHealLockOwnerIsAlive(1, () => { throw processProbeError('ESRCH') })).toBe(false)
+    expect(profileHealLockOwnerIsAlive(1, () => { throw processProbeError('EPERM') })).toBe(true)
+    expect(() => profileHealLockOwnerIsAlive(1, () => { throw processProbeError('EINVAL') })).toThrow('EINVAL')
+  })
+
   it('links the app and bundle dependency surface flat under profiles/node_modules', () => {
     const anchor = stageInstallation({
       'bundle-a': { patch: '[]\n', deps: { 'dep-of-a': '0.0.0', 'ghost-dep': '0.0.0' } },
@@ -239,11 +375,30 @@ describe('healProfilesModuleFallback', () => {
     expect(before).toContain('dep-of-a')
   })
 
+  it('links resolved packages to their real directories when the installation anchor traverses a junction', () => {
+    const realAnchor = stageInstallation({ 'bundle-a': { patch: '[]\n' } })
+    const aliasRoot = tmp()
+    const aliasApp = join(aliasRoot, 'app')
+    symlinkSync(dirname(realAnchor), aliasApp, 'junction')
+    const home = tmp()
+
+    healProfilesModuleFallback(join(aliasApp, 'package.json'), home)
+
+    const fallback = join(home, 'profiles', 'node_modules')
+    for (const packageName of ['dsh-app', 'bundle-a']) {
+      const link = join(fallback, packageName)
+      const target = readlinkSync(link)
+      expect(target).toBe(realpathSync.native(target))
+      expect(JSON.parse(readFileSync(join(link, 'package.json'), 'utf8'))).toMatchObject({ name: packageName })
+    }
+  })
+
   it('throws when a fallback entry is a real directory', () => {
     const anchor = stageInstallation({})
     const home = tmp()
     mkdirSync(join(home, 'profiles', 'node_modules', 'dsh-app'), { recursive: true })
-    expect(() => { healProfilesModuleFallback(anchor, home) }).toThrow('is not a symlink')
+    expect(() => { healProfilesModuleFallback(anchor, home) }).toThrow('is not a managed profile module fallback entry')
+    expect(existsSync(join(home, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME))).toBe(false)
   })
 
   it('replaces a wrong symlink', () => {
@@ -254,6 +409,22 @@ describe('healProfilesModuleFallback', () => {
     symlinkSync(tmp(), join(fallback, 'dsh-app'), 'junction')
     healProfilesModuleFallback(anchor, home)
     expect(readlinkSync(join(fallback, 'dsh-app'))).toContain('app')
+  })
+
+  it('publishes a moved installation by replacing the fallback directory', () => {
+    const firstAnchor = stageInstallation({})
+    const secondAnchor = stageInstallation({})
+    const home = tmp()
+    const fallback = join(home, 'profiles', 'node_modules')
+
+    healProfilesModuleFallback(firstAnchor, home)
+    const firstDirectory = statSync(fallback).ino
+    expect(readlinkSync(join(fallback, 'dsh-app'))).toBe(dirname(realpathSync.native(firstAnchor)))
+
+    healProfilesModuleFallback(secondAnchor, home)
+
+    expect(statSync(fallback).ino).not.toBe(firstDirectory)
+    expect(readlinkSync(join(fallback, 'dsh-app'))).toBe(dirname(realpathSync.native(secondAnchor)))
   })
 
   it('tolerates losing the concurrent-heal race to an identical link and rejects a different one', () => {
@@ -268,5 +439,134 @@ describe('healProfilesModuleFallback', () => {
     healProfilesModuleFallback(anchor, home) // second healer sees the correct link
     const fallback = join(home, 'profiles', 'node_modules')
     expect(lstatSync(join(fallback, 'dsh-app')).isSymbolicLink()).toBe(true)
+  })
+
+  it('waits for another process to finish healing the shared fallback', () => {
+    const anchor = stageInstallation({})
+    const home = tmp()
+    const lockPath = join(home, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME)
+    const readyPath = join(home, 'holder-ready')
+    const releasingPath = join(home, 'holder-releasing')
+    mkdirSync(dirname(lockPath), { recursive: true })
+    const holder = spawn(process.execPath, [
+      '-e',
+      `const fs = require('node:fs'); const crypto = require('node:crypto');
+const [lockPath, readyPath, releasingPath] = process.argv.slice(1);
+const handle = fs.openSync(lockPath, 'wx', 0o600);
+fs.writeFileSync(handle, process.pid + ' ' + crypto.randomUUID() + '\\n');
+fs.closeSync(handle);
+fs.writeFileSync(readyPath, 'ready');
+setTimeout(() => {
+  fs.writeFileSync(releasingPath, 'releasing');
+  fs.unlinkSync(lockPath);
+}, 250);
+setTimeout(() => process.exit(0), 300);`,
+      lockPath,
+      readyPath,
+      releasingPath,
+    ], { stdio: 'ignore', windowsHide: true })
+    try {
+      waitForFile(readyPath)
+      healProfilesModuleFallback(anchor, home)
+      expect(existsSync(releasingPath)).toBe(true)
+      expect(lstatSync(join(home, 'profiles', 'node_modules', 'dsh-app')).isSymbolicLink()).toBe(true)
+    } finally {
+      if (holder.exitCode === null) holder.kill()
+    }
+  })
+
+  it('waits while another process finishes publishing its lock record', () => {
+    const home = tmp()
+    const lockPath = join(home, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME)
+    const readyPath = join(home, 'initializing-ready')
+    const releasingPath = join(home, 'initializing-releasing')
+    mkdirSync(dirname(lockPath), { recursive: true })
+    const holder = spawn(process.execPath, [
+      '-e',
+      `const fs = require('node:fs'); const crypto = require('node:crypto');
+const [lockPath, readyPath, releasingPath] = process.argv.slice(1);
+const handle = fs.openSync(lockPath, 'wx', 0o600);
+fs.writeFileSync(readyPath, 'ready');
+setTimeout(() => {
+  fs.writeFileSync(handle, process.pid + ' ' + crypto.randomUUID() + '\\n');
+  fs.closeSync(handle);
+}, 50);
+setTimeout(() => {
+  fs.writeFileSync(releasingPath, 'releasing');
+  fs.unlinkSync(lockPath);
+}, 200);
+setTimeout(() => process.exit(0), 250);`,
+      lockPath,
+      readyPath,
+      releasingPath,
+    ], { stdio: 'ignore', windowsHide: true })
+    try {
+      waitForFile(readyPath)
+      const release = acquireProfilesModuleFallbackHealLock(home)
+      expect(existsSync(releasingPath)).toBe(true)
+      release()
+    } finally {
+      if (holder.exitCode === null) holder.kill()
+    }
+  })
+
+  it('recovers a lock owned by a process that has exited', () => {
+    const anchor = stageInstallation({})
+    const home = tmp()
+    const lockPath = join(home, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME)
+    mkdirSync(dirname(lockPath), { recursive: true })
+    const exited = spawnSync(process.execPath, ['-e', ''])
+    expect(exited.pid).toBeTypeOf('number')
+    writeFileSync(lockPath, `${String(exited.pid)} 00000000-0000-4000-8000-000000000000\n`)
+
+    healProfilesModuleFallback(anchor, home)
+
+    expect(existsSync(lockPath)).toBe(false)
+    expect(lstatSync(join(home, 'profiles', 'node_modules', 'dsh-app')).isSymbolicLink()).toBe(true)
+  })
+
+  it('does not remove a lock that replaced the one it acquired', () => {
+    const home = tmp()
+    const release = acquireProfilesModuleFallbackHealLock(home)
+    const lockPath = join(home, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME)
+    unlinkSync(lockPath)
+    const replacement = `${String(process.pid)} 11111111-1111-4111-8111-111111111111\n`
+    writeFileSync(lockPath, replacement)
+
+    expect(release).toThrow('ownership changed')
+    expect(readFileSync(lockPath, 'utf8')).toBe(replacement)
+  })
+
+  it('reports ownership loss when its lock was already removed', () => {
+    const home = tmp()
+    const release = acquireProfilesModuleFallbackHealLock(home)
+    release()
+    expect(release).toThrow('ownership changed')
+  })
+
+  it('refuses an invalid lock instead of deleting it', () => {
+    const home = tmp()
+    const lockPath = join(home, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME)
+    mkdirSync(lockPath, { recursive: true })
+
+    expect(() => acquireProfilesModuleFallbackHealLock(home)).toThrow('invalid')
+    expect(lstatSync(lockPath).isDirectory()).toBe(true)
+  })
+
+  it('refuses an invalid lock record and a lock symlink', () => {
+    const invalidHome = tmp()
+    const invalidPath = join(invalidHome, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME)
+    mkdirSync(dirname(invalidPath), { recursive: true })
+    writeFileSync(invalidPath, 'not a lock')
+    expect(() => acquireProfilesModuleFallbackHealLock(invalidHome)).toThrow('invalid')
+    expect(readFileSync(invalidPath, 'utf8')).toBe('not a lock')
+
+    const symlinkHome = tmp()
+    const symlinkPath = join(symlinkHome, 'profiles', PROFILE_MODULE_FALLBACK_HEAL_LOCK_FILENAME)
+    const target = tmp()
+    mkdirSync(dirname(symlinkPath), { recursive: true })
+    symlinkSync(target, symlinkPath, 'junction')
+    expect(() => acquireProfilesModuleFallbackHealLock(symlinkHome)).toThrow('invalid')
+    expect(lstatSync(symlinkPath).isSymbolicLink()).toBe(true)
   })
 })

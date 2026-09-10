@@ -7,9 +7,19 @@ import { assertUsableApiKey } from '@deepseek-ai/dsh-llm'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { decodeOpenAiImageResponse, inferImageMediaType, resolveImageEndpoint } from './openai-compatible.ts'
+import {
+  decodeOpenAiChatImageResponse,
+  decodeOpenAiImageResponse,
+  inferImageMediaType,
+  resolveImageEndpoint,
+} from './openai-compatible.ts'
 
-export { decodeOpenAiImageResponse, inferImageMediaType, resolveImageEndpoint } from './openai-compatible.ts'
+export {
+  decodeOpenAiChatImageResponse,
+  decodeOpenAiImageResponse,
+  inferImageMediaType,
+  resolveImageEndpoint,
+} from './openai-compatible.ts'
 export type { OpenAiImageResult } from './openai-compatible.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -34,6 +44,14 @@ export interface ImageGenerationSettings {
   endpointPath: string
   /** Relative Images API path used when the request includes reference images. */
   editEndpointPath: string
+  /** Backup provider route tried once when the primary route fails. */
+  fallbackProvider: string
+  /** Backup provider-specific image model id. */
+  fallbackModel: string
+  /** Relative generation path for the backup route. */
+  fallbackEndpointPath: string
+  /** Relative reference-edit path for the backup route. */
+  fallbackEditEndpointPath: string
 }
 
 /** Plugin configuration and composition-layer defaults. */
@@ -47,6 +65,10 @@ export const Config: z<Config> = z.object({
   model: z.string().default(''),
   endpointPath: z.string().default('images/generations'),
   editEndpointPath: z.string().default('images/edits'),
+  fallbackProvider: z.string().default(''),
+  fallbackModel: z.string().default(''),
+  fallbackEndpointPath: z.string().default('images/generations'),
+  fallbackEditEndpointPath: z.string().default('images/edits'),
   maxResponseBytes: z.number().step(1).min(1).default(25_000_000),
 })
 
@@ -60,6 +82,13 @@ interface PiAiSettings {
   providers?: Record<string, PiAiProfile>
 }
 
+interface ImageRoute {
+  provider: string
+  model: string
+  endpointPath: string
+  editEndpointPath: string
+}
+
 /** One generated and durably stored image. */
 export interface GeneratedImage {
   /** Provider route that served the image. */
@@ -70,10 +99,22 @@ export interface GeneratedImage {
   attachment: ImageAttachmentRef
 }
 
+/** Generated candidates retained after independent route attempts. */
+export interface GeneratedImageBatch {
+  /** Successful images in candidate order. */
+  images: readonly GeneratedImage[]
+  /** Candidates that exhausted every configured route. */
+  failedCount: number
+}
+
 /** Provider-neutral request accepted by the generated-image service. */
 export interface GenerateImageRequest {
   /** Complete visual description sent to the image provider. */
   prompt: string
+  /** Number of independently generated candidates. */
+  count?: number
+  /** Candidate-specific additions appended to the shared prompt in order. */
+  variations?: readonly string[]
   /** Optional provider-supported pixel size. */
   size?: string
   /** Durable images supplied to the provider as edit references. */
@@ -133,6 +174,10 @@ export class ImageGenerationService extends Service {
       model: resolved.model,
       endpointPath: resolved.endpointPath,
       editEndpointPath: resolved.editEndpointPath,
+      fallbackProvider: resolved.fallbackProvider,
+      fallbackModel: resolved.fallbackModel,
+      fallbackEndpointPath: resolved.fallbackEndpointPath,
+      fallbackEditEndpointPath: resolved.fallbackEditEndpointPath,
     })
     this.selection = () => current()
     installSettingsSection(ctx, IMAGE_GENERATION_SETTINGS_NAMESPACE, z.object({
@@ -140,13 +185,28 @@ export class ImageGenerationService extends Service {
       model: z.string().default(resolved.model),
       endpointPath: z.string().default(resolved.endpointPath),
       editEndpointPath: z.string().default(resolved.editEndpointPath),
+      fallbackProvider: z.string().default(resolved.fallbackProvider),
+      fallbackModel: z.string().default(resolved.fallbackModel),
+      fallbackEndpointPath: z.string().default(resolved.fallbackEndpointPath),
+      fallbackEditEndpointPath: z.string().default(resolved.fallbackEditEndpointPath),
     }), current(), {
       validate(value) {
         if ((value.provider.length === 0) !== (value.model.length === 0)) {
           throw new Error('image-generation: provider and model must be configured together')
         }
+        if ((value.fallbackProvider.length === 0) !== (value.fallbackModel.length === 0)) {
+          throw new Error('image-generation: fallback provider and model must be configured together')
+        }
+        if (value.fallbackProvider !== ''
+          && value.provider === value.fallbackProvider && value.model === value.fallbackModel
+          && value.endpointPath === value.fallbackEndpointPath
+          && value.editEndpointPath === value.fallbackEditEndpointPath) {
+          throw new Error('image-generation: fallback route must differ from the primary route')
+        }
         resolveImageEndpoint('https://example.invalid/v1', value.endpointPath)
         resolveImageEndpoint('https://example.invalid/v1', value.editEndpointPath)
+        resolveImageEndpoint('https://example.invalid/v1', value.fallbackEndpointPath)
+        resolveImageEndpoint('https://example.invalid/v1', value.fallbackEditEndpointPath)
       },
       setSource(source) { current = source },
       onChange() {},
@@ -154,23 +214,80 @@ export class ImageGenerationService extends Service {
   }
 
   /**
-   * Generate one image and persist it through the attachment service.
+   * Generate independent image candidates and persist every successful result.
    * @param request - prompt, optional reference images and output controls, and cancellation signal.
-   * @returns the serving route plus a durable generated-image attachment.
+   * @returns successful candidates in request order and the failed-candidate count.
    */
-  async generate(request: GenerateImageRequest): Promise<GeneratedImage> {
+  async generate(request: GenerateImageRequest): Promise<GeneratedImageBatch> {
     const selection = this.selection()
     if ([selection.provider, selection.model].includes('')) {
       throw new Error('image-generation: configure a default image provider and model in Models settings')
     }
+    const attachments = this.ctx.get('attachments')
+    if (attachments === undefined) throw new Error('image-generation: attachment storage is unavailable')
+    const routes: ImageRoute[] = [{
+      provider: selection.provider,
+      model: selection.model,
+      endpointPath: selection.endpointPath,
+      editEndpointPath: selection.editEndpointPath,
+    }]
+    if (selection.fallbackProvider !== '') {
+      routes.push({
+        provider: selection.fallbackProvider,
+        model: selection.fallbackModel,
+        endpointPath: selection.fallbackEndpointPath,
+        editEndpointPath: selection.fallbackEditEndpointPath,
+      })
+    }
+    const count = request.count ?? 1
+    if (!Number.isInteger(count) || count < 1) throw new Error('image-generation: count must be a positive integer')
+    if (request.variations !== undefined && request.variations.length !== count) {
+      throw new Error('image-generation: variations must match count')
+    }
+    const attempts = await Promise.allSettled(Array.from({ length: count }, async (_, index) => {
+      const variation = request.variations?.[index]
+      const candidateRequest = variation === undefined
+        ? request
+        : { ...request, prompt: `${request.prompt}\n\nCandidate variation: ${variation}` }
+      let lastError: unknown
+      for (const route of routes) {
+        try {
+          const data = await this.generateFromRoute(route, candidateRequest)
+          const mediaType = inferImageMediaType(data)
+          const baseName = count === 1 ? 'generated' : `generated-${String(index + 1)}`
+          const attachment = await attachments.saveImage({
+            data, mediaType, name: `${baseName}.${mediaType.split('/')[1]}`,
+          })
+          return { provider: route.provider, model: route.model, attachment }
+        } catch (error: unknown) {
+          if (request.signal?.aborted === true) throw error
+          lastError = error
+        }
+      }
+      throw lastError
+    }))
+    if (request.signal?.aborted === true) {
+      const rejected = attempts.find((attempt): attempt is PromiseRejectedResult => attempt.status === 'rejected')
+      if (rejected !== undefined) throw rejected.reason
+    }
+    const images = attempts.flatMap(attempt => attempt.status === 'fulfilled' ? [attempt.value] : [])
+    if (images.length === 0) {
+      const rejected = attempts.findLast((attempt): attempt is PromiseRejectedResult => attempt.status === 'rejected')
+      throw rejected?.reason
+    }
+    return { images, failedCount: count - images.length }
+  }
+
+  /** Execute one exact provider route without applying fallback policy. */
+  private async generateFromRoute(route: ImageRoute, request: GenerateImageRequest): Promise<Uint8Array> {
     const settings = this.ctx.get('settings')
     const piAi = settings?.get(PI_AI_SETTINGS_NAMESPACE) as PiAiSettings | undefined
-    const profile = piAi?.providers?.[selection.provider]
+    const profile = piAi?.providers?.[route.provider]
     if (profile === undefined) {
-      throw new Error(`image-generation: provider route ${JSON.stringify(selection.provider)} is not configured`)
+      throw new Error(`image-generation: provider route ${JSON.stringify(route.provider)} is not configured`)
     }
     if (!profile.baseURL) {
-      throw new Error(`image-generation: provider route ${JSON.stringify(selection.provider)} has no Base URL`)
+      throw new Error(`image-generation: provider route ${JSON.stringify(route.provider)} has no Base URL`)
     }
     const attachments = this.ctx.get('attachments')
     if (attachments === undefined) throw new Error('image-generation: attachment storage is unavailable')
@@ -190,11 +307,23 @@ export class ImageGenerationService extends Service {
     const headers = new Headers(profile.headers)
     if (apiKey !== undefined) headers.set('authorization', `Bearer ${apiKey}`)
     const referenceImages = request.referenceImages ?? []
+    const chatImageRequest = route.endpointPath.replace(/^\/+|\/+$/gu, '') === 'chat/completions'
+    if (chatImageRequest && referenceImages.length > 0) {
+      throw new Error('image-generation: chat-completions image generation does not support reference images')
+    }
     let body: BodyInit
-    if (referenceImages.length === 0) {
+    if (chatImageRequest) {
       headers.set('content-type', 'application/json')
       body = JSON.stringify({
-        model: selection.model,
+        model: route.model,
+        messages: [{ role: 'user', content: request.prompt }],
+        modalities: ['text', 'image'],
+        stream: false,
+      })
+    } else if (referenceImages.length === 0) {
+      headers.set('content-type', 'application/json')
+      body = JSON.stringify({
+        model: route.model,
         prompt: request.prompt,
         n: 1,
         response_format: 'b64_json',
@@ -205,7 +334,7 @@ export class ImageGenerationService extends Service {
       headers.delete('content-type')
       const storedImages = await Promise.all(referenceImages.map(ref => attachments.readImage(ref, request.signal)))
       const form = new FormData()
-      form.set('model', selection.model)
+      form.set('model', route.model)
       form.set('prompt', request.prompt)
       if (request.size !== undefined) form.set('size', request.size)
       if (request.quality !== undefined) form.set('quality', request.quality)
@@ -218,7 +347,7 @@ export class ImageGenerationService extends Service {
       body = form
     }
     const endpoint = resolveImageEndpoint(profile.baseURL,
-      referenceImages.length === 0 ? selection.endpointPath : selection.editEndpointPath)
+      referenceImages.length === 0 ? route.endpointPath : route.editEndpointPath)
     const response = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -230,12 +359,10 @@ export class ImageGenerationService extends Service {
       const detail = providerErrorMessage(responseBytes, apiKey)
       throw new Error(`image-generation: provider request failed with HTTP ${String(response.status)}${detail === undefined ? '' : `: ${detail}`}`)
     }
-    let decoded: ReturnType<typeof decodeOpenAiImageResponse>
-    try {
-      decoded = decodeOpenAiImageResponse(JSON.parse(new TextDecoder().decode(responseBytes)))
-    } catch (error) {
-      throw error
-    }
+    const value: unknown = JSON.parse(new TextDecoder().decode(responseBytes))
+    const decoded = chatImageRequest
+      ? decodeOpenAiChatImageResponse(value)
+      : decodeOpenAiImageResponse(value)
     let data: Uint8Array
     if (decoded.kind === 'bytes') {
       data = decoded.data
@@ -246,9 +373,7 @@ export class ImageGenerationService extends Service {
       }
       data = await boundedBytes(imageResponse, this.maxResponseBytes)
     }
-    const mediaType = inferImageMediaType(data)
-    const attachment = await attachments.saveImage({ data, mediaType, name: `generated.${mediaType.split('/')[1]}` })
-    return { provider: selection.provider, model: selection.model, attachment }
+    return data
   }
 }
 

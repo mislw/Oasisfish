@@ -85,6 +85,27 @@ beforeEach(async () => {
 })
 
 describe('composing an agent from a preset', () => {
+  it('delegates bare package rows to the root Loader', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-preset-root-loader-'))
+    const presetDir = join(root, 'bare')
+    await mkdir(presetDir)
+    await writeFile(
+      join(presetDir, COMPOSITION_FILE),
+      '- id: only\n  name: preset-bare-plugin\n',
+    )
+    const scoped = await harness({ default: 'bare', roots: [{ path: root, trust: 'user' }], includeUserRoot: false })
+    const rootImport = scoped.loader.import.bind(scoped.loader)
+    const imported = vi.spyOn(scoped.loader, 'import').mockImplementation(async (name, getOuterStack) => {
+      if (name === 'preset-bare-plugin') return { apply() {} }
+      const importedModule: unknown = await rootImport(name, getOuterStack)
+      return importedModule
+    })
+
+    await agentOn(scoped, 'sess-root-loader')
+
+    expect(imported).toHaveBeenCalledWith('preset-bare-plugin', expect.any(Function))
+  })
+
   it('hands an absolute plugin path to Node as a file URL', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-preset-absolute-plugin-'))
     const presetDir = join(root, 'absolute')

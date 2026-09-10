@@ -279,6 +279,8 @@ describe('the shipped Web composition', () => {
       const assembly = await ctx.systemPrompt.assemble({ scope: handle.agent })
       const persona = assembly.sections.find(section => section.name === 'deployment:persona')?.text ?? ''
       expect(persona).toContain('ai-image-prompts')
+      expect(persona).toContain('只对 ai-image-prompts Skill 执行一次 skill_search')
+      expect(persona).not.toContain('oasis-wiki')
       expect(persona).toContain('不得把用户的简短描述直接原样传给 image_generate')
       expect(persona).toContain('主体、环境、构图、镜头、光线、材质、色彩、空间关系')
       expect(persona).toContain('不得向用户汇报加载 Skill、检索配方或优化 prompt 的过程')

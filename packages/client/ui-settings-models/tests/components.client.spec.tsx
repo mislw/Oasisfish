@@ -171,7 +171,16 @@ function scriptedFace(overrides: {
       }))),
       models: vi.fn(() => Promise.resolve(ok({ groups: [
         { id: 'deepseek-official', name: 'DeepSeek', models: [{ id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' }] },
-        { id: 'openai', name: 'openai', models: [{ id: 'gpt-5', name: 'GPT-5' }, { id: 'gpt-5-mini', name: 'GPT-5 mini' }] },
+        {
+          id: 'openai',
+          name: 'openai',
+          models: [
+            { id: 'gpt-image-2', name: 'GPT Image 2' },
+            { id: '[l-o]gpt-image-2', name: '[l-o] GPT Image 2' },
+            { id: 'gpt-5', name: 'GPT-5' },
+            { id: 'gpt-5-mini', name: 'GPT-5 mini' },
+          ],
+        },
       ], failures: [] }))),
       defaultModel: vi.fn(() => Promise.resolve(ok({ selected: defaultSelection }))),
       selectDefaultModel,
@@ -263,6 +272,9 @@ describe('ModelsSection', () => {
     expect(screen.getByText(en.currentDefault)).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText(en.defaultProvider), { target: { value: 'openai' } })
+    const defaultModelSelect = screen.getByLabelText<HTMLSelectElement>(en.defaultModel)
+    expect(within(defaultModelSelect).queryByRole('option', { name: 'GPT Image 2' })).toBeNull()
+    expect(within(defaultModelSelect).queryByRole('option', { name: '[l-o] GPT Image 2' })).toBeNull()
     fireEvent.change(screen.getByLabelText(en.defaultModel), { target: { value: 'gpt-5' } })
     fireEvent.click(screen.getByRole('button', { name: en.setDefault }))
     await waitFor(() => {
@@ -278,6 +290,11 @@ describe('ModelsSection', () => {
     fireEvent.change(screen.getByLabelText(en.imageEndpointPath), {
       target: { value: 'v1/images/generations' },
     })
+    fireEvent.change(screen.getByLabelText(en.fallbackImageProvider), { target: { value: 'deepseek-official' } })
+    fireEvent.change(screen.getByLabelText(en.fallbackImageModel), { target: { value: 'deepseek-v4-flash' } })
+    fireEvent.change(screen.getByLabelText(en.fallbackImageEndpointPath), {
+      target: { value: 'images/generations' },
+    })
     fireEvent.click(screen.getByRole('button', { name: en.setImageDefault }))
 
     await waitFor(() => {
@@ -287,6 +304,9 @@ describe('ModelsSection', () => {
           { op: 'set', path: ['provider'], value: 'openai' },
           { op: 'set', path: ['model'], value: 'gpt-5-mini' },
           { op: 'set', path: ['endpointPath'], value: 'v1/images/generations' },
+          { op: 'set', path: ['fallbackProvider'], value: 'deepseek-official' },
+          { op: 'set', path: ['fallbackModel'], value: 'deepseek-v4-flash' },
+          { op: 'set', path: ['fallbackEndpointPath'], value: 'images/generations' },
         ],
       })
     })

@@ -46,6 +46,7 @@ export function apply(ctx: Context, config: Config): void {
     timeoutMs: config.timeoutMs,
     parameters: {
       prompt: { type: 'string', required: true, description: 'A generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged.' },
+      variation_prompts: { type: 'array', required: true, items: { type: 'string' }, description: 'Exactly four concise candidate differences. Vary composition, material, lighting, camera, or graphic structure without changing the shared requirements.' },
       size: { type: 'string', description: 'Optional provider-supported pixel size such as 1024x1024 or 1536x1024.' },
       use_reference_images: { type: 'boolean', description: 'Use images from the latest direct user message as references. Defaults to true when images are available.' },
       quality: { type: 'string', enum: ['low', 'medium', 'high'], description: 'Optional provider-supported output quality.' },
@@ -53,31 +54,40 @@ export function apply(ctx: Context, config: Config): void {
     output: {
       schema: {
         type: 'object', additionalProperties: false, properties: {
-          provider: { type: 'string', required: true }, model: { type: 'string', required: true },
-          attachmentId: { type: 'string', required: true }, mediaType: { type: 'string', required: true },
-          bytes: { type: 'integer', required: true }, width: { type: 'integer', required: true },
-          height: { type: 'integer', required: true }, name: { type: 'string', required: true },
+          images: { type: 'array', required: true, items: {
+            type: 'object', additionalProperties: false, properties: {
+              provider: { type: 'string', required: true }, model: { type: 'string', required: true },
+              attachmentId: { type: 'string', required: true }, mediaType: { type: 'string', required: true },
+              bytes: { type: 'integer', required: true }, width: { type: 'integer', required: true },
+              height: { type: 'integer', required: true }, name: { type: 'string', required: true },
+            },
+          } },
+          failedCount: { type: 'integer', required: true },
         },
       },
       render(_args, value) {
-        const attachment: ImageAttachmentRef = {
-          attachmentId: AttachmentId(value.attachmentId),
-          mediaType: value.mediaType as ImageMediaType,
-          bytes: value.bytes,
-          width: value.width,
-          height: value.height,
-          name: value.name,
-        }
         return [
-          { type: 'text', text: `Generated image with ${value.provider}/${value.model}.` },
-          { type: 'image', attachment },
+          { type: 'text', text: `已生成 ${String(value.images.length)} 个方案，请选择。` },
+          ...value.images.map(image => ({
+            type: 'image' as const,
+            attachment: {
+              attachmentId: AttachmentId(image.attachmentId),
+              mediaType: image.mediaType as ImageMediaType,
+              bytes: image.bytes, width: image.width, height: image.height, name: image.name,
+            },
+          })),
         ]
       },
     },
     async execute(args, exec) {
       const referenceImages = args.use_reference_images === false ? [] : latestUserImages(exec)
+      if (args.variation_prompts.length !== 4) {
+        throw new Error('image_generate: variation_prompts must contain exactly four candidates')
+      }
       const generated = await ctx.imageGeneration.generate({
         prompt: args.prompt,
+        count: 4,
+        variations: args.variation_prompts,
         ...args.size === undefined ? {} : { size: args.size },
         ...args.quality === undefined
           ? referenceImages.length === 0 ? {} : { quality: 'high' as const }
@@ -85,12 +95,14 @@ export function apply(ctx: Context, config: Config): void {
         ...referenceImages.length === 0 ? {} : { referenceImages },
         signal: exec.signal,
       })
-      const ref = generated.attachment
+      exec.concludeTurn()
       return {
-        provider: generated.provider, model: generated.model,
-        attachmentId: String(ref.attachmentId), mediaType: ref.mediaType,
-        bytes: ref.bytes, width: ref.width, height: ref.height,
-        name: ref.name ?? 'generated-image',
+        images: generated.images.map(({ provider, model, attachment: ref }) => ({
+          provider, model, attachmentId: String(ref.attachmentId), mediaType: ref.mediaType,
+          bytes: ref.bytes, width: ref.width, height: ref.height,
+          name: ref.name ?? 'generated-image',
+        })),
+        failedCount: generated.failedCount,
       }
     },
   }))

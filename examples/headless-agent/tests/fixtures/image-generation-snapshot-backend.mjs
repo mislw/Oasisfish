@@ -12,11 +12,20 @@ class ImageGenerationSnapshotAdapter extends LlmAdapter {
     if (tool.parameters.properties?.use_reference_images?.type !== 'boolean') {
       throw new Error('image-generation snapshot received no reference-image control')
     }
+    if (tool.parameters.properties?.variation_prompts?.type !== 'array') {
+      throw new Error('image-generation snapshot received no candidate-variation control')
+    }
 
     const toolResult = options.messages.at(-1)?.content.find(block => block.type === 'tool-result')
     if (toolResult === undefined) {
       const args = JSON.stringify({
         prompt: 'A clean game inventory panel with six item slots',
+        variation_prompts: [
+          'symmetrical front view',
+          'slightly elevated three-quarter view',
+          'soft diffuse studio lighting',
+          'stronger rim light and deeper material contrast',
+        ],
         size: '1024x1024',
       })
       yield { type: 'block-start', index: 0, blockType: 'tool-call' }
@@ -33,17 +42,7 @@ class ImageGenerationSnapshotAdapter extends LlmAdapter {
       return
     }
 
-    const image = toolResult.content.find(block => block.type === 'image')
-    const text = toolResult.content.find(block => block.type === 'text')
-    if (image === undefined || text?.text !== 'Generated image with snapshot-image/gpt-image-1.') {
-      throw new Error('image-generation snapshot received an invalid tool result')
-    }
-    const reply = 'IMAGE_GENERATION_OK: the chat model stayed active after the generated image was attached.'
-    yield { type: 'block-start', index: 0, blockType: 'text' }
-    yield { type: 'text-delta', index: 0, text: reply }
-    yield { type: 'block-end', index: 0, block: { type: 'text', text: reply } }
-    yield { type: 'usage', usage: { inputTokens: 5, outputTokens: 4 } }
-    yield { type: 'finish', reason: { kind: 'stop' } }
+    throw new Error('image-generation snapshot received an unexpected model request after image_generate completed')
   }
 }
 

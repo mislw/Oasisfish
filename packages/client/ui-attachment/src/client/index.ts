@@ -26,6 +26,9 @@ export function apply(ctx: ClientContext): void {
     locale: 'conversation',
     inject: (sessionId: SessionId) => ({
       loadImage: attachment => conversation.resolveImage(sessionId, attachment),
+      selectImage: async (attachment) => {
+        await conversation.addImageToDraft(sessionId, attachment)
+      },
     }),
   }, ImageGenerateResult))
 }

@@ -11,9 +11,9 @@
  * @module @deepseek-ai/dsh/profile-boot
  */
 
-import { writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { existsSync, writeFileSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { FiberState, type Context } from '@deepseek-ai/cordis'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
@@ -96,7 +96,6 @@ export function resolveTelemetryPatch(disabledEnv: string | undefined, hasRow: b
  * @returns the loaded profile.
  */
 export function prepareProfile(name: string, userLayer = true): Profile {
-  healProfilesModuleFallback(INSTALL_ANCHOR)
   const profile = loadProfile(NAME, name, INSTALL_ANCHOR, undefined, { userLayer })
   writeFileSync(join(profile.dir, PROFILE_ROOT_FILENAME), PROFILE_ROOT_CONFIG)
   return profile
@@ -105,6 +104,8 @@ export function prepareProfile(name: string, userLayer = true): Profile {
 /** One profile's patch layers (application order) and the row index of its pre-flag composition. */
 interface ComposedProfile {
   profile: Profile
+  /** Installed-host base used only when it contains every composed bare plugin. */
+  bareModuleBaseUrl: string | undefined
   /** Bundle layers concatenated — the part below the user layers on a live reload. */
   bundlePatches: PatchOptions[]
   /** The home-level user layer (`$DSH_HOME/cordis.patch.yml`), applied after the profile's own. */
@@ -126,6 +127,34 @@ function allPatches(composed: ComposedProfile): PatchOptions[] {
     ...composed.homePatches,
     ...composed.overlays,
   ]
+}
+
+/** Return whether a row name is a bare package specifier resolved by the installed host. */
+function isBarePluginName(name: string): boolean {
+  return !isAbsolute(name) && !name.startsWith('.') && !name.startsWith('cordis:') && !URL.canParse(name)
+}
+
+/** Return the package part of a bare plugin specifier. */
+function barePackageName(name: string): string {
+  const parts = name.split('/')
+  return name.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0] ?? name
+}
+
+/** Return the deployment root that owns the `node_modules` containing dsh. */
+function installedHostRoot(): string | undefined {
+  for (let current = dirname(INSTALL_ANCHOR); dirname(current) !== current; current = dirname(current)) {
+    if (basename(current) === 'node_modules') return dirname(current)
+  }
+  return undefined
+}
+
+/** Return whether every bare plugin row exists in the same installed host package tree. */
+function installedHostProvidesRows(rows: ReadonlyMap<string, EntryOptions>, hostRoot: string): boolean {
+  for (const row of rows.values()) {
+    if (typeof row.name !== 'string' || !isBarePluginName(row.name)) continue
+    if (!existsSync(join(hostRoot, 'node_modules', barePackageName(row.name), 'package.json'))) return false
+  }
+  return true
 }
 
 /**
@@ -151,6 +180,13 @@ function composeProfile(
   for (const row of composeEntries([bundlePatches, profile.patches, homePatches, overlays])) {
     if (typeof row.id === 'string') rows.set(row.id, row)
   }
+  const hostRoot = installedHostRoot()
+  const hostOwnsTree = profile.installationOwned
+    && hostRoot !== undefined
+    && installedHostProvidesRows(rows, hostRoot)
+  if (!hostOwnsTree) {
+    healProfilesModuleFallback(INSTALL_ANCHOR)
+  }
   const composedOverlays = [...overlays]
   // The SHIPPED root is the part of the roster only this app can resolve: it
   // sits beside this app's own config, in both the source and built layouts.
@@ -167,7 +203,16 @@ function composeProfile(
   }
   const telemetryPatch = resolveTelemetryPatch(process.env.DSH_TELEMETRY_DISABLED, rows.has(TELEMETRY_ROW_ID))
   if (telemetryPatch !== undefined) composedOverlays.push(telemetryPatch)
-  return { profile, bundlePatches, homePatches, overlays: composedOverlays, rows }
+  return {
+    profile,
+    bareModuleBaseUrl: hostOwnsTree
+      ? pathToFileURL(join(hostRoot, 'package.json')).href
+      : undefined,
+    bundlePatches,
+    homePatches,
+    overlays: composedOverlays,
+    rows,
+  }
 }
 
 /** Options for {@link runProfile}. */
@@ -256,7 +301,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       args: options.args,
       exit: code => void shutdown.shutdown(code),
     })
-  })
+  }, composed.bareModuleBaseUrl)
   app.current = ctx
   // A surface can dispose the whole tree while boot or this post-boot watcher
   // setup is still in flight — a signal, or a fast one-shot's appExit. Loader

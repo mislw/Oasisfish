@@ -196,11 +196,11 @@ Host-owned generated-image capability and OpenAI-compatible provider.
 
 ```ts cordis-catalog
 /**
- * Generate one image and persist it through the attachment service.
+ * Generate independent image candidates and persist every successful result.
  * @param request - prompt, optional reference images and output controls, and cancellation signal.
- * @returns the serving route plus a durable generated-image attachment.
+ * @returns successful candidates in request order and the failed-candidate count.
  */
-async generate(request: GenerateImageRequest): Promise<GeneratedImage>
+async generate(request: GenerateImageRequest): Promise<GeneratedImageBatch>
 ```
 
 Source: [`packages/attachment/image-generation/src/index.ts`](../../packages/attachment/image-generation/src/index.ts)

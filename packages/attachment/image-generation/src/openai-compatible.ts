@@ -59,6 +59,38 @@ export function decodeOpenAiImageResponse(value: unknown): OpenAiImageResult {
 }
 
 /**
+ * Decode one Markdown-embedded Base64 image from an OpenAI-compatible chat response.
+ * @param value Parsed provider response body.
+ * @returns The returned image bytes.
+ */
+export function decodeOpenAiChatImageResponse(value: unknown): OpenAiImageResult {
+  if (typeof value !== 'object' || value === null) {
+    throw new Error('image-generation: provider did not return an image')
+  }
+  const choices = (value as { choices?: unknown }).choices
+  if (!Array.isArray(choices) || choices.length === 0) {
+    throw new Error('image-generation: provider did not return an image')
+  }
+  const first: unknown = choices[0]
+  if (typeof first !== 'object' || first === null) {
+    throw new Error('image-generation: provider did not return an image')
+  }
+  const message = (first as { message?: unknown }).message
+  if (typeof message !== 'object' || message === null) {
+    throw new Error('image-generation: provider did not return an image')
+  }
+  const content = (message as { content?: unknown }).content
+  if (typeof content !== 'string') {
+    throw new Error('image-generation: provider did not return an image')
+  }
+  const match = /data:image\/(?:png|jpeg|webp|gif);base64,([A-Za-z0-9+/]+={0,2})/u.exec(content)
+  if (match?.[1] === undefined) {
+    throw new Error('image-generation: provider did not return an image')
+  }
+  return { kind: 'bytes', data: Uint8Array.from(Buffer.from(match[1], 'base64')) }
+}
+
+/**
  * Identify one supported raster format from its encoded signature.
  * @param data Encoded raster bytes.
  * @returns Detected attachment media type.

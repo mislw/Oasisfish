@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  decodeOpenAiChatImageResponse,
   decodeOpenAiImageResponse,
   inferImageMediaType,
   resolveImageEndpoint,
@@ -25,6 +26,26 @@ describe('OpenAI-compatible image generation', () => {
       .toEqual({ kind: 'url', url: 'https://cdn.example/generated.png' })
     expect(decodeOpenAiImageResponse({ data: [{ url: 'http://cdn.example/generated.png' }] }))
       .toEqual({ kind: 'url', url: 'http://cdn.example/generated.png' })
+  })
+
+  it('decodes a Markdown data URL from a chat response', () => {
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const content = `![image](data:image/png;base64,${Buffer.from(png).toString('base64')})`
+    expect(decodeOpenAiChatImageResponse({
+      choices: [{ message: { role: 'assistant', content } }],
+    })).toEqual({ kind: 'bytes', data: png })
+  })
+
+  it('rejects chat responses without a Markdown data URL image', () => {
+    expect(() => decodeOpenAiChatImageResponse(null)).toThrow('did not return an image')
+    expect(() => decodeOpenAiChatImageResponse({ choices: [] })).toThrow('did not return an image')
+    expect(() => decodeOpenAiChatImageResponse({ choices: [null] })).toThrow('did not return an image')
+    expect(() => decodeOpenAiChatImageResponse({ choices: [{}] })).toThrow('did not return an image')
+    expect(() => decodeOpenAiChatImageResponse({ choices: [{ message: null }] })).toThrow('did not return an image')
+    expect(() => decodeOpenAiChatImageResponse({ choices: [{ message: { content: [] } }] }))
+      .toThrow('did not return an image')
+    expect(() => decodeOpenAiChatImageResponse({ choices: [{ message: { content: 'text only' } }] }))
+      .toThrow('did not return an image')
   })
 
   it('rejects malformed provider responses', () => {

@@ -64,6 +64,13 @@ export interface IConversation {
    * @returns browser URL valid until its rendered session is released.
    */
   resolveImage(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<string>
+  /**
+   * Add one durable session image to the addressed session's composer draft.
+   * @param sessionId - target composer session.
+   * @param attachment - durable image to copy into browser-owned draft state.
+   * @returns whether the input machine accepted the image.
+   */
+  addImageToDraft(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<boolean>
 }
 
 /** Create one browser-only draft descriptor; only its id enters input state. */
@@ -269,6 +276,23 @@ export class ConversationController extends Service implements IConversation {
       })
     this.imageUrls.set(key, { sessionId, generation, pending })
     return pending
+  }
+
+  /** Copy one durable session image into the addressed composer's draft state. */
+  async addImageToDraft(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<boolean> {
+    const actx = this.requireSessions().scope(sessionId)
+    const session = this.requireSessions().binding(sessionId)?.session
+    if (actx === undefined || session === undefined) {
+      throw new Error(`conversation.addImageToDraft: unknown session "${sessionId}"`)
+    }
+    const result = await session.readAttachment(attachment.attachmentId)
+    if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+    const bytes = Uint8Array.from(result.value.data)
+    const file = new File([bytes.buffer], attachment.name ?? 'generated-image', { type: attachment.mediaType })
+    const drafts = this.createDraftImages([file])
+    const accepted = this.input.for(actx).addImages(drafts.map(draft => draft.id))
+    if (!accepted) this.releaseDraftImages(drafts)
+    return accepted
   }
 
   /**

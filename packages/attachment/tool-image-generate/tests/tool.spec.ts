@@ -19,24 +19,24 @@ describe('image_generate', () => {
     expect(schema?.description).toContain('Refine the user request before calling')
     expect(JSON.stringify(schema?.parameters)).toContain('composition, camera, lighting, materials, color')
     expect(JSON.stringify(schema?.parameters)).toContain('generation-ready English prompt')
+    expect(JSON.stringify(schema?.parameters)).toContain('variation_prompts')
     await ctx.fiber.dispose()
   })
 
-  it('calls the auxiliary image service and returns a durable image block', async () => {
+  it('generates four refined variations and returns four durable image blocks', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     const generate = vi.fn(() => Promise.resolve({
-      provider: 'gpt',
-      model: 'gpt-image-1',
-      attachment: {
-        attachmentId: AttachmentId('sha256:test'),
-        mediaType: 'image/png' as const,
-        bytes: 8,
-        width: 1,
-        height: 1,
-        name: 'generated.png',
-      },
+      images: Array.from({ length: 4 }, (_, index) => ({
+        provider: 'gpt', model: 'gpt-image-1',
+        attachment: {
+          attachmentId: AttachmentId(`sha256:test-${String(index + 1)}`),
+          mediaType: 'image/png' as const, bytes: 8, width: 1, height: 1,
+          name: `generated-${String(index + 1)}.png`,
+        },
+      })),
+      failedCount: 0,
     }))
     ctx.provide('imageGeneration', { generate } as never)
     await ctx.plugin(tool, { timeoutMs: 180_000 })
@@ -46,23 +46,64 @@ describe('image_generate', () => {
       signal,
       callId: CallId('image-1'),
       name: 'image_generate',
-      arguments: { prompt: 'A game inventory panel', size: '1536x1024', quality: 'medium' },
+      arguments: {
+        prompt: 'A game inventory panel',
+        variation_prompts: ['front view', 'three-quarter view', 'soft light', 'dramatic light'],
+        size: '1536x1024', quality: 'medium',
+      },
     })
 
     expect(generate).toHaveBeenCalledWith({
-      prompt: 'A game inventory panel', size: '1536x1024', quality: 'medium', signal,
+      prompt: 'A game inventory panel',
+      variations: ['front view', 'three-quarter view', 'soft light', 'dramatic light'],
+      count: 4, size: '1536x1024', quality: 'medium', signal,
     })
     expect(result.isError).toBe(false)
+    expect(result.concludesTurn).toBe(true)
     expect(result.content).toEqual([
-      { type: 'text', text: 'Generated image with gpt/gpt-image-1.' },
-      {
-        type: 'image',
+      { type: 'text', text: '已生成 4 个方案，请选择。' },
+      ...Array.from({ length: 4 }, (_, index) => ({
+        type: 'image' as const,
         attachment: {
-          attachmentId: 'sha256:test', mediaType: 'image/png', bytes: 8,
-          width: 1, height: 1, name: 'generated.png',
+          attachmentId: `sha256:test-${String(index + 1)}`, mediaType: 'image/png' as const,
+          bytes: 8, width: 1, height: 1, name: `generated-${String(index + 1)}.png`,
         },
-      },
+      })),
     ])
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps successful candidates when one generation fails', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    ctx.provide('imageGeneration', { generate: vi.fn(() => Promise.resolve({
+      images: [{
+        provider: 'gpt', model: 'gpt-image-1',
+        attachment: {
+          attachmentId: AttachmentId('sha256:partial'), mediaType: 'image/png' as const,
+          bytes: 8, width: 1, height: 1, name: 'generated-1.png',
+        },
+      }],
+      failedCount: 3,
+    })) } as never)
+    await ctx.plugin(tool, { timeoutMs: 180_000 })
+
+    const result = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: CallId('image-partial'), name: 'image_generate',
+      arguments: {
+        prompt: 'An icon', variation_prompts: ['a', 'b', 'c', 'd'],
+      },
+    })
+
+    expect(result.content).toHaveLength(2)
+    expect(result.content[0]).toEqual({ type: 'text', text: '已生成 1 个方案，请选择。' })
+    const image = result.content[1]
+    expect(image?.type).toBe('image')
+    if (image?.type !== 'image') throw new Error('expected an image result')
+    expect(image.attachment.attachmentId).toBe('sha256:partial')
+    expect(result.concludesTurn).toBe(true)
     await ctx.fiber.dispose()
   })
 
@@ -93,11 +134,11 @@ describe('image_generate', () => {
       content: [{ type: 'text', text: 'Keep the latest image as the reference.' }], source: { kind: 'user' },
     }), { surfaceOp: 'append' })
     const generate = vi.fn(() => Promise.resolve({
-      provider: 'gpt', model: 'gpt-image-2',
-      attachment: {
+      images: [{ provider: 'gpt', model: 'gpt-image-2', attachment: {
         attachmentId: AttachmentId('sha256:generated'), mediaType: 'image/png' as const,
         bytes: 10, width: 10, height: 10, name: 'generated.png',
-      },
+      } }],
+      failedCount: 3,
     }))
     ctx.provide('imageGeneration', { generate } as never)
     await ctx.plugin(tool, { timeoutMs: 180_000 })
@@ -105,13 +146,15 @@ describe('image_generate', () => {
     const signal = new AbortController().signal
     await ctx.tools.execute({
       signal, callId: CallId('image-reference'), name: 'image_generate',
-      arguments: { prompt: 'Preserve the logo structure.' },
+      arguments: {
+        prompt: 'Preserve the logo structure.', variation_prompts: ['a', 'b', 'c', 'd'],
+      },
       agent: { session } as never,
     })
 
     expect(generate).toHaveBeenCalledWith({
-      prompt: 'Preserve the logo structure.', referenceImages: [latest],
-      quality: 'high', signal,
+      prompt: 'Preserve the logo structure.', variations: ['a', 'b', 'c', 'd'], count: 4,
+      referenceImages: [latest], quality: 'high', signal,
     })
     await ctx.fiber.dispose()
   })
@@ -121,22 +164,25 @@ describe('image_generate', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     const generate = vi.fn(() => Promise.resolve({
-      provider: 'gpt', model: 'gpt-image-1',
-      attachment: {
+      images: [{ provider: 'gpt', model: 'gpt-image-1', attachment: {
         attachmentId: AttachmentId('sha256:test'), mediaType: 'image/png' as const,
         bytes: 8, width: 1, height: 1,
-      },
+      } }],
+      failedCount: 3,
     }))
     ctx.provide('imageGeneration', { generate } as never)
     await ctx.plugin(tool, { timeoutMs: 180_000 })
 
     const signal = new AbortController().signal
     const result = await ctx.tools.execute({
-      signal, callId: CallId('image-2'), name: 'image_generate', arguments: { prompt: 'An icon' },
+      signal, callId: CallId('image-2'), name: 'image_generate',
+      arguments: { prompt: 'An icon', variation_prompts: ['a', 'b', 'c', 'd'] },
     })
 
-    expect(generate).toHaveBeenCalledWith({ prompt: 'An icon', signal })
-    expect(result.value).toMatchObject({ name: 'generated-image' })
+    expect(generate).toHaveBeenCalledWith({
+      prompt: 'An icon', variations: ['a', 'b', 'c', 'd'], count: 4, signal,
+    })
+    expect(result.value).toMatchObject({ images: [{ name: 'generated-image' }], failedCount: 3 })
     await ctx.fiber.dispose()
   })
 
@@ -156,11 +202,11 @@ describe('image_generate', () => {
       source: { kind: 'user' },
     }), { surfaceOp: 'append' })
     const generate = vi.fn(() => Promise.resolve({
-      provider: 'gpt', model: 'gpt-image-2',
-      attachment: {
+      images: [{ provider: 'gpt', model: 'gpt-image-2', attachment: {
         attachmentId: AttachmentId('sha256:new'), mediaType: 'image/png' as const,
         bytes: 8, width: 1, height: 1, name: 'new.png',
-      },
+      } }],
+      failedCount: 3,
     }))
     ctx.provide('imageGeneration', { generate } as never)
     await ctx.plugin(tool, { timeoutMs: 180_000 })
@@ -168,11 +214,16 @@ describe('image_generate', () => {
     const signal = new AbortController().signal
     await ctx.tools.execute({
       signal, callId: CallId('image-without-reference'), name: 'image_generate',
-      arguments: { prompt: 'Create a completely unrelated image.', use_reference_images: false },
+      arguments: {
+        prompt: 'Create a completely unrelated image.', variation_prompts: ['a', 'b', 'c', 'd'],
+        use_reference_images: false,
+      },
       agent: { session } as never,
     })
 
-    expect(generate).toHaveBeenCalledWith({ prompt: 'Create a completely unrelated image.', signal })
+    expect(generate).toHaveBeenCalledWith({
+      prompt: 'Create a completely unrelated image.', variations: ['a', 'b', 'c', 'd'], count: 4, signal,
+    })
     await ctx.fiber.dispose()
   })
 })

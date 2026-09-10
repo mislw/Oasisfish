@@ -81,6 +81,36 @@ function construct(packageNames: string[]): ClientModuleRegistry {
   return constructWithRoute(packageNames).service
 }
 
+it('uses the root Loader package resolver when the config tree cannot see an installed client package', () => {
+  const clientPath = writePackage('@fixture/installed-client')
+  mkdirSync(dirname(clientPath), { recursive: true })
+  writeFileSync(clientPath, 'module.exports = {}\n')
+  const packageJsonPath = join(dirname(dirname(clientPath)), 'package.json')
+  const profile = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-client-profile-')))
+  const ctx = new Context()
+  ctx.baseUrl = pathToFileURL(join(profile, 'cordis.yml')).href
+  ctx.provide('loader', {
+    *entries() {
+      yield { options: { name: '@fixture/installed-client' }, fiber: {}, disabled: false }
+    },
+    resolvePackageJson(specifier: string) {
+      if (specifier !== '@fixture/installed-client') throw new Error(`unexpected package ${specifier}`)
+      return packageJsonPath
+    },
+  })
+  ctx.provide('webServer', {
+    port: 0,
+    register: () => () => {},
+    tapIndex: () => () => {},
+  } as unknown as WebServer)
+  try {
+    const service = new ClientModuleRegistry(ctx)
+    expect(service.graph().entries.map(entry => entry.id)).toEqual(['@fixture/installed-client'])
+  } finally {
+    rmSync(profile, { recursive: true, force: true })
+  }
+})
+
 /** Execute the exact first inline script emitted by the Host boot rows. */
 function injectedFacade(graph: WebBootGraph): { html: string; target: ClientModuleLoaderTarget } {
   const html = renderIndexInjections(

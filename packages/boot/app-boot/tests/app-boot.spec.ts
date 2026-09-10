@@ -563,10 +563,23 @@ describe('boot', () => {
     const dir = tmp()
     const harness = tmp()
     const absolutePlugin = join(dir, 'absolute.mjs')
+    const profilePlugin = join(dir, 'node_modules', 'profile-only-plugin')
     const shadow = join(dir, 'node_modules', '@deepseek-ai', 'dsh-system-prompt')
     const harnessPlugin = join(harness, 'node_modules', '@deepseek-ai', 'dsh-system-prompt')
+    mkdirSync(profilePlugin, { recursive: true })
     mkdirSync(shadow, { recursive: true })
     mkdirSync(harnessPlugin, { recursive: true })
+    writeFileSync(join(profilePlugin, 'package.json'), JSON.stringify({
+      name: 'profile-only-plugin',
+      type: 'module',
+      exports: './index.mjs',
+    }))
+    writeFileSync(join(profilePlugin, 'index.mjs'), [
+      'export function apply(ctx) {',
+      '  ctx.provide("profilePluginLoaded", true)',
+      '}',
+      '',
+    ].join('\n'))
     writeFileSync(join(shadow, 'package.json'), JSON.stringify({
       name: '@deepseek-ai/dsh-system-prompt',
       type: 'module',
@@ -594,6 +607,8 @@ describe('boot', () => {
     const entries = [
       '- id: prompt',
       "  name: '@deepseek-ai/dsh-system-prompt'",
+      '- id: profile',
+      '  name: profile-only-plugin',
       '- id: relative',
       "  name: './relative.mjs'",
     ]
@@ -619,8 +634,110 @@ describe('boot', () => {
     try {
       expect(ctx.get('harnessPluginLoaded')).toBe(true)
       expect(ctx.get('shadowPluginLoaded')).toBeUndefined()
+      expect(ctx.get('profilePluginLoaded')).toBe(true)
       expect(ctx.get('relativePluginLoaded')).toBe(true)
       expect(ctx.get('absolutePluginLoaded')).toBe(true)
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
+  it('exposes installed-host-first package metadata resolution with profile fallback', async () => {
+    const dir = tmp()
+    const harness = tmp()
+    const installedPackage = join(harness, 'node_modules', '@fixture', 'shared')
+    const shadowPackage = join(dir, 'node_modules', '@fixture', 'shared')
+    const profilePackage = join(dir, 'node_modules', '@fixture', 'profile-only')
+    for (const [packageDir, name, marker] of [
+      [installedPackage, '@fixture/shared', 'installed'],
+      [shadowPackage, '@fixture/shared', 'profile-shadow'],
+      [profilePackage, '@fixture/profile-only', 'profile-only'],
+    ] as const) {
+      mkdirSync(packageDir, { recursive: true })
+      writeFileSync(join(packageDir, 'package.json'), JSON.stringify({
+        name,
+        marker,
+        exports: { './package.json': './package.json' },
+      }))
+    }
+    writeFileSync(join(dir, 'cordis.yml'), '[]\n')
+    const harnessBaseUrl = pathToFileURL(join(harness, 'entry.mjs')).href
+    const ctx = await boot(NAME, join(dir, 'cordis.yml'), undefined, (hostCtx) => {
+      const loader = hostCtx.loader as typeof hostCtx.loader & {
+        resolvePackageJson(specifier: string): string
+      }
+      const installed: unknown = JSON.parse(readFileSync(loader.resolvePackageJson('@fixture/shared'), 'utf8'))
+      const profileOnly: unknown = JSON.parse(readFileSync(loader.resolvePackageJson('@fixture/profile-only'), 'utf8'))
+      expect(installed).toMatchObject({ marker: 'installed' })
+      expect(profileOnly).toMatchObject({ marker: 'profile-only' })
+    }, harnessBaseUrl)
+    await ctx.fiber.dispose()
+  })
+
+  it('does not hide a missing dependency inside an installed-host plugin', async () => {
+    const dir = tmp()
+    const harness = tmp()
+    const profilePlugin = join(dir, 'node_modules', 'host-plugin')
+    const harnessPlugin = join(harness, 'node_modules', 'host-plugin')
+    for (const pluginDir of [profilePlugin, harnessPlugin]) {
+      mkdirSync(pluginDir, { recursive: true })
+      writeFileSync(join(pluginDir, 'package.json'), JSON.stringify({
+        name: 'host-plugin',
+        type: 'module',
+        exports: './index.mjs',
+      }))
+    }
+    writeFileSync(join(profilePlugin, 'index.mjs'), 'export function apply(ctx) { ctx.provide("profilePluginLoaded", true) }\n')
+    writeFileSync(join(harnessPlugin, 'index.mjs'), "import 'missing-host-dependency'\nexport function apply() {}\n")
+    const configPath = join(dir, 'cordis.yml')
+    writeFileSync(configPath, '- id: host\n  name: host-plugin\n')
+    const harnessBaseUrl = pathToFileURL(join(harness, 'entry.mjs')).href
+
+    await expect(boot(NAME, configPath, undefined, undefined, harnessBaseUrl))
+      .rejects.toThrow("Cannot find package 'missing-host-dependency'")
+  })
+
+  it('resolves bare plugins dynamically created in the root Loader from the installed host', async () => {
+    const dir = tmp()
+    const harness = tmp()
+    const hostMounter = join(harness, 'node_modules', 'host-mounter')
+    const hostBackend = join(harness, 'node_modules', 'host-backend')
+    const profileBackend = join(dir, 'node_modules', 'host-backend')
+    for (const [pluginDir, name] of [
+      [hostMounter, 'host-mounter'],
+      [hostBackend, 'host-backend'],
+      [profileBackend, 'host-backend'],
+    ] as const) {
+      mkdirSync(pluginDir, { recursive: true })
+      writeFileSync(join(pluginDir, 'package.json'), JSON.stringify({
+        name,
+        type: 'module',
+        exports: './index.mjs',
+      }))
+    }
+    writeFileSync(join(hostMounter, 'index.mjs'), [
+      'export const inject = ["loader"]',
+      'export async function apply(ctx) {',
+      '  await ctx.loader.create({ name: "host-backend" })',
+      '}',
+      '',
+    ].join('\n'))
+    writeFileSync(join(hostBackend, 'index.mjs'), [
+      'export function apply(ctx) { ctx.provide("hostBackendLoaded", true) }',
+      '',
+    ].join('\n'))
+    writeFileSync(join(profileBackend, 'index.mjs'), [
+      'export function apply(ctx) { ctx.provide("profileBackendLoaded", true) }',
+      '',
+    ].join('\n'))
+    const configPath = join(dir, 'cordis.yml')
+    writeFileSync(configPath, '- id: mounter\n  name: host-mounter\n')
+    const harnessBaseUrl = pathToFileURL(join(harness, 'entry.mjs')).href
+
+    const ctx = await boot(NAME, configPath, undefined, undefined, harnessBaseUrl)
+    try {
+      expect(ctx.get('hostBackendLoaded')).toBe(true)
+      expect(ctx.get('profileBackendLoaded')).toBeUndefined()
     } finally {
       await ctx.fiber.dispose()
     }

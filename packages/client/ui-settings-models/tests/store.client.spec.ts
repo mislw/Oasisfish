@@ -30,7 +30,11 @@ const NAMESPACES = [
   {
     ns: 'image-generation',
     schema: {},
-    value: { provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations' },
+    value: {
+      provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+      fallbackProvider: 'anthropic', fallbackModel: 'backup-image',
+      fallbackEndpointPath: 'images/generations',
+    },
     user: { provider: 'openai', model: 'gpt-image-1' },
     applies: 'live' as const,
     secrets: [],
@@ -115,6 +119,8 @@ describe('ModelsSettingsStore', () => {
     expect(state.defaultSelection).toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
     expect(state.defaultImageSelection).toEqual({
       provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+      fallbackProvider: 'anthropic', fallbackModel: 'backup-image',
+      fallbackEndpointPath: 'images/generations',
     })
     expect(state.groups).toEqual(GROUPS)
     expect(state.catalogFailures).toEqual([])
@@ -250,6 +256,8 @@ describe('ModelsSettingsStore', () => {
 
     await expect(store.selectDefaultImage({
       provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+      fallbackProvider: 'anthropic', fallbackModel: 'backup-image',
+      fallbackEndpointPath: 'images/generations',
     })).resolves.toBeUndefined()
     expect(mutate).toHaveBeenCalledWith({
       ns: 'image-generation',
@@ -257,6 +265,9 @@ describe('ModelsSettingsStore', () => {
         { op: 'set', path: ['provider'], value: 'openai' },
         { op: 'set', path: ['model'], value: 'gpt-image-1' },
         { op: 'set', path: ['endpointPath'], value: 'images/generations' },
+        { op: 'set', path: ['fallbackProvider'], value: 'anthropic' },
+        { op: 'set', path: ['fallbackModel'], value: 'backup-image' },
+        { op: 'set', path: ['fallbackEndpointPath'], value: 'images/generations' },
       ],
     })
   })

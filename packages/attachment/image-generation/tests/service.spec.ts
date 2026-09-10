@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { AttachmentId } from '@deepseek-ai/dsh-attachment'
+import { AttachmentId, type SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { SettingsProvider, settingsNamespace, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import ImageGenerationService, {
   IMAGE_GENERATION_SETTINGS_NAMESPACE,
@@ -61,7 +61,7 @@ async function setup(options: SetupOptions = {}) {
     'llm-pi-ai': { providers: options.providers ?? {} },
   })
   ctx.settings.register(settingsNamespace('llm-pi-ai'), z.any())
-  const saveImage = vi.fn(() => Promise.resolve(attachment))
+  const saveImage = vi.fn((_input: SaveImageAttachment) => Promise.resolve(attachment))
   const readImage = vi.fn()
   if (options.attachments !== false) ctx.provide('attachments', { saveImage, readImage } as never)
   if ('credential' in options) {
@@ -74,6 +74,11 @@ async function setup(options: SetupOptions = {}) {
     provider: options.config?.provider ?? 'relay',
     model: options.config?.model ?? 'gpt-image-1',
     endpointPath: options.config?.endpointPath ?? 'images/generations',
+    editEndpointPath: options.config?.editEndpointPath ?? 'images/edits',
+    fallbackProvider: options.config?.fallbackProvider ?? '',
+    fallbackModel: options.config?.fallbackModel ?? '',
+    fallbackEndpointPath: options.config?.fallbackEndpointPath ?? 'images/generations',
+    fallbackEditEndpointPath: options.config?.fallbackEditEndpointPath ?? 'images/edits',
     maxResponseBytes: options.config?.maxResponseBytes ?? 1024,
   })
   return { ctx, saveImage, readImage }
@@ -99,6 +104,46 @@ afterEach(async () => {
 })
 
 describe('ImageGenerationService', () => {
+  it('runs four independent candidates and keeps partial success', async () => {
+    const { ctx, saveImage } = await setup({
+      config: {
+        provider: 'primary', model: 'primary-image',
+        fallbackProvider: 'backup', fallbackModel: 'backup-image',
+      },
+      providers: {
+        primary: { baseURL: 'https://primary.example/v1' },
+        backup: { baseURL: 'https://backup.example/v1' },
+      },
+    })
+    const encoded = Buffer.from(PNG).toString('base64')
+    const fetchMock = vi.fn(async (_url: URL | string, init?: RequestInit) => {
+      const body = parsedRequestBody(init?.body) as { prompt: string }
+      if (body.prompt.endsWith('Candidate variation: variation 4')) return new Response('{}', { status: 503 })
+      if (String(_url).includes('primary.example') && body.prompt.endsWith('Candidate variation: variation 2')) {
+        return new Response('{}', { status: 503 })
+      }
+      return imageResponse({ data: [{ b64_json: encoded }] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    saveImage.mockImplementation(async ({ name }: SaveImageAttachment) => ({
+      ...attachment, name: name ?? 'generated.png',
+    }))
+
+    await expect(ctx.imageGeneration.generate({
+      prompt: 'shared prompt', count: 4,
+      variations: ['variation 1', 'variation 2', 'variation 3', 'variation 4'],
+    })).resolves.toMatchObject({
+      images: [
+        { provider: 'primary', attachment: { name: 'generated-1.png' } },
+        { provider: 'backup', attachment: { name: 'generated-2.png' } },
+        { provider: 'primary', attachment: { name: 'generated-3.png' } },
+      ],
+      failedCount: 1,
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(saveImage).toHaveBeenCalledTimes(3)
+  })
+
   it('registers its settings namespace from composition defaults', async () => {
     const ctx = new Context()
     contexts.push(ctx)
@@ -113,6 +158,8 @@ describe('ImageGenerationService', () => {
         .toEqual({
           provider: '', model: '',
           endpointPath: 'images/generations', editEndpointPath: 'images/edits',
+          fallbackProvider: '', fallbackModel: '',
+          fallbackEndpointPath: 'images/generations', fallbackEditEndpointPath: 'images/edits',
         })
     })
   })
@@ -137,7 +184,9 @@ describe('ImageGenerationService', () => {
     await expect(ctx.imageGeneration.generate({
       prompt: 'inventory', size: '1024x1024', quality: 'medium', signal,
     }))
-      .resolves.toEqual({ provider: 'relay', model: 'gpt-image-1', attachment })
+      .resolves.toEqual({
+        images: [{ provider: 'relay', model: 'gpt-image-1', attachment }], failedCount: 0,
+      })
     expect(saveImage).toHaveBeenCalledWith({ data: PNG, mediaType: 'image/png', name: 'generated.png' })
     const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
     expect(String(url)).toBe('https://relay.example/v1/images/generations')
@@ -161,7 +210,9 @@ describe('ImageGenerationService', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(ctx.imageGeneration.generate({ prompt: 'portrait' }))
-      .resolves.toEqual({ provider: 'relay', model: 'gpt-image-1', attachment })
+      .resolves.toEqual({
+        images: [{ provider: 'relay', model: 'gpt-image-1', attachment }], failedCount: 0,
+      })
     expect(saveImage).toHaveBeenCalledWith({ data: JPEG, mediaType: 'image/jpeg', name: 'generated.jpeg' })
     const [, firstInit] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
     expect((firstInit.headers as Headers).get('authorization')).toBe('Bearer launch-secret')
@@ -169,6 +220,148 @@ describe('ImageGenerationService', () => {
       model: 'gpt-image-1', prompt: 'portrait', n: 1, response_format: 'b64_json',
     })
     expect(fetchMock.mock.calls[1]).toEqual(['http://cdn.example/generated.jpg', {}])
+  })
+
+  it('uses chat completions and decodes a Markdown data URL image', async () => {
+    const { ctx, saveImage } = await setup({
+      config: {
+        provider: 'relay',
+        model: '[EXPRESS]gemini-3.1-flash-image',
+        endpointPath: 'chat/completions',
+      },
+      providers: { relay: { baseURL: 'https://relay.example/v1' } },
+    })
+    const encoded = Buffer.from(PNG).toString('base64')
+    const fetchMock = vi.fn(() => Promise.resolve(imageResponse({
+      choices: [{
+        finish_reason: 'stop',
+        message: { role: 'assistant', content: `![image](data:image/png;base64,${encoded})` },
+      }],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(ctx.imageGeneration.generate({
+      prompt: 'ink landscape', size: '1536x1024', quality: 'high',
+    })).resolves.toEqual({
+      images: [{ provider: 'relay', model: '[EXPRESS]gemini-3.1-flash-image', attachment }], failedCount: 0,
+    })
+
+    expect(saveImage).toHaveBeenCalledWith({ data: PNG, mediaType: 'image/png', name: 'generated.png' })
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(String(url)).toBe('https://relay.example/v1/chat/completions')
+    expect(parsedRequestBody(init.body)).toEqual({
+      model: '[EXPRESS]gemini-3.1-flash-image',
+      messages: [{ role: 'user', content: 'ink landscape' }],
+      modalities: ['text', 'image'],
+      stream: false,
+    })
+  })
+
+  it('uses one configured fallback route after the primary provider rejects generation', async () => {
+    const { ctx, saveImage } = await setup({
+      config: {
+        provider: 'primary',
+        model: 'primary-image',
+        endpointPath: 'chat/completions',
+        fallbackProvider: 'backup',
+        fallbackModel: 'backup-image',
+        fallbackEndpointPath: 'images/generations',
+      },
+      providers: {
+        primary: { baseURL: 'https://primary.example/v1' },
+        backup: { baseURL: 'https://backup.example/v1' },
+      },
+    })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { message: 'No available key' },
+      }), { status: 503 }))
+      .mockResolvedValueOnce(imageResponse({
+        data: [{ b64_json: Buffer.from(PNG).toString('base64') }],
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'fallback landscape' })).resolves.toEqual({
+      images: [{ provider: 'backup', model: 'backup-image', attachment }], failedCount: 0,
+    })
+    expect(saveImage).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://primary.example/v1/chat/completions')
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe('https://backup.example/v1/images/generations')
+  })
+
+  it('does not call the fallback route when the primary route succeeds', async () => {
+    const { ctx } = await setup({
+      config: {
+        provider: 'primary',
+        model: 'primary-image',
+        endpointPath: 'images/generations',
+        fallbackProvider: 'backup',
+        fallbackModel: 'backup-image',
+        fallbackEndpointPath: 'images/generations',
+      },
+      providers: {
+        primary: { baseURL: 'https://primary.example/v1' },
+        backup: { baseURL: 'https://backup.example/v1' },
+      },
+    })
+    const fetchMock = vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ b64_json: Buffer.from(PNG).toString('base64') }],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'primary landscape' })).resolves.toMatchObject({
+      images: [{ provider: 'primary', model: 'primary-image' }], failedCount: 0,
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports the fallback failure after both configured routes reject generation', async () => {
+    const { ctx } = await setup({
+      config: {
+        provider: 'primary',
+        model: 'primary-image',
+        fallbackProvider: 'backup',
+        fallbackModel: 'backup-image',
+      },
+      providers: {
+        primary: { baseURL: 'https://primary.example/v1' },
+        backup: { baseURL: 'https://backup.example/v1' },
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { message: 'Primary unavailable.' },
+      }), { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { message: 'Backup quota exhausted.' },
+      }), { status: 429 })))
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'fallback landscape' })).rejects.toThrow(
+      'HTTP 429: Backup quota exhausted.',
+    )
+  })
+
+  it('rejects reference images for chat-completions generation', async () => {
+    const reference = {
+      attachmentId: AttachmentId('sha256:reference'), mediaType: 'image/png' as const,
+      bytes: REFERENCE.byteLength, width: 8, height: 8, name: 'reference.png',
+    }
+    const { ctx, readImage } = await setup({
+      config: {
+        provider: 'relay',
+        model: '[EXPRESS]gemini-3.1-flash-image',
+        endpointPath: 'chat/completions',
+      },
+      providers: { relay: { baseURL: 'https://relay.example/v1' } },
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'edit', referenceImages: [reference] }))
+      .rejects.toThrow('chat-completions image generation does not support reference images')
+    expect(readImage).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('sends reference images to the edits endpoint with high output quality', async () => {
@@ -250,6 +443,11 @@ describe('ImageGenerationService', () => {
       .rejects.toThrow('endpointPath must not be empty')
     await expect(ctx.settings.update(IMAGE_GENERATION_SETTINGS_NAMESPACE, { editEndpointPath: '' }))
       .rejects.toThrow('endpointPath must not be empty')
+    await expect(ctx.settings.update(IMAGE_GENERATION_SETTINGS_NAMESPACE, { fallbackProvider: 'backup' }))
+      .rejects.toThrow('fallback provider and model must be configured together')
+    await expect(ctx.settings.update(IMAGE_GENERATION_SETTINGS_NAMESPACE, {
+      fallbackProvider: 'relay', fallbackModel: 'gpt-image-1',
+    })).rejects.toThrow('fallback route must differ from the primary route')
   })
 
   it('rejects missing route configuration and dependencies', async () => {
