@@ -74,6 +74,8 @@
           - option "openai-completions" [selected]
           - option "openai-responses"
           - option "anthropic-messages"
+        - checkbox "支持图片输入" [checked]
+        - text: 支持图片输入 自定义提供方默认开启；如果这条路线只支持文本，请关闭。
         - region "模型目录":
           - text: 模型目录 已自定义模型目录
           - button "恢复默认模型"
