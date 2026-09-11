@@ -20,7 +20,7 @@ Providers with native authentication need their native credentials instead. Bedr
 
 ## Add a custom provider
 
-Choose **Add a custom provider** for a company gateway, self-hosted server, or provider absent from the installed catalog. Supply a lowercase Provider ID, base URL, API protocol, credential, and at least one model.
+Choose **Add a custom provider** for a company gateway, self-hosted server, or provider absent from the installed catalog. Supply a lowercase Provider ID, base URL, API protocol, credential, and at least one model. **Support image input** starts enabled and can be cleared for a text-only route.
 
 ![The custom provider form: Provider ID, display name, base URL, API protocol, and API key](providers-custom-form.png)
 
@@ -32,7 +32,7 @@ Under **Model catalog**, choose **Fetch from upstream** to query the base URL, p
 
 A model you enter by hand is treated as text-only until it says otherwise, because nothing can ask an endpoint which modalities it accepts. Attaching an image to such a model is refused before it is sent, naming the model.
 
-A vision model on a custom provider therefore needs one line. The form has no field for it; add `input` to the model in `$DSH_HOME/settings.yaml`:
+A newly created custom provider writes `defaultInput: [text, image]`, so its listed models accept image attachments unless **Support image input** is cleared. A route mixing vision and text-only models instead declares `input` on each exceptional model in `$DSH_HOME/settings.yaml`:
 
 ```yaml
 llm-pi-ai:
@@ -64,7 +64,7 @@ llm-pi-ai:
         - id: second-model
 ```
 
-`defaultInput` is a fallback, not an override, and defaults to `[text]`: on a catalog provider it answers only for models the catalog does not describe, so it never removes images from a catalog model that has them. Narrow one of those with that model's own `input`. A catalog provider has no `models` list to put it in, so write it under `modelOverrides`, keyed by model id:
+`defaultInput` is a fallback, not an override. The adapter default remains `[text]` for hand-written profiles, while the custom-provider form explicitly writes `[text, image]` unless its image-input option is cleared. On a catalog provider it answers only for models the catalog does not describe, so it never removes images from a catalog model that has them. Narrow one of those with that model's own `input`. A catalog provider has no `models` list to put it in, so write it under `modelOverrides`, keyed by model id:
 
 ```yaml
 llm-pi-ai:
@@ -129,7 +129,7 @@ If a saved default names a provider that was deleted, the composer displays **Se
 - **The gateway refuses every request although the key and URL are right** — Its request shape differs from OpenAI's. Start with `compat.supportsDeveloperRole: false` and `compat.maxTokensField: max_tokens` on the route.
 - **Only reasoning models fail** — pi-ai sends their system prompt as the `developer` role, which the gateway rejects. Set `compat.supportsDeveloperRole: false`.
 - **A compat switch is refused as having no value** — A key written with nothing after the colon. Give it a value, or remove the key to keep the installed catalog's.
-- **An image is refused before sending** — The model declares no image modality. Give a custom provider's model `input: [text, image]`; DeepSeek's own chat-completions route is text-only and cannot be configured otherwise.
+- **An image is refused before sending** — The model declares no image modality. Enable **Support image input**, set the route's `defaultInput`, or give the exact model `input: [text, image]`; DeepSeek's own chat-completions route is text-only and cannot be configured otherwise.
 - **The provider rejects a request carrying an image** — The model declares images its endpoint does not actually serve. Remove `image` from whichever list granted it — the model's `input`, or the route's `defaultInput` — then start a new session: the attached image stays in the session log, so the same request repeats until the session moves off it.
 
 ## Advanced configuration

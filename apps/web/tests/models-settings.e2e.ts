@@ -266,6 +266,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await dialog.getByLabel('API 地址').fill(relayBaseUrl)
     await dialog.getByLabel('API 协议').selectOption('openai-completions')
     await dialog.getByRole('textbox', { name: 'API 密钥', exact: true }).fill('sk-e2e-rejected')
+    expect(await dialog.getByRole('checkbox', { name: '支持图片输入' }).isChecked()).toBe(true)
     // No reasoning effort on a provider card at all: effort is a per-model
     // capability, the models under one provider disagree about it, and a
     // switch in the composer already records provider+model+effort together.
@@ -302,6 +303,8 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await row.waitFor({ timeout: 10_000 })
     const document = await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8')
     expect(document).toContain('acme-gateway:')
+    expect(document).toContain('defaultInput:')
+    expect(document).toContain('    - image')
 
     // The tag follows the adapter's installed catalog: this route is in no
     // catalog, while minimax-cn is — even though both now have profiles.

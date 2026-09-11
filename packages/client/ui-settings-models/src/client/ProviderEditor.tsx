@@ -204,6 +204,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       ? schema.deletePath(current, [key])
       : schema.setPath(current, [key], value))
   }
+  const acceptsImages = (source: unknown): boolean => {
+    const input = schema.getPath(source, ['defaultInput'])
+    return Array.isArray(input) && input.includes('image')
+  }
 
   // The model list is validated by the same per-row checker for both families,
   // so a bad row is named by its position rather than by a blanket message.
@@ -439,6 +443,29 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                     {protocols.map(choice => <option key={choice} value={choice}>{choice}</option>)}
                   </select>
                 </div>
+              )
+              : null}
+            {family === 'pi-ai'
+              ? (
+                <label className={styles['checkField']}>
+                  <input
+                    type="checkbox"
+                    checked={acceptsImages(draft) || (!schema.hasPath(draft, ['defaultInput']) && acceptsImages(fallback))}
+                    aria-label={t('imageInput')}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      setDraft(current => schema.setPath(
+                        current,
+                        ['defaultInput'],
+                        event.target.checked ? ['text', 'image'] : ['text'],
+                      ))
+                    }}
+                  />
+                  <span>
+                    <span className={styles['fieldLabel']}>{t('imageInput')}</span>
+                    <span className={styles['checkHint']}>{t('imageInputHint')}</span>
+                  </span>
+                </label>
               )
               : null}
             {/* Both families edit the same rows through the same contract; only

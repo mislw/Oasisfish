@@ -84,6 +84,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   const [baseURL, setBaseURL] = useState('')
   const [protocol, setProtocol] = useState(protocols[0] ?? '')
   const [keyDraft, setKeyDraft] = useState('')
+  const [acceptsImages, setAcceptsImages] = useState(true)
   const [models, setModels] = useState<readonly ModelDraft[]>([])
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | undefined>(undefined)
@@ -149,6 +150,7 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
         ...storesKey ? { apiKeyEnv: keyRef } : {},
         api: protocol,
         baseURL,
+        defaultInput: acceptsImages ? ['text', 'image'] : ['text'],
         models: models.map(model => ({ ...model })),
       }
       const response = await api.settings.mutate({
@@ -271,6 +273,19 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
           ? null
           : <p className={styles['error']}>{t(keyFailure === 'keyBlank' ? 'keyBlankNew' : keyFailure)}</p>}
       </div>
+      <label className={styles['checkField']}>
+        <input
+          type="checkbox"
+          checked={acceptsImages}
+          aria-label={t('imageInput')}
+          disabled={profileDisabled}
+          onChange={(event) => { setAcceptsImages(event.target.checked) }}
+        />
+        <span>
+          <span className={styles['fieldLabel']}>{t('imageInput')}</span>
+          <span className={styles['checkHint']}>{t('imageInputHint')}</span>
+        </span>
+      </label>
       <ModelListEditor
         models={models}
         onChange={setModels}

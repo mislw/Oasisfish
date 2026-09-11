@@ -20,7 +20,7 @@
 
 ## 添加自定义提供方
 
-对于公司网关、自建服务器或已安装目录中不存在的提供方，选择**添加自定义提供方**。提供小写 Provider ID、基础 URL、API 协议、凭据和至少一个模型。
+对于公司网关、自建服务器或已安装目录中不存在的提供方，选择**添加自定义提供方**。提供小写 Provider ID、基础 URL、API 协议、凭据和至少一个模型。**支持图片输入**默认开启，纯文本路由可以将其关闭。
 
 ![自定义提供方表单：Provider ID、显示名称、API 地址、API 协议、API 密钥](providers-custom-form.zh.png)
 
@@ -32,7 +32,7 @@ Provider ID 是永久的，因为请求、已保存会话、模型默认值和�
 
 手动输入的模型在自己声明之前一律按纯文本对待，因为没有任何环节能去询问端点接受哪些模态。给这类模型附加图片，会在发送前就被拒绝，并点名该模型。
 
-因此自定义提供方下的视觉模型需要加一行。表单没有对应字段；请在 `$DSH_HOME/settings.yaml` 中给该模型加上 `input`：
+新建自定义提供方会写入 `defaultInput: [text, image]`，因此除非关闭**支持图片输入**，其列表中的模型都会接受图片附件。一条同时包含视觉模型与纯文本模型的路由，则在 `$DSH_HOME/settings.yaml` 中为例外模型分别声明 `input`：
 
 ```yaml
 llm-pi-ai:
@@ -64,7 +64,7 @@ llm-pi-ai:
         - id: second-model
 ```
 
-`defaultInput` 是回退值而不是覆盖值，默认为 `[text]`：在目录提供方上，它只为目录未描述的模型作答，因此绝不会把目录中本就具备图片能力的模型的该能力去掉。要收窄这类模型，请用它自己的 `input`。目录提供方没有可供填写的 `models` 列表，因此写在 `modelOverrides` 下，以模型 id 为键：
+`defaultInput` 是回退值而不是覆盖值。适配器对手写 profile 的默认值仍是 `[text]`，而自定义提供方表单会显式写入 `[text, image]`，除非关闭图片输入选项。在目录提供方上，它只为目录未描述的模型作答，因此绝不会把目录中本就具备图片能力的模型的该能力去掉。要收窄这类模型，请用它自己的 `input`。目录提供方没有可供填写的 `models` 列表，因此写在 `modelOverrides` 下，以模型 id 为键：
 
 ```yaml
 llm-pi-ai:
@@ -129,7 +129,7 @@ llm-pi-ai:
 - **密钥与地址都正确，网关却拒绝每一个请求**：它的请求形状与 OpenAI 不同。先在路由上设 `compat.supportsDeveloperRole: false` 与 `compat.maxTokensField: max_tokens`。
 - **只有推理模型失败**：pi-ai 把它们的系统提示词以 `developer` 角色发出，而网关拒绝该角色。设 `compat.supportsDeveloperRole: false`。
 - **某个 compat 开关因没有值而被拒绝**：冒号后什么都没写。给它一个值，或删掉该键以沿用已安装 catalog 的值。
-- **图片在发送前被拒绝**：该模型未声明图片模态。请给自定义提供方的模型加上 `input: [text, image]`；DeepSeek 自身的 chat-completions 路由是纯文本的，且无法通过配置改变。
+- **图片在发送前被拒绝**：该模型未声明图片模态。请开启**支持图片输入**、设置路由的 `defaultInput`，或给确切模型加上 `input: [text, image]`；DeepSeek 自身的 chat-completions 路由是纯文本的，且无法通过配置改变。
 - **提供方拒绝了带图片的请求**：该模型声明了其端点实际并不提供的图片能力。请从授予它图片能力的那个列表中移除 `image`——可能是模型的 `input`，也可能是路由的 `defaultInput`——然后开启新会话：附加的图片会留在会话日志里，因此在会话离开它之前，同一个请求会不断重复。
 
 ## 进阶配置

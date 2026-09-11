@@ -363,6 +363,31 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.checkField {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkField input {
+  flex: none;
+  margin: 2px 0 0;
+}
+
+.checkField > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.checkHint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .linkButton {
   box-sizing: border-box;
   display: inline-flex;
