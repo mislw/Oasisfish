@@ -156,7 +156,7 @@ export class MemoryService extends TypertRemoteService {
    * @param request - Record id and optional selected Session directory.
    * @returns The idempotent removal result.
    */
-  @Remote('remove')
+  @Remote('removeRecord')
   async removeRemote(request: MemoryRemoteRemoveRequest): Promise<MemoryRemoveResult> {
     return await this.remove({ id: request.id }, remoteContext(request.cwd))
   }

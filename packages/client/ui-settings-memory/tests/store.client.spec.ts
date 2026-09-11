@@ -34,7 +34,7 @@ function remote(overrides: Partial<MemoryRemote> = {}): MemoryRemote {
       content: request.content,
     }))),
     update: vi.fn<MemoryRemote['update']>(request => success(Object.freeze({ ...USER_RECORD, id: request.id, content: request.content }))),
-    remove: vi.fn<MemoryRemote['remove']>(request => success({ id: request.id, absent: true as const })),
+    removeRecord: vi.fn<MemoryRemote['removeRecord']>(request => success({ id: request.id, absent: true as const })),
     setEnabled: vi.fn<MemoryRemote['setEnabled']>(request => success(request.enabled)),
     ...overrides,
   }
@@ -127,7 +127,7 @@ describe('MemorySettingsStore', () => {
     await controller.load(undefined)
     const first = controller.add({ scope: 'user', content: 'first' }, undefined)
     await expect(controller.remove(USER_RECORD.id, undefined)).resolves.toBe(false)
-    expect(api.remove).not.toHaveBeenCalled()
+    expect(api.removeRecord).not.toHaveBeenCalled()
 
     pending.resolve({ ok: true, value: { ...USER_RECORD, id: MemoryId('first'), content: 'first' } })
     await expect(first).resolves.toBe(true)

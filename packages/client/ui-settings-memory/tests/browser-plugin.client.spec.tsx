@@ -30,7 +30,7 @@ async function bench() {
     update: vi.fn<MemoryRemote['update']>(request => Promise.resolve({ ok: true as const, value: {
       id: request.id, scope: 'user', content: request.content, createdAt: 1, updatedAt: 2,
     } })),
-    remove: vi.fn<MemoryRemote['remove']>(request => Promise.resolve({ ok: true as const, value: { id: request.id, absent: true } })),
+    removeRecord: vi.fn<MemoryRemote['removeRecord']>(request => Promise.resolve({ ok: true as const, value: { id: request.id, absent: true } })),
     setEnabled: vi.fn<MemoryRemote['setEnabled']>(request => Promise.resolve({ ok: true as const, value: request.enabled })),
   }
   ctx.provide('remote.memory', memory)
@@ -87,7 +87,7 @@ describe('ui-settings-memory browser plugin', () => {
     expect(b.memory.setEnabled).toHaveBeenCalledWith({ enabled: false, cwd: '/work/project' })
     expect(b.memory.add).toHaveBeenCalledWith({ scope: 'project', content: 'Remember this.', cwd: '/work/project' })
     expect(b.memory.update).toHaveBeenCalledWith({ id, content: 'Updated.', cwd: '/work/project' })
-    expect(b.memory.remove).toHaveBeenCalledWith({ id, cwd: '/work/project' })
+    expect(b.memory.removeRecord).toHaveBeenCalledWith({ id, cwd: '/work/project' })
     await b.ctx.fiber.dispose()
   })
 

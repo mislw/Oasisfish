@@ -208,7 +208,7 @@ async setEnabled(enabled: boolean, context: MemoryContext): Promise<boolean>
  * @param request - Record id and optional selected Session directory.
  * @returns The idempotent removal result.
  */
-@Remote('remove') async removeRemote(request: MemoryRemoteRemoveRequest): Promise<MemoryRemoveResult>
+@Remote('removeRecord') async removeRemote(request: MemoryRemoteRemoveRequest): Promise<MemoryRemoveResult>
 
 /**
  * Enable or disable memory context injection from the Settings page.

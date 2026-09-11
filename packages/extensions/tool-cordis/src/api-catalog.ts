@@ -1137,7 +1137,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'The committed immutable record.',
       },
       {
-        signature: '@Remote(\'remove\') async removeRemote(request: MemoryRemoteRemoveRequest): Promise<MemoryRemoveResult>',
+        signature: '@Remote(\'removeRecord\') async removeRemote(request: MemoryRemoteRemoveRequest): Promise<MemoryRemoveResult>',
         description: 'Remove one visible record from the Settings page.',
         parameters: [{ name: 'request', description: 'Record id and optional selected Session directory.' }],
         returns: 'The idempotent removal result.',

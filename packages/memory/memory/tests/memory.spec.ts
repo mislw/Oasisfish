@@ -46,7 +46,7 @@ describe('MemoryService', () => {
       { method: 'listRemote', exportName: 'list', invocation: { kind: 'direct' } },
       { method: 'addRemote', exportName: 'add', invocation: { kind: 'direct' } },
       { method: 'updateRemote', exportName: 'update', invocation: { kind: 'direct' } },
-      { method: 'removeRemote', exportName: 'remove', invocation: { kind: 'direct' } },
+      { method: 'removeRemote', exportName: 'removeRecord', invocation: { kind: 'direct' } },
       { method: 'setEnabledRemote', exportName: 'setEnabled', invocation: { kind: 'direct' } },
     ])
   })

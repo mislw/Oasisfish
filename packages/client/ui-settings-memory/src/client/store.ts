@@ -11,7 +11,7 @@ export interface MemoryRemote {
   readonly list: (request: MemoryRemoteListRequest) => Promise<RemoteResult<MemorySnapshot>>
   readonly add: (request: MemoryRemoteAddRequest) => Promise<RemoteResult<MemoryRecord>>
   readonly update: (request: MemoryRemoteUpdateRequest) => Promise<RemoteResult<MemoryRecord>>
-  readonly remove: (request: MemoryRemoteRemoveRequest) => Promise<RemoteResult<MemoryRemoveResult>>
+  readonly removeRecord: (request: MemoryRemoteRemoveRequest) => Promise<RemoteResult<MemoryRemoveResult>>
   readonly setEnabled: (request: MemoryRemoteSetEnabledRequest) => Promise<RemoteResult<boolean>>
 }
 
@@ -96,7 +96,7 @@ export class MemorySettingsStore {
    * @returns Whether the Host committed the removal.
    */
   remove(id: MemoryId, cwd: string | undefined): Promise<boolean> {
-    return this.mutate('remove', () => this.remote.remove({ id, ...remoteContext(cwd) }), state => ({
+    return this.mutate('remove', () => this.remote.removeRecord({ id, ...remoteContext(cwd) }), state => ({
       ...state, records: state.records.filter(record => record.id !== id),
     }))
   }
