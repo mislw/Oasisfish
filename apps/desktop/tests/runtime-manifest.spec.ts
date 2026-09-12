@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import { REQUIRED_RUNTIME_NAMES, validateRuntimeManifest } from '../scripts/runtime-manifest.mjs'
 
@@ -36,6 +37,20 @@ function validManifest(): TestManifest {
 }
 
 describe('validateRuntimeManifest', () => {
+  it('pins the SevenZip bootstrap extractor to the matching immutable release asset', async () => {
+    const manifest = validateRuntimeManifest(JSON.parse(await readFile(
+      new URL('../runtime-manifest.json', import.meta.url),
+      'utf8',
+    )))
+    const extractor = manifest.artifacts.find(artifact => artifact.name === 'sevenzip-extractor')
+
+    expect(extractor).toMatchObject({
+      version: '26.02',
+      url: 'https://github.com/ip7z/7zip/releases/download/26.02/7zr.exe',
+      sha256: '56b8cc9f4971cef253644fafe54063ed7fdca551d4dee0f8c6baa81b855acd72',
+    })
+  })
+
   it('accepts one complete Windows x64 manifest', () => {
     expect(validateRuntimeManifest(validManifest())).toMatchObject({
       schemaVersion: 1,
