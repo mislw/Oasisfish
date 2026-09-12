@@ -22,4 +22,4 @@ The canonical Oasisfish desktop version uses `V.YYYYMMDD.T`, where `V` is the po
 
 ## Consequences
 
-One release has a canonical public version and an equivalent Windows resource version. Publication must update all three package fields together; the release workflow verifies that relationship before building. The canonical version remains valid SemVer, so Electron Updater can order releases by major version, date, and revision.
+One release has a canonical public version and an equivalent Windows resource version. Publication must update all three package fields together; the release workflow verifies that relationship, assembles the complete desktop staging tree, validates the built and staged application, and only then publishes an NSIS installer from those prepared inputs. The canonical version remains valid SemVer, so Electron Updater can order releases by major version, date, and revision.

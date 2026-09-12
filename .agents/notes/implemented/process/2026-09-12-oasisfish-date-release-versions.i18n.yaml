@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-09-12-oasisfish-date-release-versions.md
-2026-09-12-oasisfish-date-release-versions.md: 5afc1a129fe4b68977d1077379a8b4a73689769a
-2026-09-12-oasisfish-date-release-versions.zh.md: c5f9fea0bc75747b1b49d14af4ad3d138caad46a
+2026-09-12-oasisfish-date-release-versions.md: 5e6be720039c791131348d1047c7a9204eabd942
+2026-09-12-oasisfish-date-release-versions.zh.md: 5ef4a0afbfe8b2ce1ed82758b69c11ad15bf7782

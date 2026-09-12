@@ -12,11 +12,14 @@ describe('Oasisfish release contract', () => {
       version?: string
       shortVersion?: string
       shortVersionWindows?: string
+      scripts?: Record<string, string>
     }
 
     expect(desktopPackage.version).toBe('1.20260912.4')
     expect(desktopPackage.shortVersion).toBe('1.2026.912.4')
     expect(desktopPackage.shortVersionWindows).toBe('1.2026.912.4')
+    expect(desktopPackage.scripts?.['package:publish:prepared'])
+      .toBe('electron-builder --win nsis --x64 --publish always')
     expect(validateDesktopReleaseVersion(
       desktopPackage.version ?? '',
       desktopPackage.shortVersion ?? '',
@@ -74,7 +77,12 @@ describe('Oasisfish release contract', () => {
     expect(workflow).toContain('apps/web/tests/desktop-update.snapshot.ts')
     expect(workflow).toContain('pnpm run verify-cordis-config')
     expect(workflow).toContain('pnpm run doc-sync')
-    expect(workflow).toContain('package:publish')
+    const assembleIndex = workflow.indexOf('run package:dir')
+    const verifyIndex = workflow.indexOf('- name: Verify desktop update paths')
+    const publishIndex = workflow.indexOf('run package:publish:prepared')
+    expect(assembleIndex).toBeGreaterThan(-1)
+    expect(verifyIndex).toBeGreaterThan(assembleIndex)
+    expect(publishIndex).toBeGreaterThan(verifyIndex)
     expect(workflow).toContain('GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}')
     expect(workflow).toContain('Oasisfish-*.exe')
     expect(workflow).toContain('Oasisfish-*.exe.blockmap')

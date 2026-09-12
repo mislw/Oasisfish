@@ -49,6 +49,9 @@ jobs:
           $shortVersionWindows = node -p "require('./apps/desktop/package.json').shortVersionWindows"
           node apps/desktop/scripts/validate-release-tag.mjs $env:RELEASE_TAG $version $shortVersion $shortVersionWindows
 
+      - name: Assemble desktop release
+        run: pnpm --filter @deepseek-ai/dsh-desktop run package:dir
+
       - name: Verify desktop update paths
         shell: pwsh
         run: |
@@ -61,7 +64,7 @@ jobs:
           pnpm run doc-sync
 
       - name: Build and publish NSIS update
-        run: pnpm --filter @deepseek-ai/dsh-desktop run package:publish
+        run: pnpm --filter @deepseek-ai/dsh-desktop run package:publish:prepared
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
