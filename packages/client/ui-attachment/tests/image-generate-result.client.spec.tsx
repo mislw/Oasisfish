@@ -54,7 +54,7 @@ type TestProps = {
   loadImage: (image: ImageAttachmentRef) => Promise<string>
   t: TranslateNS<'conversation'>
   inspect?: () => void
-  selectImage?: (image: ImageAttachmentRef) => Promise<void>
+  selectImage?: (image: ImageAttachmentRef, preference: string | undefined) => Promise<void>
 }
 
 const Component = ImageGenerateResult as ComponentType<TestProps>
@@ -103,10 +103,24 @@ describe('ImageGenerateResult', () => {
     const loadImage = vi.fn(async (image: ImageAttachmentRef) => `blob:${image.name}`)
     const selectImage = vi.fn(() => Promise.resolve())
     const view = render(<Component
-      block={settled([
-        { type: 'text', text: '已生成 4 个方案，请选择。' },
-        ...images.map(image => ({ type: 'image' as const, attachment: image })),
-      ])}
+      block={{
+        ...settled([
+          { type: 'text', text: '已生成 4 个方案，请选择。' },
+          ...images.map(image => ({ type: 'image' as const, attachment: image })),
+        ]),
+        call: {
+          name: 'image_generate',
+          argsRaw: JSON.stringify({
+            prompt: 'A bright game item icon',
+            variation_prompts: [
+              'safe polished composition',
+              'elevated camera and softer light',
+              'bold asymmetrical structure and stronger material contrast',
+              'experimental silhouette and dramatic lighting',
+            ],
+          }),
+        },
+      }}
       loadImage={loadImage}
       selectImage={selectImage}
       t={t}
@@ -119,6 +133,62 @@ describe('ImageGenerateResult', () => {
     expect(view.getByRole('dialog', { name: '原图预览' })).toBeTruthy()
     expect(view.getAllByRole('link', { name: '下载图片' })).toHaveLength(4)
     fireEvent.click(view.getAllByRole('button', { name: '以此图继续修改' })[2]!)
-    await waitFor(() => { expect(selectImage).toHaveBeenCalledWith(images[2]) })
+    await waitFor(() => {
+      expect(selectImage).toHaveBeenCalledWith(images[2], 'bold asymmetrical structure and stronger material contrast')
+    })
+  })
+
+  it('keeps candidate directions aligned when an earlier candidate failed', async () => {
+    const images = [1, 3, 4].map(index => ({
+      ...attachment,
+      attachmentId: AttachmentId(`sha256:${String(index).repeat(64)}`),
+      name: `generated-${String(index)}.png`,
+    }))
+    const loadImage = vi.fn(async (image: ImageAttachmentRef) => `blob:${image.name}`)
+    const selectImage = vi.fn(() => Promise.resolve())
+    const view = render(<Component
+      block={{
+        ...settled([
+          { type: 'text', text: '已生成 3 个方案，请选择。' },
+          ...images.map(image => ({ type: 'image' as const, attachment: image })),
+        ]),
+        call: {
+          name: 'image_generate',
+          argsRaw: JSON.stringify({
+            prompt: 'A bright game item icon',
+            variation_prompts: [
+              'safe polished composition',
+              'elevated camera and softer light',
+              'bold asymmetrical structure and stronger material contrast',
+              'experimental silhouette and dramatic lighting',
+            ],
+          }),
+        },
+      }}
+      loadImage={loadImage}
+      selectImage={selectImage}
+      t={t}
+    />)
+
+    await waitFor(() => { expect(view.getAllByRole('img')).toHaveLength(3) })
+    fireEvent.click(view.getAllByRole('button', { name: '以此图继续修改' })[1]!)
+    await waitFor(() => {
+      expect(selectImage).toHaveBeenCalledWith(images[1], 'bold asymmetrical structure and stronger material contrast')
+    })
+  })
+
+  it('does not invent a preference for a legacy result without a candidate ordinal', async () => {
+    const loadImage = vi.fn().mockResolvedValue('blob:generated')
+    const selectImage = vi.fn(() => Promise.resolve())
+    const view = render(<Component
+      block={settled([{ type: 'image', attachment }])}
+      loadImage={loadImage}
+      selectImage={selectImage}
+      t={t}
+    />)
+
+    await waitFor(() => { expect(view.getByAltText('generated.png')).toBeTruthy() })
+    fireEvent.click(view.getByRole('button', { name: '以此图继续修改' }))
+    await waitFor(() => { expect(selectImage).toHaveBeenCalledWith(attachment, undefined) })
   })
 })

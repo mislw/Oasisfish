@@ -58,6 +58,8 @@ pnpm --filter @deepseek-ai/dsh-desktop run package
 
 只推送源码不构成应用更新。发布时先修改 `apps/desktop/package.json` 中的版本，再创建匹配的 `v<version>` 标签，并通过 `.github/workflows/oasisfish-release.yml` 发布该标签。公开的 `mislw/Oasisfish` Release 必须包含 NSIS 安装包、对应的 `.blockmap` 和 `latest.yml`。便携版清理只会在安装后的目标版本写入回执后，删除打包清单中未被修改的文件；存在未知文件或修改文件时会保留旧便携目录，供用户手动检查。
 
+Oasisfish 发布版本使用 `V.YYMMDD.T`：`V` 是大版本，`YYMMDD` 是发布日期，`T` 是当天第几次修改。包版本、应用界面、安装包文件名、更新元数据、Git 标签和 GitHub Release 均保留 `1.20260912.4` 这样的标准值；由于 Windows 可执行文件元数据的每段数字不能超过 65535，对应的文件属性使用等价四段值 `1.2026.912.4`。
+
 ## 验证
 
 ```sh

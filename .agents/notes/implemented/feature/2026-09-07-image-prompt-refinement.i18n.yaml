@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-07-image-prompt-refinement.md
-2026-09-07-image-prompt-refinement.md: 45c2292da99ba1f5c8f4599b7f733b865fa3b1db
-2026-09-07-image-prompt-refinement.zh.md: c0ef3bee49525527e969e87474fd6ff1b2d8dcaa
+2026-09-07-image-prompt-refinement.md: 4287abd150e56fa5702849f74bbe17096f9aa8a8
+2026-09-07-image-prompt-refinement.zh.md: 8c06ef6294d7210e1d3664408dbf835cd5539ed4

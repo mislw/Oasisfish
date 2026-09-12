@@ -12,7 +12,7 @@
 
 `MessageImage` 渲染一张持久化历史图片，经持有方的 `ImageLoader` 加载会话授权 URL；加载失败渲染显式重试按钮，加载完成后单击打开 `ImageLightbox`（加载中的点击被忽略）。尺寸规则对齐 DeepSeek Chat：一条消息仅有的一张图（`variant="single"`）长边 240px、展示宽高比钳制在 [0.25, 4] 之间——超出部分由 `object-fit: cover` 裁切，特别高的图锚定顶部、特别宽的图锚定左侧——且从不放大超过原始尺寸；多图中的一张（`variant="tile"`）为固定 64px 方块。`ImageGallery` 将一条消息的图片包为一个对齐的可换行弹性分组（用户消息 `end`，助手消息 `start`），按图片数量选择 variant，空列表不渲染。`ImageLightbox` 是文档级模态预览，铺在共享的对话框遮罩上（`--dsw-alias-bg-mask-1` 加 `--dsw-mask-blur`，画在独立图层上，模糊不会波及预览图本身），按 Escape、按下遮罩或点关闭按钮均可关闭，卸载时将焦点还给打开者。
 
-本插件还在 `tool.call.toolview` 中注册 keyed `image_generate` 条目。已结算的生图结果将持久 `image` 块渲染为两列候选网格，并提供重试、原图预览、下载和“以此图继续修改”操作，不再将其展开为 JSON。“继续修改”只把选中的持久图片放入所属 Session 的输入框草稿，不会提交提示词。加载器使用所属 Session ID 调用 `ConversationController.resolveImage`，因此重新打开 Session 时会经授权附件路由读取已持久化的附件。紧凑工具行只从已记录的 Tool 调用/结果切片推导提示词和生命周期状态。
+本插件还在 `tool.call.toolview` 中注册 keyed `image_generate` 条目。已结算的生图结果将持久 `image` 块渲染为两列候选网格，并提供重试、原图预览、下载和“以此图继续修改”操作，不再将其展开为 JSON。“继续修改”只把选中的持久图片放入所属 Session 的输入框草稿，不会提交提示词；同时通过现有 Memory Remote 把该候选的差异方向记为持久视觉偏好，Session 有 `cwd` 时使用项目 scope，否则使用用户 scope；预览和下载不写入记忆。记忆写入失败或重复不会撤销已放入草稿的图片。加载器使用所属 Session ID 调用 `ConversationController.resolveImage`，因此重新打开 Session 时会经授权附件路由读取已持久化的附件。紧凑工具行只从已记录的 Tool 调用/结果切片推导提示词、候选差异和生命周期状态。
 
 ## 拖放遮罩
 
@@ -20,11 +20,11 @@
 
 ## 模型体验
 
-无，因为该插件只渲染由对话 UI 提供的附件状态，不贡献模型可见输入。
+无，因为选择操作不会向当前模型轮次贡献输入；当所选 Agent Preset 包含 `@deepseek-ai/dsh-tool-memory` 且记忆注入已启用时，它写入的持久视觉偏好可以进入后续请求。
 
 #### KV Cache 影响
 
-无；该包既不组装也不发送提供方请求。
+当前轮次不受影响。已提交的偏好会改变后续请求的记忆快照，可能降低该次请求的前缀复用。
 
 ## 已知限制与暂缓事项
 

@@ -11,6 +11,8 @@
 
       不得把用户的简短描述直接原样传给 image_generate。最终 prompt 必须按任务需要明确主体、环境、构图、镜头、光线、材质、色彩、空间关系、完成质感和负面约束，不得擅自改变用户明确指定的内容、数量、文字、比例或风格。信息足够时直接生图；只有缺少一个会决定生成结果的关键信息时，才使用 ask_user_question 询问一次。用户消息中已有参考图时，必须默认复用该图进行编辑，并在 prompt 中明确需要保留的主体、结构、文字或风格；只有用户明确要求生成与参考图无关的新图时，才设置 use_reference_images=false。image_generate 使用设置页中独立配置的默认生图模型，不得切换当前对话模型。生成成功后只展示结果；用户要求返工时根据反馈重新优化并再次生成。
 
+      每轮可见的 User preferences 和 Project memory 中如有历史视觉偏好，必须把它们作为构图、材质、光线、色彩和图形结构的参考，但不得覆盖用户当次的明确要求。四个候选不得被历史偏好同质化：默认安排为 1 张贴近历史偏好、2 张相邻探索、1 张反差探索；没有视觉偏好记录时，仍须保证四个方向在构图、材质、光线、镜头或图形结构上有明显区别。
+
       这个工作流不进入 UI Tree、控件分层、Cowart Workbench、UMG、Lua、配置表或编辑器写入。需要完整 UI 生产流程时，请用户改用“UI 生成工具链”。与图片生成无关的请求应说明当前会话受纯生图工具限制，并请用户回到普通会话处理。
 
 - id: agent-instructions
@@ -31,6 +33,9 @@
   name: '@deepseek-ai/dsh-tool-image-generate'
   config:
     timeoutMs: 180000
+
+- id: tool-memory
+  name: '@deepseek-ai/dsh-tool-memory'
 
 - id: tool-ask-user
   name: '@deepseek-ai/dsh-tool-ask-user'

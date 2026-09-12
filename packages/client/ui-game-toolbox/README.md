@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 Browser surfaces for the game-development toolbox. The sidebar offers a complete Oasis UI workflow and a focused image-generation workflow. Each tool creates or resumes its own Agent Preset session. The UI workflow also opens its details panel and renders the durable `todos` projection in both the conversation header and details summary.
 
-The `game-ui` preset owns the eight-stage UI production process. Clicking the image-generation entry only opens a blank `game-image` session; it does not submit a user message or display task stages. After the user enters an image request, the preset silently loads only the bundled `ai-image-prompts` Skill, searches it once for the matching local visual recipe, refines a complete English prompt in the current model turn, and directly calls the configured primary image model with one optional fallback. It has no filesystem, shell, UMG, Lua, editor, or unrelated Skill tools and creates no hidden model request.
+The `game-ui` preset owns the eight-stage UI production process. Clicking the image-generation entry only opens a blank `game-image` session; it does not submit a user message or display task stages. After the user enters an image request, the preset silently loads only the bundled `ai-image-prompts` Skill, searches it once for the matching local visual recipe, combines enabled user and project visual-preference memory with the current request, refines a complete English prompt in the current model turn, and directly calls the configured primary image model with one optional fallback. Current explicit requirements always win. When preferences exist, the four differences default to one preference-aligned candidate, two adjacent explorations, and one contrasting exploration so memory does not collapse the candidate set into one style. It has no filesystem, shell, UMG, Lua, editor, or unrelated Skill tools and creates no hidden model request.
 
 Toolbox entries use translucent theme-token surfaces so the sidebar's persistent Oasisfish scene remains visible without reducing label contrast.
 
@@ -24,11 +24,11 @@ A blank `game-ui` session receives the following user message once. The preset s
 
 #### Token effect
 
-The UI tool's initial user message adds a fixed prompt to the first request of a blank `game-ui` session. Opening or resuming a `game-image` session adds zero model tokens; the user's first image request becomes its first request.
+The UI tool's initial user message adds a fixed prompt to the first request of a blank `game-ui` session. Opening or resuming a `game-image` session adds no bootstrap message; the user's first image request becomes its first request. When memory injection is enabled and effective records exist, the first accepted step also includes the logged native-memory snapshot.
 
 #### KV Cache effect
 
-The first `game-ui` request remains append-only: its bootstrap message follows the preset-owned reusable system and tool prefix. `game-image` adds no bootstrap message. Returning to an existing dedicated session does not add or replace request tokens.
+The first `game-ui` request remains append-only: its bootstrap message follows the preset-owned reusable system and tool prefix. `game-image` adds no bootstrap message. A changed memory snapshot changes the later request prefix; returning to an existing dedicated session with unchanged memory does not add or replace bootstrap tokens.
 
 ## Known Limitations and Deferred Work
 

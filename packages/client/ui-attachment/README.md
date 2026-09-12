@@ -12,7 +12,7 @@ Dynamic attachment presentation plugin for the conversation UI. It waits for the
 
 `MessageImage` renders one durable history image, loading a session-authorized URL through the owner's `ImageLoader`; a failed load renders an explicit retry control, and a settled load answers a single click by opening `ImageLightbox` (clicks during loading are ignored). Sizing follows DeepSeek Chat: a message's lone image (`variant="single"`) renders at 240px on its longer edge with the displayed aspect ratio clamped to [0.25, 4] — the overflow is cropped by `object-fit: cover`, anchored to the top of very tall images and the left of very wide ones — and never upscales past its natural size; an image among several (`variant="tile"`) is a fixed 64px square. `ImageGallery` wraps a message's images in one aligned wrapping flex group (`end` for user messages, `start` for assistant messages), picks the variant from the image count, and renders nothing for an empty list. `ImageLightbox` is a document-level modal preview over the shared dialog mask (`--dsw-alias-bg-mask-1` + `--dsw-mask-blur`, painted on its own layer so the blur never touches the previewed image) that closes on Escape, a mask press, or its close control, and restores focus to its opener on unmount.
 
-The plugin also registers the keyed `image_generate` entry in `tool.call.toolview`. A settled generated-image result renders its durable `image` blocks as a two-column candidate grid with retry, original-image preview, download, and “continue editing” actions instead of flattening them to JSON. The editing action copies only the selected durable image into the owning Session's composer draft and does not submit a prompt. Its loader calls `ConversationController.resolveImage` with the owning Session id, so reopening a Session reads the persisted attachment through the authorized attachment route. The compact row derives its prompt and lifecycle state only from the logged Tool call/result slice.
+The plugin also registers the keyed `image_generate` entry in `tool.call.toolview`. A settled generated-image result renders its durable `image` blocks as a two-column candidate grid with retry, original-image preview, download, and “continue editing” actions instead of flattening them to JSON. The editing action copies only the selected durable image into the owning Session's composer draft and does not submit a prompt. It also records the selected candidate difference as a durable visual preference through the existing Memory Remote, using project scope when the Session has a `cwd` and user scope otherwise; preview and download actions do not write memory. A failed or duplicate memory write does not undo the draft image. Its loader calls `ConversationController.resolveImage` with the owning Session id, so reopening a Session reads the persisted attachment through the authorized attachment route. The compact row derives its prompt, candidate differences, and lifecycle state only from the logged Tool call/result slice.
 
 ## Drop overlay
 
@@ -20,11 +20,11 @@ The plugin also registers the keyed `image_generate` entry in `tool.call.toolvie
 
 ## Model Experience
 
-None, as the plugin only renders attachment state supplied by the conversation UI and contributes no model-visible input.
+None, as the selection action contributes no input to the current model turn; its durable visual-preference record may enter later requests through `@deepseek-ai/dsh-tool-memory` when the selected Agent Preset includes that Consumer and memory injection is enabled.
 
 #### KV Cache effect
 
-None; this package neither assembles nor sends a provider request.
+The current turn is unchanged. A committed preference changes a later memory snapshot and may reduce prefix reuse for that later request.
 
 ## Known Limitations and Deferred Work
 

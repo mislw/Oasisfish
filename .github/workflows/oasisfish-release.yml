@@ -45,7 +45,9 @@ jobs:
         shell: pwsh
         run: |
           $version = node -p "require('./apps/desktop/package.json').version"
-          node apps/desktop/scripts/validate-release-tag.mjs $env:RELEASE_TAG $version
+          $shortVersion = node -p "require('./apps/desktop/package.json').shortVersion"
+          $shortVersionWindows = node -p "require('./apps/desktop/package.json').shortVersionWindows"
+          node apps/desktop/scripts/validate-release-tag.mjs $env:RELEASE_TAG $version $shortVersion $shortVersionWindows
 
       - name: Verify desktop update paths
         shell: pwsh

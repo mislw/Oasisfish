@@ -13,7 +13,7 @@ export interface ImageGenerateResultInjected {
   /** Resolve one durable result attachment inside the owning session. */
   loadImage: (attachment: ImageAttachmentRef) => Promise<string>
   /** Add one generated candidate to the current composer without submitting it. */
-  selectImage: (attachment: ImageAttachmentRef) => Promise<void>
+  selectImage: (attachment: ImageAttachmentRef, preference: string | undefined) => Promise<void>
 }
 
 type ImageGenerateResultProps = ToolCallViewProps
@@ -56,6 +56,28 @@ function imagesOf(block: ToolCallViewProps['block']): readonly { attachment: Ima
   return block.content.flatMap(item => item.type === 'image' ? [{ attachment: item.attachment }] : [])
 }
 
+/** Candidate differences retained in the durable call arguments. */
+function variationsOf(block: ToolCallViewProps['block']): readonly string[] {
+  const argsRaw = ('kind' in block ? block.call?.argsRaw : block.argsRaw) ?? ''
+  try {
+    const args = JSON.parse(argsRaw) as unknown
+    if (typeof args !== 'object' || args === null) return []
+    const variations = (args as Record<string, unknown>).variation_prompts
+    if (!Array.isArray(variations)) return []
+    return variations.filter((value): value is string => typeof value === 'string')
+  } catch {
+    return []
+  }
+}
+
+/** One-based candidate ordinal encoded by the image-generation provider. */
+function candidateOrdinal(attachment: ImageAttachmentRef): number | undefined {
+  const match = /-(\d+)\.[^.]+$/u.exec(attachment.name ?? '')
+  if (match === null) return undefined
+  const ordinal = Number(match[1])
+  return Number.isSafeInteger(ordinal) && ordinal > 0 ? ordinal : undefined
+}
+
 /** Text result retained as a compact provider or failure caption. */
 function captionOf(block: ToolCallViewProps['block']): string | null {
   if (!('kind' in block)) return null
@@ -72,10 +94,11 @@ function leading(state: ResultState) {
   return <IconSparkle16 size={16} />
 }
 
-function CandidateImage({ attachment, loadImage, selectImage, t }: {
+function CandidateImage({ attachment, loadImage, selectImage, preference, t }: {
   attachment: ImageAttachmentRef
   loadImage: (attachment: ImageAttachmentRef) => Promise<string>
-  selectImage: (attachment: ImageAttachmentRef) => Promise<void>
+  selectImage: (attachment: ImageAttachmentRef, preference: string | undefined) => Promise<void>
+  preference: string | undefined
   t: ImageGenerateResultProps['t']
 }) {
   const [src, setSrc] = useState<string | null>(null)
@@ -106,7 +129,7 @@ function CandidateImage({ attachment, loadImage, selectImage, t }: {
         {src === null ? <span>{t('image.loading')}</span> : <img src={src} alt={label} />}
       </button>
       <div className={css.candidateActions}>
-        <button type="button" onClick={() => { void selectImage(attachment) }}>
+        <button type="button" onClick={() => { void selectImage(attachment, preference) }}>
           <IconEditOutline16 />
           以此图继续修改
         </button>
@@ -132,6 +155,7 @@ function CandidateImage({ attachment, loadImage, selectImage, t }: {
 export function ImageGenerateResult({ block, loadImage, selectImage, inspect, t }: ImageGenerateResultProps) {
   const state = stateOf(block)
   const images = imagesOf(block)
+  const variations = variationsOf(block)
   const caption = captionOf(block)
   return (
     <div className={css.root} data-tool="image_generate" data-state={state}>
@@ -150,6 +174,7 @@ export function ImageGenerateResult({ block, loadImage, selectImage, inspect, t 
                 attachment={image.attachment}
                 loadImage={loadImage}
                 selectImage={selectImage}
+                preference={variations[(candidateOrdinal(image.attachment) ?? 0) - 1]}
                 t={t}
               />
             ))}

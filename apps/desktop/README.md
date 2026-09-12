@@ -58,6 +58,8 @@ The installed application and packaged portable directory expose **Settings > Ap
 
 A source push is not an application update. Set `apps/desktop/package.json` to the new version, create the matching `v<version>` tag, and publish that tag through `.github/workflows/oasisfish-release.yml`. The public `mislw/Oasisfish` Release must contain the NSIS installer, its `.blockmap`, and `latest.yml`. Portable cleanup removes only unchanged files listed by the packaged inventory after the installed target version writes its receipt; unknown or modified files leave the old portable directory available for manual review.
 
+Oasisfish release versions use `V.YYMMDD.T`: `V` is the major version, `YYMMDD` is the release date, and `T` is that date's revision. The package, application UI, installer filename, update metadata, Git tag, and GitHub Release keep the canonical value such as `1.20260912.4`; Windows executable metadata uses the equivalent four-part value `1.2026.912.4` because each numeric part is limited to 65535.
+
 ## Verification
 
 ```sh

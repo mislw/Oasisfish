@@ -274,7 +274,7 @@ describe('the shipped Web composition', () => {
     })
     try {
       expect(toolNames(ctx, handle.agent)).toEqual([
-        'ask_user_question', 'image_generate', 'skill', 'skill_search',
+        'ask_user_question', 'image_generate', 'memory_manage', 'skill', 'skill_search',
       ])
       const assembly = await ctx.systemPrompt.assemble({ scope: handle.agent })
       const persona = assembly.sections.find(section => section.name === 'deployment:persona')?.text ?? ''
@@ -284,6 +284,8 @@ describe('the shipped Web composition', () => {
       expect(persona).toContain('不得把用户的简短描述直接原样传给 image_generate')
       expect(persona).toContain('主体、环境、构图、镜头、光线、材质、色彩、空间关系')
       expect(persona).toContain('不得向用户汇报加载 Skill、检索配方或优化 prompt 的过程')
+      expect(persona).toContain('历史视觉偏好')
+      expect(persona).toContain('1 张贴近历史偏好、2 张相邻探索、1 张反差探索')
       expect(persona).not.toContain('需求、规格、生成、确认')
     } finally {
       await handle.dispose()
