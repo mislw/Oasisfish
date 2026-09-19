@@ -64,6 +64,13 @@ describe('concrete terminology policy', () => {
     )).toEqual([{ file: '.agents/notes/implemented/process/current.md', line: 1 }])
   })
 
+  it('excludes application-owned copies of upstream skill payloads', () => {
+    expect(findConcreteTermViolations(
+      `apps/desktop/resources/bundled-skills/example/${blockedTerm}.md`,
+      blockedTerm,
+    )).toEqual([])
+  })
+
   it('preserves historical identifiers only in alpha and RC release schema snapshots', () => {
     for (const channel of ['alpha', 'rc']) {
       expect(findConcreteTermViolations(
