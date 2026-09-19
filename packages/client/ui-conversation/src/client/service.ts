@@ -18,7 +18,7 @@ import type {
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { ImageMediaType } from '@deepseek-ai/dsh-attachment'
+import type { ImageAttachmentLimits, ImageMediaType } from '@deepseek-ai/dsh-attachment'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type {
@@ -45,6 +45,14 @@ export interface IConversation {
    * cannot import makes a session's input inert with its own reason.
    */
   readonly blocks: ComposerBlocks
+  /**
+   * Validate browser image files, register previews, and append them to one session's draft.
+   * @param sessionId - target conversation session.
+   * @param files - clipboard or picker image files.
+   * @param limits - current Host image limits, when image attachments are available.
+   * @returns null when accepted; a user-displayable English error otherwise.
+   */
+  addDraftImages(sessionId: SessionId, files: readonly File[], limits?: ImageAttachmentLimits): string | null
   /**
    * Send a prompt into the caller scope's session (queued turn).
    * @param text - prompt text, sent verbatim as one text block.
@@ -198,6 +206,39 @@ export class ConversationController extends Service implements IConversation {
       this.draftAttachments.clear()
       this.fileUploads.set({})
     }, 'conversation draft attachments')
+  }
+
+  /** Add image files to one Session's existing composer draft. */
+  addDraftImages(
+    sessionId: SessionId,
+    files: readonly File[],
+    limits?: ImageAttachmentLimits,
+  ): string | null {
+    if (files.length === 0) return null
+    const actx = this.requireSessions().scope(sessionId)
+    if (actx === undefined) return `unknown conversation session: ${sessionId}`
+    try {
+      for (const file of files) imageMediaType(file.type)
+      const input = this.input.for(actx)
+      const rejection = validateDraftImageIntake(
+        files,
+        this.resolveDraftAttachments(input.state.getSnapshot().attachmentIds)
+          .filter(attachment => attachment.kind === 'image'),
+        limits,
+      )
+      if (rejection !== null) return rejection
+      const drafts = this.createDrafts(sessionId, files)
+      if (!input.addAttachments(drafts.map(draft => draft.id))) {
+        this.releaseDraftAttachments(drafts)
+        return 'The composer is busy and cannot accept images right now.'
+      }
+      return null
+    } catch (error: unknown) {
+      if (error instanceof UnsupportedImageMediaTypeError) {
+        return 'Unsupported image type. Use PNG, JPEG, WebP, or GIF.'
+      }
+      return error instanceof Error ? error.message : String(error)
+    }
   }
 
   /**
@@ -580,6 +621,30 @@ export class ConversationController extends Service implements IConversation {
       ...(file.name === '' ? {} : { name: file.name }),
     }
   }
+}
+
+function validateDraftImageIntake(
+  files: readonly File[],
+  existing: readonly ComposerImageAttachment[],
+  limits: ImageAttachmentLimits | undefined,
+): string | null {
+  if (limits === undefined) return null
+  if (files.some(file => !(limits.mediaTypes as readonly string[]).includes(file.type))) {
+    return 'Unsupported image type for this deployment.'
+  }
+  if (existing.length + files.length > limits.maxImagesPerMessage) {
+    const unit = limits.maxImagesPerMessage === 1 ? 'image' : 'images'
+    return `A message can contain at most ${limits.maxImagesPerMessage} ${unit}.`
+  }
+  if (files.some(file => file.size > limits.maxImageBytes)) {
+    return `Each image must be ${limits.maxImageBytes} bytes or smaller.`
+  }
+  const total = existing.reduce((bytes, attachment) => bytes + attachment.file.size, 0)
+    + files.reduce((bytes, file) => bytes + file.size, 0)
+  if (total > limits.maxMessageImageBytes) {
+    return `The combined image size must be ${limits.maxMessageImageBytes} bytes or smaller.`
+  }
+  return null
 }
 
 function imageMediaType(value: string): ImageMediaType {

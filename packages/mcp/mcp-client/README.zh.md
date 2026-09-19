@@ -61,6 +61,7 @@ kind: "package-reference"
 | `toolCallTimeoutMs` | `60,000` | 每次 `tools/call` 或资源请求的超时 |
 | `maxInstructionBytes` | `32,768` | 包括服务器归属信息在内的服务器指令 UTF-8 字节上限；超出时连接失败 |
 | `failOnStartupError` | `false` | 初始连接或工具同步失败时拒绝插件激活 |
+| `approvalRequiredTools` | `[]` | 在任何服务器请求发出前必须经过 Harness 审批的 MCP 原始工具名 |
 | `reconnect.enabled` | `true` | 连接丢失后自动重新连接 |
 | `reconnect.initialDelayMs` | `500` | 首次重连延迟；每次连续失败尝试翻倍 |
 | `reconnect.maxDelayMs` | `30,000` | 退避上限；同时是重置尝试预算所需的正常运行时长 |
@@ -73,6 +74,8 @@ kind: "package-reference"
 ### 工具命名与共存
 
 模型看到每个工具都带有稳定的服务器限定名称：`mcp__<serverName>__<rawName>`，例如 `mcp__github__create_issue`——与 Claude Code 和 Codex 使用的命名形态相同。只要服务器保持相同的工具名称，名称就保持不变，因此会话历史与权限规则在重启和重载后仍然有效。两个服务器可以同时提供名为 `search` 的工具，分别以 `mcp__github__search` 和 `mcp__web__search` 共存。
+
+`approvalRequiredTools` 中列出的工具会在 MCP 网络请求发出前进入现有 Harness 审批流程。下游已有的 deny 或 ask 决定保持权威；其余原本允许的匹配调用会转为审批请求。服务器 annotations 只用于展示，绝不授予执行权限。
 
 - 发布相同工具名称（例如 `search`）的两个服务器会在各自的 namespace 下共存。
 - 两条配置项使用相同的服务器名称时，后加载的一条会在加载时以明确错误失败。

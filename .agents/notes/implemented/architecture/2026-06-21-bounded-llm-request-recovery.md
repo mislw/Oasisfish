@@ -4,7 +4,7 @@ Status: implemented
 
 English | [中文](2026-06-21-bounded-llm-request-recovery.zh.md)
 
-The [per-provider request retry policy](../../archived/feature/2026-07-24-provider-retry-policies.md) extends this foundation with exact-provider configuration and an explicit unbounded mode. This note continues to own structured failure facts, the failed-attempt recovery boundary, normal mode's transient defaults, visible single attempts, and durable retry status. [Terminal LLM stream failures](2026-07-29-terminal-llm-stream-failures.md) supersedes its thrown-error identity and stream-sidecar mechanism.
+The [per-provider request retry policy](../../archived/feature/2026-07-24-provider-retry-policies.md) extends this foundation with exact-provider configuration and an explicit unbounded mode. The [provider-route circuit breaker](2026-09-19-provider-route-circuit-breaker.md) adds process-local shared provider-health admission before each physical attempt. This note continues to own structured failure facts, the failed-attempt recovery boundary, normal mode's transient defaults, visible single attempts, and durable retry status. [Terminal LLM stream failures](2026-07-29-terminal-llm-stream-failures.md) supersedes its thrown-error identity and stream-sidecar mechanism.
 
 ## Problem
 
@@ -91,7 +91,7 @@ If recovery is exhausted, the final failure is stored once on `turn/end.reason` 
 - Automatic provider or model failover. Requests already select one explicit provider and model, and the provider registry deliberately has one adapter owner per provider.
 - Retrying or continuing after a successful terminal finish, or splicing chunks from two attempts into one assistant message.
 - Repairing malformed tool arguments, refusals, content filters, or other semantic model output.
-- Circuit breakers, shared provider health, or cross-agent retry budgets.
+- Distributed circuit state or cross-agent retry budgets.
 - Changing `llm/stream` into a response lifecycle or adding convenience generation APIs without a production consumer.
 
 ## Alternatives considered

@@ -138,6 +138,54 @@ describe('ConversationController', () => {
     await b.runtime.dispose()
   })
 
+  it('adds Oasis clipboard images through the public session intake method', async () => {
+    const b = await bench()
+    const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:clipboard')
+    try {
+      const sessionId = b.runtime.sessions.binding('s1')!.session.sessionId
+      const result = b.root.addDraftImages(sessionId, [
+        new File([Uint8Array.of(1)], 'copied-ui.png', { type: 'image/png' }),
+      ])
+      expect(result).toBeNull()
+      expect(b.shell.snapshot.attachmentIds).toHaveLength(1)
+      expect(b.root.resolveDraftAttachments(b.shell.snapshot.attachmentIds)[0]?.file.name).toBe('copied-ui.png')
+    } finally {
+      created.mockRestore()
+    }
+    await b.runtime.dispose()
+  })
+
+  it('rejects Oasis clipboard images before allocating previews when projected limits are exceeded', async () => {
+    const b = await bench()
+    const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:clipboard')
+    const limits = {
+      maxImageBytes: 8,
+      maxImagesPerMessage: 1,
+      maxMessageImageBytes: 8,
+      maxImagePixels: 40_000_000,
+      mediaTypes: ['image/png'] as const,
+    }
+    try {
+      const sessionId = b.runtime.sessions.binding('s1')!.session.sessionId
+      const overCount = b.root.addDraftImages(sessionId, [
+        new File([Uint8Array.of(1)], 'a.png', { type: 'image/png' }),
+        new File([Uint8Array.of(2)], 'b.png', { type: 'image/png' }),
+      ], limits)
+      expect(overCount).toContain('1 image')
+      expect(b.shell.snapshot.attachmentIds).toHaveLength(0)
+      expect(created).not.toHaveBeenCalled()
+
+      const overBytes = b.root.addDraftImages(sessionId, [
+        new File([new Uint8Array(9)], 'large.png', { type: 'image/png' }),
+      ], limits)
+      expect(overBytes).toContain('8 bytes')
+      expect(created).not.toHaveBeenCalled()
+    } finally {
+      created.mockRestore()
+    }
+    await b.runtime.dispose()
+  })
+
   it('releases an unsettled send preview during structural Session teardown', async () => {
     const b = await bench()
     const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:detached')

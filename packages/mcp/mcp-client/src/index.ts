@@ -20,6 +20,7 @@ import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { DEFAULT_MAX_INSTRUCTION_BYTES, RECONNECT_DEFAULTS, resolveReconnectPolicy, startConnection } from './connection.ts'
 import type { ReconnectConfig } from './connection.ts'
 import { registerServerContext } from './server-context.ts'
+import { publicToolName } from './tools.ts'
 // Side-effect type import: declaration-merges `ctx.tools` onto Context.
 import type {} from '@deepseek-ai/dsh-tools'
 
@@ -72,6 +73,8 @@ export interface StdioConfig {
   failOnStartupError: boolean
   /** Maximum UTF-8 bytes of attributed server instructions (default 32768). */
   maxInstructionBytes?: number
+  /** Raw MCP tool names that must pass the Harness approval flow before dispatch. */
+  approvalRequiredTools?: string[]
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -96,6 +99,8 @@ export interface StreamableHttpConfig {
   failOnStartupError: boolean
   /** Maximum UTF-8 bytes of attributed server instructions (default 32768). */
   maxInstructionBytes?: number
+  /** Raw MCP tool names that must pass the Harness approval flow before dispatch. */
+  approvalRequiredTools?: string[]
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -127,6 +132,7 @@ export const Config = z.union([
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: z.boolean().default(false),
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
+    approvalRequiredTools: z.array(z.string().required()).default([]),
     reconnect: Reconnect,
   }),
   z.object({
@@ -137,6 +143,7 @@ export const Config = z.union([
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: z.boolean().default(false),
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
+    approvalRequiredTools: z.array(z.string().required()).default([]),
     reconnect: Reconnect,
   }),
 ]) as unknown as z<ConfigInput, Config>
@@ -156,6 +163,18 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // construction that bypassed Schemastery) rejects THIS instance before any
   // effect registers.
   const reconnect = resolveReconnectPolicy(config.reconnect, `mcp-client(${config.serverName}): reconnect`)
+  const approvalRequiredTools = new Set(
+    (config.approvalRequiredTools ?? []).map(rawName => publicToolName(config.serverName, rawName)),
+  )
+
+  ctx.on('tools/pre-execute', async (exec, next) => {
+    const downstream = await next()
+    if (!approvalRequiredTools.has(exec.name) || downstream.kind !== 'allow') return downstream
+    return {
+      kind: 'ask',
+      reason: `MCP tool "${exec.name}" requires approval before changing Workbench data`,
+    }
+  })
 
   // Reserve the namespace next: a duplicate `serverName` fails THIS instance
   // at load with an actionable error and leaves the earlier instance intact.

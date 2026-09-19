@@ -25,6 +25,28 @@ RUN test -f apps/web/tests/scaffold.ts \
 RUN --mount=type=cache,id=deepseek-harness-pnpm-store,target=/root/.local/share/pnpm/store \
   pnpm install --frozen-lockfile
 RUN pnpm run build
+RUN --mount=type=cache,id=deepseek-harness-pnpm-store,target=/root/.local/share/pnpm/store \
+  mkdir -p /var/lib/deepseek-harness-pnpm-store \
+  && cp -a /root/.local/share/pnpm/store/. /var/lib/deepseek-harness-pnpm-store/
+RUN \
+  pnpm --filter @deepseek-ai/dsh deploy \
+    --legacy \
+    --prod \
+    --config.package-import-method=copy \
+    --config.store-dir=/var/lib/deepseek-harness-pnpm-store \
+    --config.auto-install-peers=false \
+    --config.link-workspace-packages=true \
+    /opt/dsh \
+  && test -f /opt/dsh/lib/bin.js \
+  && node /opt/dsh/lib/bin.js --version \
+  && rm -rf /var/lib/deepseek-harness-pnpm-store
+RUN chmod -R a+rX \
+  /app/apps/*/lib \
+  /app/apps/web/dist \
+  /app/packages/*/*/lib \
+  /app/vendor/*/lib \
+  /app/native/landlock-run/packages/*/lib \
+  /opt/dsh
 RUN mkdir -p /home/node/.dsh /workspace \
   && chown -R node:node /home/node/.dsh /workspace
 

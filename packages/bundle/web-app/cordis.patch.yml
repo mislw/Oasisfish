@@ -320,6 +320,10 @@
     - id: ui-skill
       name: '@deepseek-ai/dsh-client-ui-skill'
 
+    # Oasis UI workflow: composer launcher + full-screen guided image-generation entry.
+    - id: ui-oasis-workflow
+      name: '@deepseek-ai/dsh-client-ui-oasis-workflow'
+
     - id: ui-subagent
       name: '@deepseek-ai/dsh-client-ui-subagent'
 

@@ -250,6 +250,35 @@
   config:
     allowParallelInProgress: true
 
+# The AI Workspace MCP endpoint is private deployment infrastructure. The
+# preset enables it only when the deployment provides the endpoint; startup
+# then fails closed if discovery or authentication is broken.
+- id: mcp-ai-workspace
+  name: '@deepseek-ai/dsh-mcp-client'
+  disabled: !!js '!process.env.AI_WORKSPACE_MCP_URL?.trim()'
+  config:
+    serverName: workbench
+    transport: streamable-http
+    url: !!js process.env.AI_WORKSPACE_MCP_URL
+    headers:
+      Authorization: !!js '`Bearer ${process.env.HARNESS_TOOL_SECRET || ""}`'
+    toolCallTimeoutMs: 60000
+    failOnStartupError: true
+    approvalRequiredTools:
+      - calendar_create
+      - calendar_update
+      - calendar_delete
+      - todo_create
+      - todo_update
+      - todo_complete
+      - todo_delete
+      - note_create
+      - note_update
+      - note_delete
+      - document_create
+      - document_update
+      - document_delete
+
 # The `web` service and its search provider stay in the host composition; only
 # the model-facing tool is per-session.
 - id: tool-web

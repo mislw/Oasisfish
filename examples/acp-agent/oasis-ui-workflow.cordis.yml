@@ -1,0 +1,11 @@
+# The ordinary ACP composition plus the Oasis UI Host prompt section. The
+# browser launcher is tested in its client package; this runnable leaf pins the
+# model-visible instruction through the assembled agent request.
+- id: base
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./cordis.yml
+    patches:
+      - insert:
+          - id: oasis-ui-workflow
+            name: ../../packages/client/ui-oasis-workflow/src/index.ts

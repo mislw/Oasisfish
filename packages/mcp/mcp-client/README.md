@@ -61,6 +61,7 @@ Add one entry per server; nothing else is required. After the harness starts, th
 | `toolCallTimeoutMs` | `60,000` | Timeout per `tools/call` or resource request |
 | `maxInstructionBytes` | `32,768` | Maximum UTF-8 bytes of server instructions including attribution; an oversized value rejects the connection |
 | `failOnStartupError` | `false` | Reject plugin activation when the initial connection or tool synchronization fails |
+| `approvalRequiredTools` | `[]` | Raw MCP tool names that require Harness approval before any server request |
 | `reconnect.enabled` | `true` | Reconnect automatically after a lost connection |
 | `reconnect.initialDelayMs` | `500` | First reconnect delay; doubles per consecutive failed attempt |
 | `reconnect.maxDelayMs` | `30,000` | Backoff ceiling; also the uptime after which the attempt budget resets |
@@ -73,6 +74,8 @@ After startup, the server's tools appear as `mcp__<serverName>__<tool>` — try 
 ### Tool naming and coexistence
 
 The model sees each tool under a stable server-qualified name: `mcp__<serverName>__<rawName>`, for example `mcp__github__create_issue` — the same naming shape Claude Code and Codex use. Names stay stable while the server keeps the same tool name, so session history and permission rules survive restarts and reloads. Two servers can both offer a tool named `search` and coexist as `mcp__github__search` and `mcp__web__search`.
+
+Tools listed in `approvalRequiredTools` enter the existing Harness approval flow before MCP network dispatch. A downstream deny or ask decision remains authoritative, while an otherwise allowed matching call becomes an approval request; server annotations remain presentation metadata and never grant execution authority.
 
 - Two servers publishing the same tool name (for example `search`) coexist under their own namespaces.
 - Two entries using the same server name: the later one fails to load with a clear error.

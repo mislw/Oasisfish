@@ -1,5 +1,5 @@
 ---
-description: "The LLM capability group: a provider-neutral model-call service, the DeepSeek and pi-ai provider adapters, request-retry execution, and replay-aware token measurement."
+description: "The LLM capability group: a provider-neutral model-call service, provider adapters, provider-route circuit breaking, request-retry execution, and replay-aware token measurement."
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The llm group provides the harness's model-call capability: one provider-neutral service through which any composition streams requests to a model provider, plus adapters, provider-specific request metadata, retry execution, and measurement. The core `llm` package defines the message, content-block, and stream-chunk vocabulary every plugin and the session log use; provider adapters translate a provider's wire format into that vocabulary; DeepSeek request-extension plugins contribute lifecycle-owned metadata outside model input; `llm-retry` re-runs failed requests at durable agent-step boundaries; and `token-meter` measures request and context pressure from the durable log. This page maps the group; each package README owns its per-package contract.
+The llm group combines a provider-neutral streaming service with adapters, request metadata, route health, recovery, and measurement. `llm` defines the shared message, content-block, and `StreamChunk` vocabulary. Provider adapters translate wire protocols; DeepSeek extensions add lifecycle-owned request metadata; `llm-circuit-breaker` rejects temporarily unhealthy routes before provider I/O; `llm-retry` re-runs failed requests at durable agent-step boundaries; and `token-meter` measures request and context pressure from the durable log. This page maps the group; each package README owns its package contract.
 
 ## Table of Contents
 
@@ -29,6 +29,7 @@ The llm group provides the harness's model-call capability: one provider-neutral
 | [`llm-pi-ai/`](llm-pi-ai/README.md) | Serves configured provider routes through pi-ai catalogs and wire protocols, including hand-declared gateways | registers on `ctx.llm` |
 | [`deepseek-llm-api-extensions/`](deepseek-llm-api-extensions/README.md) | Registers lifecycle-owned top-level fields on official DeepSeek requests | `ctx.deepseekLlmApiExtensions` |
 | [`plugin-package-inventory-deepseek/`](plugin-package-inventory-deepseek/README.md) | Contributes the active Loader package inventory to official DeepSeek requests | contributes `dsh_plugin_packages` |
+| [`llm-circuit-breaker/`](llm-circuit-breaker/README.md) | Rejects calls to an unhealthy provider route before provider I/O and admits one recovery probe | listens to `llm/stream` |
 | [`llm-retry/`](llm-retry/README.md) | Retries failed model requests under each provider's policy at durable agent-step boundaries | listens to `agent/request-error` |
 | [`token-meter/`](token-meter/README.md) | Measures request and context pressure from the durable session log with a fixed heuristic | `ctx.tokenMeter` |
 

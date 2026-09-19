@@ -1,0 +1,10 @@
+# Keyless replay uses the ordinary snapshot composition and inserts the same
+# Oasis UI Host prompt section as the live leaf.
+- id: base
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ./cordis.snapshot.yml
+    patches:
+      - insert:
+          - id: oasis-ui-workflow
+            name: ../../packages/client/ui-oasis-workflow/src/index.ts

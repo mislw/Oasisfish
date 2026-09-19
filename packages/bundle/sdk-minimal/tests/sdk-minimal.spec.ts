@@ -47,6 +47,7 @@ describe('dsh-sdk-minimal bundle', () => {
       ['tools', '@deepseek-ai/dsh-tools'],
       ['mcp-resources', '@deepseek-ai/dsh-mcp-resources'],
       ['agent', '@deepseek-ai/dsh-agent'],
+      ['llm-circuit-breaker', '@deepseek-ai/dsh-llm-circuit-breaker'],
       ['llm-retry', '@deepseek-ai/dsh-llm-retry'],
       ['jobs', '@deepseek-ai/dsh-jobs-local'],
       ['invariants', '@deepseek-ai/dsh-invariants'],

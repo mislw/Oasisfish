@@ -4,7 +4,7 @@ Status: implemented
 
 [English](2026-06-21-bounded-llm-request-recovery.md) | 中文
 
-[按提供方配置的请求重试策略](../../archived/feature/2026-07-24-provider-retry-policies.md)在此基础上增加了确切提供方配置与显式无界 mode。本说明继续负责结构化失败事实、失败尝试的恢复边界、normal mode 的暂时性默认值、可见的单次尝试和持久重试状态。[LLM（大语言模型）流的终止失败](2026-07-29-terminal-llm-stream-failures.zh.md)取代了其中关于抛出错误身份和流 sidecar 的机制。
+[按提供方配置的请求重试策略](../../archived/feature/2026-07-24-provider-retry-policies.md)在此基础上增加了确切提供方配置与显式无界 mode。[提供方路由熔断器](2026-09-19-provider-route-circuit-breaker.zh.md)在每次物理尝试前增加进程内共享的提供方健康准入。本说明继续负责结构化失败事实、失败尝试的恢复边界、normal mode 的暂时性默认值、可见的单次尝试和持久重试状态。[LLM（大语言模型）流的终止失败](2026-07-29-terminal-llm-stream-failures.zh.md)取代了其中关于抛出错误身份和流 sidecar 的机制。
 
 ## 问题
 
@@ -91,7 +91,7 @@ agent loop（智能体循环）会将终止 finish 的 `LlmFailure` 传给 `agen
 - 自动提供方或模型故障转移。请求已显式选择一个提供方和模型，提供方注册表也有意规定每个提供方只由一个适配器负责。
 - 在成功的终止性 finish 后重试或继续，或将两次尝试的分片拼接成一条 assistant 消息。
 - 修复格式错误的工具参数、拒答、内容过滤或其他语义模型输出。
-- 熔断器、共享提供方健康状态或跨 agent 重试预算。
+- 分布式熔断状态或跨 agent 重试预算。
 - 在没有生产消费方的情况下，把 `llm/stream` 改造成响应生命周期或增加便利的生成 API。
 
 ## 考虑过的替代方案

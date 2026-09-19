@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import LlmRuntime, {
+  CIRCUIT_OPEN_CODE,
   errorChain,
   GenerateOptions,
   HarnessError,
@@ -1319,6 +1320,10 @@ describe('LlmRuntime', () => {
     expect(err.name).toBe('LlmError')
     expect(err.message).toBe('something went wrong')
     expect(err.code).toBe('CUSTOM_CODE')
+  })
+
+  it('exports the canonical circuit-open failure code', () => {
+    expect(CIRCUIT_OPEN_CODE).toBe('CIRCUIT_OPEN')
   })
 
   it('rejects non-serializable structured failure facts at construction', () => {

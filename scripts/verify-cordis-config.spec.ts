@@ -14,7 +14,42 @@ import {
   metadataExpressionErrors,
   packageTestFixtureDependencyErrors,
   packageTestPluginDependencyErrors,
+  readCordisConfigSource,
 } from './verify-cordis-config.ts'
+
+describe('Cordis config source loading', () => {
+  it('follows an in-repository Windows symlink placeholder', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'dsh-cordis-placeholder-'))
+    try {
+      const targetDir = join(fixture, 'snapshots/example')
+      const linkDir = join(fixture, 'apps/cli/tests/profiles/example')
+      mkdirSync(targetDir, { recursive: true })
+      mkdirSync(linkDir, { recursive: true })
+      writeFileSync(join(targetDir, 'cordis.yml'), '- name: package\n')
+      writeFileSync(join(linkDir, 'cordis.yml'), '../../../../../snapshots/example/cordis.yml')
+
+      expect(readCordisConfigSource(
+        'apps/cli/tests/profiles/example/cordis.yml',
+        fixture,
+      )).toBe('- name: package\n')
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps ordinary YAML source unchanged', () => {
+    const fixture = mkdtempSync(join(tmpdir(), 'dsh-cordis-source-'))
+    try {
+      const configDir = join(fixture, 'config')
+      mkdirSync(configDir, { recursive: true })
+      writeFileSync(join(configDir, 'cordis.yml'), '- name: package\n')
+
+      expect(readCordisConfigSource('config/cordis.yml', fixture)).toBe('- name: package\n')
+    } finally {
+      rmSync(fixture, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('verify-cordis-config metadata expressions', () => {
   it('accepts a disabled !!js expression', () => {

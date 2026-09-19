@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { Fiber } from '@deepseek-ai/cordis'
-import LlmRuntime, { createUserMessage, ToolCallId, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, expandAssistantStream, resolveRetryPolicy  } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { CIRCUIT_OPEN_CODE, createUserMessage, ToolCallId, EMPTY_RESPONSE_CODE, LlmAdapter, LlmError, expandAssistantStream, resolveRetryPolicy  } from '@deepseek-ai/dsh-llm'
 import type {
   AlwaysRetryPolicyConfig,
   BackoffConfig,
@@ -971,6 +971,35 @@ describe('provider-routed retry policy', () => {
       data: { reason: { kind: 'aborted' } },
     })
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it.each([
+    ['normal', normalConfig()],
+    ['always', alwaysConfig()],
+  ])('does not retry CIRCUIT_OPEN under %s policy', async (_mode, policy) => {
+    const adapter = new ScriptedAdapter([
+      new LlmError('provider circuit is open', CIRCUIT_OPEN_CODE),
+      textResponse('must not run'),
+    ])
+    ;({ ctx: context } = await harness(adapter, { mock: policy }))
+    const agent = await context.agentLoop.create(SessionId(`retry-circuit-${_mode}`), {
+      provider: 'mock',
+      model: 'mock',
+    })
+
+    const idle = waitForIdle(context, agent)
+    agent.followup(createUserMessage({
+      content: [{ type: 'text', text: 'go' }],
+      source: { kind: 'user' },
+    }))
+    await idle
+
+    expect(adapter.requests).toHaveLength(1)
+    expect(agent.session.snapshotEvents().some(event => event.type === 'llm/retry')).toBe(false)
+    expect(agent.session.snapshotEvents().at(-1)).toMatchObject({
+      type: 'turn/end',
+      data: { reason: { kind: 'error', error: { code: CIRCUIT_OPEN_CODE } } },
+    })
   })
 
   it.each([

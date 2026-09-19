@@ -313,6 +313,12 @@ interface LlmImageRequestPricing {
 
 重试配置会在路由注册前解析为不可变的可辨识联合。normal mode 携带 `mode: 'normal'`、有限的 `maxRetries`、`retryableCodes`，以及必填的 `initialDelayMs`、`maxDelayMs` 与 `jitterRatio`；always mode 携带 `mode: 'always'` 和相同的必填退避字段，但没有有限上限。省略提供方策略时使用重试五次的 normal 默认值。分层 settings 在切换到 always 模式后可能保留仅属于 normal 的 `maxRetries` 或 `retryableCodes`；解析器会忽略这些未启用字段，并捕获纯 always 策略。`LlmRuntime.providerRetryPolicy(provider)` 返回注册值；调用选定实际提供服务的注册后，`llmRetryPolicyOf(stream)` 返回从中捕获的值，因此之后释放或替换路由都无法改变进行中失败的恢复策略。可选配置输入字段由[生成的配置目录](../config-catalog.zh.md)列出。
 
+<a id="provider-route-circuit-breaking"></a>
+
+## 提供方路由熔断
+
+`@deepseek-ai/dsh-llm-circuit-breaker` 包装 `llm/stream`，并为每个精确的 `GenerateOptions.provider` 路由维护进程内状态。连续发生已配置的暂时性终止失败时，只打开对应路由；打开期间的调用会在执行提供方 I/O 前收到 `CIRCUIT_OPEN`，等待期结束后只有一个同步预留的请求可以探测恢复，其余并发调用仍被拒绝。每次物理重试尝试都会被独立观察，但 `CIRCUIT_OPEN` 是准入决定，`dsh-llm-retry` 绝不会重试它。超时、重试与熔断仍是彼此独立的策略。配置与生命周期细节见[包参考](../../packages/llm/llm-circuit-breaker/README.zh.md)。
+
 ## `AppIdentity`：应用归属
 
 每个适配器都会向提供方发送的静态公开应用标识（[`packages/llm/llm/src/attribution.ts`](../../packages/llm/llm/src/attribution.ts)）。`attributionHeaders(identity?)` 只把它映射到标准 `User-Agent` header；该约定有意不支持 OpenRouter 特有的应用归属 header。默认 `APP_IDENTITY` 从包 manifest（元数据清单）获取版本；每个字段都是公开产品事实——不含 secret、路径、会话 id 或逐用户标识，且任何逐请求信息都不得影响这些值。设计理由见[强制 `User-Agent` 归属](../../.agents/notes/implemented/architecture/2026-06-21-mandatory-app-attribution-headers.zh.md)。

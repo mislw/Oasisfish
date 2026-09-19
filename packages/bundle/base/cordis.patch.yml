@@ -88,6 +88,9 @@
     - id: jobs
       name: '@deepseek-ai/dsh-jobs-local'
 
+    - id: llm-circuit-breaker
+      name: '@deepseek-ai/dsh-llm-circuit-breaker'
+
     - id: llm-retry
       name: '@deepseek-ai/dsh-llm-retry'
 

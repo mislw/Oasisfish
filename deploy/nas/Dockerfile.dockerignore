@@ -68,3 +68,7 @@ canvas/**
 .env.*
 **/.env
 **/.env.*
+
+.merge_file_*
+.tmp-deploy-auto
+.tmp-deploy-auto/**

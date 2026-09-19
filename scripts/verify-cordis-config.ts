@@ -10,8 +10,8 @@
  * Loader fixtures resolve from their package manifest.
  */
 
-import { globSync, readFileSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
+import { existsSync, globSync, readFileSync } from 'node:fs'
+import { dirname, isAbsolute, relative, resolve } from 'node:path'
 import { Script } from 'node:vm'
 import ts from 'typescript'
 import { cordisConfigFiles } from './cordis-config-files.ts'
@@ -61,7 +61,7 @@ if (import.meta.main) {
   const files = cordisConfigFiles(root)
 
   for (const file of files) {
-    const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
+    const document = loadCordisYaml(readCordisConfigSource(file))
     if (!isUnknownArray(document)) {
       errors.push(`${file}: root must be a Loader entry array`)
       continue
@@ -85,6 +85,24 @@ if (import.meta.main) {
   } else {
     console.log(`verify-cordis-config: ${files.length} config files passed.`)
   }
+}
+
+/**
+ * Read one Loader config, including Git symlinks checked out as plain files on Windows.
+ * @param file Repository-relative config path.
+ * @param repoRoot Repository root containing the config and its target.
+ * @returns YAML source from the config or its in-repository placeholder target.
+ */
+export function readCordisConfigSource(file: string, repoRoot: string = root): string {
+  const configPath = resolve(repoRoot, file)
+  const source = readFileSync(configPath, 'utf8')
+  const placeholderPattern = /^(?:\.\.?[\\/])(?:[^\\/\r\n]+[\\/])*[^\\/\r\n]+\.ya?ml$/i
+  if (!placeholderPattern.test(source)) return source
+
+  const targetPath = resolve(dirname(configPath), source)
+  const targetRelative = relative(repoRoot, targetPath)
+  if (targetRelative.startsWith('..') || isAbsolute(targetRelative) || !existsSync(targetPath)) return source
+  return readFileSync(targetPath, 'utf8')
 }
 
 /**
@@ -162,7 +180,7 @@ function validatePresetPlaneSeparation(): string[] {
 
 /** Every entry of one config file, or an empty list when it is not an entry array. */
 function loadEntries(file: string): unknown[] {
-  const document = loadCordisYaml(readFileSync(resolve(root, file), 'utf8'))
+  const document = loadCordisYaml(readCordisConfigSource(file))
   return isUnknownArray(document) ? document : []
 }
 

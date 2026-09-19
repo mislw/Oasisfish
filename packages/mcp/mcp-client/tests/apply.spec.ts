@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import SystemPrompt, { renderPrompt } from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { createScope } from '@deepseek-ai/dsh-scope'
@@ -37,7 +38,8 @@ const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotification
   return { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotificationHandler, MockClient }
 })
 
-vi.mock('@modelcontextprotocol/client', () => ({
+vi.mock('@modelcontextprotocol/client', async importOriginal => ({
+  ...await importOriginal<typeof import('@modelcontextprotocol/client')>(),
   Client: MockClient,
   StreamableHTTPClientTransport: vi.fn(),
 }))
@@ -78,6 +80,8 @@ const stdioConfig: Config = {
   toolCallTimeoutMs: 60_000,
   failOnStartupError: false,
 }
+
+const testToolSignal = new AbortController().signal
 
 // ---- Tests ----
 
@@ -136,6 +140,23 @@ describe('mcp-client plugin module exports', () => {
     expect(partial.reconnect).toEqual({ enabled: true, initialDelayMs: 100, maxDelayMs: 30_000, maxAttempts: 10 })
   })
 
+  it('Config schema defaults and preserves the explicit approval-required raw tool list', () => {
+    const omitted = ConfigSchema({
+      transport: 'stdio',
+      serverName: 'srv',
+      command: 'echo',
+    } as never)
+    expect(omitted.approvalRequiredTools).toEqual([])
+
+    const configured = ConfigSchema({
+      transport: 'stdio',
+      serverName: 'srv',
+      command: 'echo',
+      approvalRequiredTools: ['calendar_create', 'todo_delete'],
+    } as never)
+    expect(configured.approvalRequiredTools).toEqual(['calendar_create', 'todo_delete'])
+  })
+
   it('Config schema rejects an invalid reconnect block', () => {
     // schemastery unions wrap branch errors, so assert the throw only.
     expect(() => ConfigSchema({
@@ -189,6 +210,40 @@ describe('apply (plugin lifecycle)', () => {
     expect(mockSetNotificationHandler).toHaveBeenCalled()
     expect(ctx.tools.get('mcp__srv__remote')).toBeDefined()
     expect(ctx.tools.get('remote')).toBeUndefined()
+  })
+
+  it('asks before explicitly configured MCP tools and leaves other tools executable', async () => {
+    mockListTools.mockResolvedValue({
+      tools: [
+        { name: 'calendar_list', inputSchema: { type: 'object' } },
+        { name: 'calendar_create', inputSchema: { type: 'object' } },
+      ],
+      nextCursor: undefined,
+    })
+
+    await apply(ctx, {
+      ...stdioConfig,
+      approvalRequiredTools: ['calendar_create'],
+    } as Config)
+
+    const denied = await ctx.tools.execute({
+      signal: testToolSignal,
+      callId: ToolCallId('write-call'),
+      name: 'mcp__srv__calendar_create',
+      arguments: {},
+    })
+    expect(denied.isError).toBe(true)
+    expect(denied.content[0]).toMatchObject({ text: expect.stringContaining('requires approval') })
+    expect(mockCallTool).not.toHaveBeenCalled()
+
+    const allowed = await ctx.tools.execute({
+      signal: testToolSignal,
+      callId: ToolCallId('read-call'),
+      name: 'mcp__srv__calendar_list',
+      arguments: {},
+    })
+    expect(allowed.isError).toBe(false)
+    expect(mockCallTool).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the Cordis plugin loading until initial discovery publishes its tools', async () => {

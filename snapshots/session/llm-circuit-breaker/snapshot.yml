@@ -1,0 +1,10 @@
+version: 1
+scenario: llm-circuit-breaker
+profile: headless
+composition: circuit-breaker
+recording: authored
+header:
+  class: circuit-breaker
+  pin: true
+  systemPromptSource: text-turn
+  toolSchemasSource: text-turn
