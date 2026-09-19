@@ -3,6 +3,12 @@
 /** Environment variable that supplies the Electron application identifier. */
 export const DESKTOP_APP_ID_ENV = 'DSH_DESKTOP_APP_ID'
 
+/** Environment variable that supplies the installed application name. */
+export const DESKTOP_PRODUCT_NAME_ENV = 'DSH_DESKTOP_PRODUCT_NAME'
+
+/** Environment variable that supplies the release artifact filename prefix. */
+export const DESKTOP_ARTIFACT_PREFIX_ENV = 'DSH_DESKTOP_ARTIFACT_PREFIX'
+
 /** Environment variable that supplies electron-builder's macOS certificate qualifier. */
 export const MACOS_SIGNING_IDENTITY_ENV = 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY'
 
@@ -43,6 +49,23 @@ export function resolveDesktopAppId(env) {
     throw new Error(`desktop release environment: ${DESKTOP_APP_ID_ENV} must be a reverse-DNS identifier`)
   }
   return appId
+}
+
+/**
+ * Resolve deployment-owned product and artifact names.
+ * @param {NodeJS.ProcessEnv} env Packaging environment.
+ * @returns {{ productName: string, artifactPrefix: string }} Validated public names.
+ */
+export function resolveDesktopProductIdentity(env) {
+  const productName = env[DESKTOP_PRODUCT_NAME_ENV]?.trim() || 'DeepSeek Harness'
+  const artifactPrefix = env[DESKTOP_ARTIFACT_PREFIX_ENV]?.trim() || 'deepseek-harness'
+  if (!/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/u.test(productName)) {
+    throw new Error(`desktop release environment: ${DESKTOP_PRODUCT_NAME_ENV} contains unsupported filename characters`)
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(artifactPrefix)) {
+    throw new Error(`desktop release environment: ${DESKTOP_ARTIFACT_PREFIX_ENV} must be a filename prefix without spaces or path separators`)
+  }
+  return { productName, artifactPrefix }
 }
 
 /**

@@ -22,7 +22,7 @@ async function withDirectory(action: (directory: string) => Promise<void>): Prom
 describe('Desktop local packaging configuration', () => {
   it('selects the platform file, preserves literal secrets, and excludes stale ambient release settings', async () => {
     await withDirectory(async (directory) => {
-      await writeFile(join(directory, '.env.windows'), '\uFEFFDSH_DESKTOP_APP_ID=com.example.windows\r\nDSH_DESKTOP_WINDOWS_TOKEN_PIN=" #!$%&literal "\r\nDSH_DESKTOP_WINDOWS_CER_FILE="keys/public certificate.cer"\r\n')
+      await writeFile(join(directory, '.env.windows'), '\uFEFFDSH_DESKTOP_APP_ID=com.example.windows\r\nDSH_DESKTOP_PRODUCT_NAME=Oasisfish\r\nDSH_DESKTOP_ARTIFACT_PREFIX=Oasisfish\r\nDSH_DESKTOP_WINDOWS_TOKEN_PIN=" #!$%&literal "\r\nDSH_DESKTOP_WINDOWS_CER_FILE="keys/public certificate.cer"\r\n')
       await writeFile(join(directory, '.env.macos'), 'DSH_DESKTOP_APP_ID=com.example.mac\nAPPLE_KEYCHAIN_PROFILE=release\nCSC_LINK=keys/signing.p12\nCSC_KEY_PASSWORD=" # literal "\n')
       const parent = {
         PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.stale.desktop',
@@ -36,6 +36,7 @@ describe('Desktop local packaging configuration', () => {
       }
       expect(loadDesktopPackageEnvironment('win32', parent, directory)).toEqual({
         PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.example.windows',
+        DSH_DESKTOP_PRODUCT_NAME: 'Oasisfish', DSH_DESKTOP_ARTIFACT_PREFIX: 'Oasisfish',
         DSH_DESKTOP_WINDOWS_TOKEN_PIN: ' #!$%&literal ',
         DSH_DESKTOP_WINDOWS_CER_FILE: join(directory, 'keys', 'public certificate.cer'),
       })
