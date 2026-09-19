@@ -7,7 +7,7 @@
  */
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, resolve } from 'node:path'
+import { basename, dirname, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import type { ToolSchema } from '@deepseek-ai/dsh-llm'
@@ -681,8 +681,13 @@ export type ToolCatalog = CatalogPackage[]
  *
  * `scanRoot` defaults to the repo root; a test may point it at a fixture tree.
  */
-export function assertManifestComplete(packages: ToolPackage[] = TOOL_PACKAGES, scanRoot: string = root): void {
-  const onDisk = globSync('packages/*/tool-*', { cwd: scanRoot }).map(p => basename(p)).sort()
+export function assertManifestComplete(
+  packages: readonly Pick<ToolPackage, 'dir'>[] = TOOL_PACKAGES,
+  scanRoot: string = root,
+): void {
+  const onDisk = globSync('packages/*/tool-*/package.json', { cwd: scanRoot })
+    .map(p => basename(dirname(p)))
+    .sort()
   const listed = new Set(packages.map(p => p.dir))
   const missing = onDisk.filter(dir => !listed.has(dir))
   if (missing.length > 0) {
