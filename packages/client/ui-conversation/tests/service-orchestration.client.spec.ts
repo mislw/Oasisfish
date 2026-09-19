@@ -163,6 +163,7 @@ describe('ConversationController', () => {
       maxImagesPerMessage: 1,
       maxMessageImageBytes: 8,
       maxImagePixels: 40_000_000,
+      maxImageDimension: 8192,
       mediaTypes: ['image/png'] as const,
     }
     try {

@@ -20,8 +20,9 @@ export type OasisUiLauncherButtonProps =
   PropsRuntime<'conversation.input.left'> & OasisUiLauncherInjected
 
 export function OasisUiLauncherButton({
-  launcher, addFiles, input, inputActions, sessionId, useProjection,
+  launcher, addFiles, useInput, inputActions, sessionId, useProjection,
 }: OasisUiLauncherButtonProps) {
+  const input = useInput(value => value)
   const busy = input.phase !== 'plain'
   const imageLimits = useProjection('imageLimits')
   return (

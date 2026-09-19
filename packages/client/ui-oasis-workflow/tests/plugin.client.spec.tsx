@@ -14,7 +14,7 @@ describe('Oasis UI workflow plugins', () => {
   it('registers and disposes the model-visible host guidance', async () => {
     expect(hostInject).toEqual(['systemPrompt'])
     const ctx = new Context()
-    await ctx.plugin(SystemPrompt, { persona: '' })
+    await ctx.plugin(SystemPrompt, {})
     const fiber = ctx.plugin({ inject: [...hostInject], apply: applyHost })
     await fiber.await()
 

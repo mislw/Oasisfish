@@ -308,7 +308,7 @@ describe('OasisUiLauncherButton', () => {
       launcher,
       addFiles,
       sessionId: 'button-session',
-      input: { phase: 'plain', draft: 'current draft' },
+      useInput: vi.fn(() => ({ phase: 'plain', draft: 'current draft' })),
       inputActions,
       useProjection: vi.fn(() => imageLimits),
     } as unknown as OasisUiLauncherButtonProps
@@ -328,7 +328,7 @@ describe('OasisUiLauncherButton', () => {
       launcher,
       addFiles: vi.fn(() => null),
       sessionId: 'busy-session',
-      input: { phase: 'submitting', draft: '' },
+      useInput: vi.fn(() => ({ phase: 'submitting', draft: '' })),
       inputActions: { setDraft: vi.fn(), submit: vi.fn() },
       useProjection: vi.fn(() => undefined),
     } as unknown as OasisUiLauncherButtonProps
