@@ -14,6 +14,8 @@ import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './des
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 import lock from './primary-runtime-lock.json' with { type: 'json' }
 
+const APP_ROOT = resolve(import.meta.dirname, '..')
+
 /**
  * Download or reuse an archive only when its bytes match the release lock.
  * @param url - Locked archive URL.
@@ -77,12 +79,12 @@ export async function unpackPrimaryRuntimeWheel(archive: string, destination: st
 }
 
 /**
- * Copy the skill package's complete asset tree to ordinary filesystem resources.
- * @param source - The package's assets directory.
+ * Copy a complete skill asset tree to ordinary filesystem resources.
+ * @param source - Directory containing one or more skill bundles.
  * @param destination - Desktop runtime resource directory outside ASAR.
  * @returns Resolves after replacing the external assets with the complete package tree.
  */
-export async function prepareOfficeSkillAssets(source: string, destination: string): Promise<void> {
+export async function prepareSkillAssets(source: string, destination: string): Promise<void> {
   rmSync(destination, { recursive: true, force: true })
   await cp(source, destination, { recursive: true, dereference: true })
 }
@@ -145,8 +147,9 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
     rmSync(staging, { recursive: true, force: true })
   }
   const hostRequire = createRequire(resolve(import.meta.dirname, '..', '..', 'desktop-host', 'package.json'))
-  await prepareOfficeSkillAssets(join(dirname(hostRequire.resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets'),
+  await prepareSkillAssets(join(dirname(hostRequire.resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets'),
     join(paths.runtime, 'office-skills'))
+  await prepareSkillAssets(join(APP_ROOT, 'resources', 'bundled-skills'), join(paths.runtime, 'bundled-skills'))
   if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }
 

@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { zipSync } from 'fflate'
 import { expect, it } from 'vitest'
-import { downloadPrimaryRuntimeAsset, prepareOfficeSkillAssets, primaryRuntimePayloadDigest, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from '../scripts/prepare-primary-runtime.ts'
+import { downloadPrimaryRuntimeAsset, prepareSkillAssets, primaryRuntimePayloadDigest, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from '../scripts/prepare-primary-runtime.ts'
 import lock from '../scripts/primary-runtime-lock.json' with { type: 'json' }
 
 const libraryWheel = Buffer.from('UEsDBAoAAAAAAASeLl0sYMPjDAAAAAwAAAAJAAAAc2FtcGxlLnB5c2FtcGxlID0gNDIKUEsBAh4DCgAAAAAABJ4uXSxgw+MMAAAADAAAAAkAAAAAAAAAAQAAAKSBAAAAAHNhbXBsZS5weVBLBQYAAAAAAQABADcAAAAzAAAAAAA=', 'base64')
@@ -119,13 +119,21 @@ it('copies complete Office resources outside the application archive and removes
       await mkdir(join(source, name))
       await writeFile(join(source, name, 'SKILL.md'), `# ${name}\n`)
     }
-    await prepareOfficeSkillAssets(source, destination)
+    await prepareSkillAssets(source, destination)
     await writeFile(join(destination, 'obsolete.py'), 'old helper')
-    await prepareOfficeSkillAssets(source, destination)
+    await prepareSkillAssets(source, destination)
     for (const name of ['office-docx', 'office-pptx', 'office-xlsx']) {
       expect(await readFile(join(destination, name, 'SKILL.md'), 'utf8')).toBe(`# ${name}\n`)
     }
     expect(await readFile(join(destination, 'scripts', 'check_office.py'), 'utf8')).toBe('print("checker")\n')
     await expect(readFile(join(destination, 'obsolete.py'))).rejects.toMatchObject({ code: 'ENOENT' })
   } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+it('carries the current Oasis Wiki skill as a clean bundled Desktop resource', async () => {
+  const root = join(import.meta.dirname, '..', 'resources', 'bundled-skills', 'oasis-wiki')
+  expect((await readFile(join(root, 'VERSION'), 'utf8')).trim()).toBe('1.260909.2')
+  expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toContain('name: oasis-wiki')
+  const entries = await readdir(root, { recursive: true })
+  expect(entries.filter(entry => entry.includes('__pycache__') || entry.endsWith('.pyc'))).toEqual([])
 })

@@ -1,7 +1,7 @@
 /** Electron Node-mode child lifecycle for the shared Web application. */
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { desktopNodeEnvironment } from './node-environment.ts'
 
 interface ReadyEvent {
@@ -88,8 +88,8 @@ export class DesktopHostProcess {
    * @param inspectPort - Optional loopback inspector port for workspace development.
    * @param environment - Environment inherited by the Host and its plugin subprocesses.
    * @param onFailure - Receives the first unexpected child failure, including after readiness.
-   * @param primaryRuntime - Optional bundled dependency payload; when supplied, missing sibling
-   *   `office-skills` resources fail Host startup.
+   * @param primaryRuntime - Optional bundled dependency payload whose sibling directories carry
+   *   application-owned Office and filesystem skill resources.
    * @param packageManager - Bundled pnpm entry and Node launcher directory, scoped to package operations.
    * @param profileResolution - Package resolution mode for the application-owned profile.
    */
@@ -112,18 +112,22 @@ export class DesktopHostProcess {
   async start(): Promise<DesktopHostReady> {
     if (this.child !== undefined) return this.readyPromise
     const entry = join(this.runtimeDir, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
+    const primaryRuntime = this.primaryRuntime ?? join(this.runtimeDir, '..', 'runtime', 'primary-runtime')
     const child = spawn(this.node, [
       '--expose-internals',
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
       entry,
       this.runtimeDir,
       this.projectDir,
-      this.primaryRuntime ?? join(this.runtimeDir, '..', 'runtime', 'primary-runtime'),
+      primaryRuntime,
       this.profileResolution,
       ...this.packageManager === undefined ? [] : [this.packageManager.pnpm, this.packageManager.nodeBin],
     ], {
       cwd: this.projectDir,
-      env: desktopNodeEnvironment(this.node, undefined, this.environment),
+      env: desktopNodeEnvironment(this.node, undefined, {
+        ...this.environment,
+        DSH_BUNDLED_SKILL_DIR: join(dirname(primaryRuntime), 'bundled-skills'),
+      }),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })
     this.child = child
