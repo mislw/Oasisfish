@@ -1,0 +1,6 @@
+- insert:
+    - id: desktop-wallpaper-engine
+      name: 'dsh-plugin-wallpaper-engine'
+
+    - id: ui-wallpaper-engine-onboarding
+      name: '@deepseek-ai/dsh-client-ui-wallpaper-engine-onboarding'

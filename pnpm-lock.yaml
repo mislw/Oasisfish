@@ -1893,6 +1893,9 @@ importers:
 
   packages/bundle/desktop-wallpaper-engine:
     dependencies:
+      '@deepseek-ai/dsh-client-ui-wallpaper-engine-onboarding':
+        specifier: workspace:^
+        version: link:../../client/ui-wallpaper-engine-onboarding
       dsh-plugin-wallpaper-engine:
         specifier: 0.7.5
         version: 0.7.5(patch_hash=ace8a05124d4c0e87aa58274bc7957efa11e1d1abdad8573ad76d2351983bbac)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-client-ui-slots@packages+client+ui-slots)(@deepseek-ai/dsh-host-webserver@packages+host+webserver)(react@18.3.1)
@@ -1900,6 +1903,18 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@deepseek-ai/cordis-plugin-include':
+        specifier: workspace:^
+        version: link:../../../vendor/include
+      '@deepseek-ai/cordis-plugin-loader':
+        specifier: workspace:^
+        version: link:../../../vendor/loader
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:^
+        version: link:../../boot/app-boot
+      '@deepseek-ai/dsh-client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:^
         version: link:../../client/ui-slots
