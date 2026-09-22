@@ -64,15 +64,7 @@ kind: "package-bundle"
 <a id="model-experience"></a>
 ## 模型体验
 
-### Desktop 壁纸组合
-
-#### 模型看到的内容
-
-任何模型请求都不会收到来自 `@deepseek-ai/dsh-desktop-wallpaper-engine` 的内容。插入的包只添加浏览器与 Host 行为，不注册模型提示词、工具或模型可见的 Session 事件。
-
-#### Token 影响
-
-直接 token 影响为零。
+无，因为该静态 bundle 只添加浏览器与 Host 行为，不会向模型请求添加内容。
 
 #### KV Cache 影响
 

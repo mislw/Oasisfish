@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/desktop-wallpaper-engine/README.md
-README.md: de65b08356ddce64c9d25624555ef0a689054d4e
-README.zh.md: 708a3cec7f031032664c3b9d0ffbb56a6ba7fd11
+README.md: ed8bc5975a168b755a3a4608c25b354635376b66
+README.zh.md: b26e592e497727434530cc7eaec2c0fd62513ced

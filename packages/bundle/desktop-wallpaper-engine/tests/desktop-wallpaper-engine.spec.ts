@@ -14,6 +14,18 @@ const BUNDLE = '@deepseek-ai/dsh-desktop-wallpaper-engine'
 const PACKAGE_ROOT = fileURLToPath(new URL('../', import.meta.url))
 
 describe('desktop wallpaper engine bundle', () => {
+  test('pins and resolves Wallpaper Engine 0.7.5 exactly', () => {
+    const wrapper = JSON.parse(
+      readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+    ) as { dependencies?: Record<string, unknown> }
+    const installed = JSON.parse(
+      readFileSync(require.resolve('dsh-plugin-wallpaper-engine/package.json'), 'utf8'),
+    ) as { version?: unknown }
+
+    expect(wrapper.dependencies?.['dsh-plugin-wallpaper-engine']).toBe('0.7.5')
+    expect(installed.version).toBe('0.7.5')
+  })
+
   test('does not install the legacy Client runtime peer', () => {
     const lockfile = readFileSync(new URL('../../../../pnpm-lock.yaml', import.meta.url), 'utf8')
 
@@ -57,14 +69,17 @@ describe('desktop wallpaper engine bundle', () => {
   })
 
   test('removes both Loader rows when the bundle fiber is disposed', async () => {
+    const ctx = new Context()
     const root = mkdtempSync(join(PACKAGE_ROOT, '.bundle-test-'))
+    onTestFinished(async () => {
+      try {
+        await ctx.fiber.dispose()
+      } finally {
+        rmSync(root, { recursive: true, force: true })
+      }
+    })
     const configPath = join(root, 'cordis.yml')
     writeFileSync(configPath, '[]\n')
-    const ctx = new Context()
-    onTestFinished(async () => {
-      await ctx.fiber.dispose()
-      rmSync(root, { recursive: true, force: true })
-    })
     await ctx.plugin(Loader).await()
     ctx.loader.builtins.include = Include
     const bundleId = await ctx.loader.create({

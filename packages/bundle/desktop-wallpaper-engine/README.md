@@ -64,15 +64,7 @@ The bundle is a static patch carrier. Its single insert adds exactly two rows an
 <a id="model-experience"></a>
 ## Model Experience
 
-### Desktop wallpaper composition
-
-#### What the model sees
-
-No model request receives content from `@deepseek-ai/dsh-desktop-wallpaper-engine`. The inserted packages add browser and Host behavior without registering model prompts, tools, or model-visible Session events.
-
-#### Token effect
-
-Zero direct tokens.
+None, as this static bundle adds browser and Host behavior without contributing model-request content.
 
 #### KV Cache effect
 
