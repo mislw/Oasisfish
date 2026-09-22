@@ -1,0 +1,2 @@
+- id: session-telemetry-otel
+  disabled: true

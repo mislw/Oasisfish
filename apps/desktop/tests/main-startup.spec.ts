@@ -1242,6 +1242,14 @@ describe('desktop main startup', () => {
   })
 
   it.each([0, 1, 2])('waits for Host exit before recovery action %s', async (response) => {
+    const recoveryStarted = Promise.withResolvers<undefined>()
+    const recoveryFinished = Promise.withResolvers<string>()
+    if (response === 2) {
+      harness.disableAllPlugins.mockImplementationOnce(() => {
+        recoveryStarted.resolve(undefined)
+        return recoveryFinished.promise
+      })
+    }
     harness.dialog.showMessageBox.mockResolvedValue({ response, checkboxChecked: false })
     await import('../src/main.ts')
     await harness.preparing.promise
@@ -1255,6 +1263,11 @@ describe('desktop main startup', () => {
     expect(harness.app.relaunch).not.toHaveBeenCalled()
     expect(harness.disableAllPlugins).not.toHaveBeenCalled()
     host.exited.resolve()
+    if (response === 2) {
+      await recoveryStarted.promise
+      expect(harness.app.relaunch).not.toHaveBeenCalled()
+      recoveryFinished.resolve('desktop-test-profile/cordis.patch.yml.bak-1789555200000')
+    }
     await harness.quitCompleted.promise
     expect(harness.app.relaunch).toHaveBeenCalledTimes(response === 0 ? 0 : 1)
     expect(harness.disableAllPlugins).toHaveBeenCalledTimes(response === 2 ? 1 : 0)

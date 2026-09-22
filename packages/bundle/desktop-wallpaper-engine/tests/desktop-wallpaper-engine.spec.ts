@@ -83,7 +83,6 @@ describe('desktop wallpaper engine bundle', () => {
     await ctx.plugin(Loader).await()
     ctx.loader.builtins.include = Include
     const bundleId = await ctx.loader.create({
-      id: 'desktop-wallpaper-engine-bundle',
       name: 'cordis:include',
       config: {
         path: pathToFileURL(configPath).href,
@@ -94,7 +93,7 @@ describe('desktop wallpaper engine bundle', () => {
     await ctx.loader.await()
     const bundle = ctx.loader.resolve(bundleId)
     const rows = () => [...ctx.loader.entries()]
-      .filter(entry => entry.options.id !== 'desktop-wallpaper-engine-bundle')
+      .filter(entry => entry.options.id !== bundleId)
       .map(entry => [entry.options.id, entry.options.name])
     expect(rows()).toEqual([
       ['desktop-wallpaper-engine', 'dsh-plugin-wallpaper-engine'],
