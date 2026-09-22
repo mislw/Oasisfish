@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/superpowers/specs/2026-09-22-desktop-wallpaper-engine-integration-design.md
+2026-09-22-desktop-wallpaper-engine-integration-design.md: 7ae6db864955119cd95c1f25370f89a8d156421e
+2026-09-22-desktop-wallpaper-engine-integration-design.zh.md: 61a31b1a6c222f499d43bd5253bfaf4231f9b071
