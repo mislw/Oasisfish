@@ -19,6 +19,15 @@ overrides:
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
 
+packageExtensions:
+  'dsh-plugin-wallpaper-engine@0.7.5':
+    peerDependenciesMeta:
+      '@deepseek-ai/dsh-client-runtime':
+        optional: true
+
+ignoredOptionalDependencies:
+  - '@deepseek-ai/dsh-client-runtime'
+
 peerDependencyRules:
   allowedVersions:
     typescript: '>=5 <7'
