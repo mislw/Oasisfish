@@ -39,6 +39,9 @@ const { RemoteMock } = await import(REMOTE_MOCK_SPECIFIER)
 const realFetch = globalThis.fetch.bind(globalThis)
 const running = new Set<RunningDesktop>()
 const roots = new Set<string>()
+let upstreamClientLoad = 0
+let upstreamReact: ReactModule | undefined
+let upstreamReactDom: ReactDomModule | undefined
 const ENV_RESTORATION_PROBE = 'DSH_DESKTOP_WALLPAPER_ENV_RESTORATION_PROBE'
 const originalEnvRestorationProbe = process.env[ENV_RESTORATION_PROBE]
 
@@ -46,6 +49,19 @@ type DesktopApplication = Awaited<ReturnType<typeof runProfile>>
 
 interface ClientPluginModule {
   apply(...args: never[]): unknown
+}
+
+interface ReactModule {
+  createElement(type: unknown): unknown
+}
+
+interface ReactRoot {
+  render(node: unknown): void
+  unmount(): void
+}
+
+interface ReactDomModule {
+  createRoot(container: Element | DocumentFragment): ReactRoot
 }
 
 interface ClientRosterRow {
@@ -66,6 +82,7 @@ interface AuthenticatedDesktop extends RunningDesktop {
 
 interface SlotEntry {
   readonly options: { readonly id?: string }
+  readonly component: unknown
   readonly inject?: () => { probe(signal: AbortSignal): Promise<{ kind: string }> }
 }
 
@@ -120,13 +137,16 @@ async function loadUpstreamClient(): Promise<ClientPluginModule> {
     },
   }
   try {
-    await import(/* @vite-ignore */ `${pathToFileURL(clientPath).href}?desktop-wallpaper-engine-task-6`)
+    await import(/* @vite-ignore */ `${pathToFileURL(clientPath).href}?desktop-wallpaper-engine-task-7-${String(++upstreamClientLoad)}`)
   } finally {
     if (previous === undefined) delete target.__ModuleLoader__
     else target.__ModuleLoader__ = previous
   }
   if (factory === undefined) throw new Error('Wallpaper Engine Client artifact did not register its module factory')
-  return factory(name => clientRequire(name))
+  const plugin = factory(name => clientRequire(name))
+  upstreamReact = clientRequire('react') as ReactModule
+  upstreamReactDom = clientRequire('react-dom/client') as ReactDomModule
+  return plugin
 }
 
 async function startDesktop(profileDir: string): Promise<AuthenticatedDesktop> {
@@ -327,7 +347,8 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
 
     let desktop = await startDesktop(profileDir)
     let activeDesktop = desktop
-    const browserRequests: string[] = []
+    const browserRequests: Array<{ method: string; path: string }> = []
+    const browserRequestSettlements: Promise<void>[] = []
 
     const initialSettings = await route(desktop, '/wallpaper-engine/settings')
     expect(initialSettings.status).toBe(200)
@@ -339,12 +360,27 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
     const routedBrowserFetch = (input: string | URL | Request, init?: RequestInit) => {
       const value = typeof input === 'string' || input instanceof URL ? String(input) : input.url
       const target = new URL(value, activeDesktop.origin)
-      browserRequests.push(target.pathname)
-      return route(activeDesktop, `${target.pathname}${target.search}`, init)
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
+      browserRequests.push({ method, path: target.pathname })
+      const response = route(activeDesktop, `${target.pathname}${target.search}`, init)
+      browserRequestSettlements.push(response.then(() => undefined))
+      return response
     }
     await withClientBrowserEnvironment(routedBrowserFetch, async () => {
       const mock = RemoteMock.create().load(remoteDefaultResponses)
-      const client = await TestClient.start({
+      const persistFlushes: Array<() => void> = []
+      const browserWindow = document.defaultView
+      if (browserWindow === null) throw new Error('Wallpaper Engine Client test omitted its browser window')
+      const browserSetTimeout = browserWindow.setTimeout.bind(browserWindow)
+      const persistTimerSpy = vi.spyOn(browserWindow, 'setTimeout').mockImplementation((handler, timeout, ...args) => {
+        if (timeout === 200 && typeof handler === 'function') {
+          persistFlushes.push(() => handler(...args))
+          return browserSetTimeout(() => undefined, 0) as unknown as ReturnType<typeof globalThis.setTimeout>
+        }
+        return browserSetTimeout(handler, timeout, ...args) as unknown as ReturnType<typeof globalThis.setTimeout>
+      })
+      let settingsRoot: ReactRoot | undefined
+      let client = await TestClient.start({
         roster: clientRoster(),
         provide: {
           [UPSTREAM_CLIENT]: await loadUpstreamClient(),
@@ -352,16 +388,53 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
         },
       }, mock)
       try {
-        const slots = client.ctx.get('slots') as Slots
+        let slots = client.ctx.get('slots') as Slots
         await vi.waitFor(() => {
           expect(slots.entries('settings.section').map(entry => entry.options.id)).toContain('wallpaper-engine')
           expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).toContain('wallpaper-engine-setup')
         })
         await vi.waitFor(() => {
-          expect(browserRequests).toContain('/wallpaper-engine/settings')
-          expect(browserRequests).toContain('/wallpaper-engine/inventory')
+          expect(browserRequests).toContainEqual({ method: 'GET', path: '/wallpaper-engine/settings' })
+          expect(browserRequests).toContainEqual({ method: 'GET', path: '/wallpaper-engine/inventory' })
         })
+        await Promise.all(browserRequestSettlements.splice(0))
+        await new Promise<void>(resolve => browserSetTimeout(resolve, 0))
+        expect(persistFlushes).toEqual([])
+        const settingsAfterBoot = await route(desktop, '/wallpaper-engine/settings')
+        expect(settingsAfterBoot.status).toBe(200)
+        expect(await settingsAfterBoot.json()).toMatchObject({ settings: null })
         expect(document.querySelectorAll(STYLE_SELECTOR)).toHaveLength(1)
+        const settings = slots.entries('settings.section')
+          .find(entry => entry.options.id === 'wallpaper-engine')
+        if (settings === undefined || upstreamReact === undefined || upstreamReactDom === undefined) {
+          throw new Error('Wallpaper Engine settings section omitted its render runtime')
+        }
+        const settingsHost = document.body.appendChild(document.createElement('div'))
+        settingsRoot = upstreamReactDom.createRoot(settingsHost)
+        settingsRoot.render(upstreamReact.createElement(settings.component))
+        let refresh: HTMLButtonElement | undefined
+        await vi.waitFor(() => {
+          refresh = [...settingsHost.querySelectorAll('button')]
+            .find(button => button.textContent === '刷新')
+          expect(refresh).toBeDefined()
+        })
+        const inventoryLoadsBeforeRefresh = browserRequests
+          .filter(request => request.method === 'GET' && request.path === '/wallpaper-engine/inventory').length
+        refresh!.click()
+        await vi.waitFor(() => {
+          expect(browserRequests.filter(request => (
+            request.method === 'GET' && request.path === '/wallpaper-engine/inventory'
+          ))).toHaveLength(inventoryLoadsBeforeRefresh + 1)
+        })
+        await Promise.all(browserRequestSettlements.splice(0))
+        await new Promise<void>(resolve => browserSetTimeout(resolve, 0))
+        expect(persistFlushes).toEqual([])
+        const settingsAfterRefresh = await route(desktop, '/wallpaper-engine/settings')
+        expect(settingsAfterRefresh.status).toBe(200)
+        expect(await settingsAfterRefresh.json()).toMatchObject({ settings: null })
+        settingsRoot.unmount()
+        settingsRoot = undefined
+        persistTimerSpy.mockRestore()
         const onboarding = slots.entries('settings.onboarding')
           .find(entry => entry.options.id === 'wallpaper-engine-setup')
         if (onboarding?.inject === undefined) throw new Error('Wallpaper Engine onboarding entry omitted its injected probe')
@@ -380,9 +453,28 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
 
         desktop = await startDesktop(profileDir)
         activeDesktop = desktop
+        browserRequests.length = 0
+        await client.dispose()
+        client = await TestClient.start({
+          roster: clientRoster(),
+          provide: {
+            [UPSTREAM_CLIENT]: await loadUpstreamClient(),
+            [ONBOARDING_CLIENT]: onboardingClient,
+          },
+        }, mock)
+        slots = client.ctx.get('slots') as Slots
+        await vi.waitFor(() => {
+          expect(browserRequests).toContainEqual({ method: 'GET', path: '/wallpaper-engine/inventory' })
+        })
+        await vi.waitFor(() => {
+          expect(browserRequests).toContainEqual({ method: 'PUT', path: '/wallpaper-engine/settings' })
+        })
+        await Promise.all(browserRequestSettlements.splice(0))
         const restored = await route(desktop, '/wallpaper-engine/settings')
         expect(restored.status).toBe(200)
-        expect(await restored.json()).toMatchObject({ settings: savedBody.settings })
+        expect(await restored.json()).toMatchObject({
+          settings: { ...savedBody.settings, rotationSeeded: true },
+        })
         await expect(onboarding.inject().probe(new AbortController().signal))
           .resolves.toEqual({ kind: 'configured' })
 
@@ -395,7 +487,12 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
         expect(slots.entries('settings.section').map(entry => entry.options.id)).not.toContain('wallpaper-engine')
         expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).not.toContain('wallpaper-engine-setup')
       } finally {
-        await client.dispose()
+        try {
+          settingsRoot?.unmount()
+          await client.dispose()
+        } finally {
+          persistTimerSpy.mockRestore()
+        }
       }
     })
 

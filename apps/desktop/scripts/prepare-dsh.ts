@@ -43,7 +43,7 @@ const NODE = join(BUILD_PATHS.electron, process.platform === 'win32' ? 'electron
 const PNPM = join(RUNTIME_ROOT, 'pnpm', 'bin', 'pnpm.mjs')
 const WALLPAPER_ENGINE_PACKAGE = 'dsh-plugin-wallpaper-engine@0.7.5'
 const WALLPAPER_ENGINE_PATCH_FILE = `patches/${WALLPAPER_ENGINE_PACKAGE}.patch`
-const WALLPAPER_ENGINE_PATCH_HASH = 'ace8a05124d4c0e87aa58274bc7957efa11e1d1abdad8573ad76d2351983bbac'
+const WALLPAPER_ENGINE_PATCH_HASH = 'b3818065c598d5de52d90d8dec31f93a950bbdae077ae6981126462ff4cc53af'
 const WALLPAPER_ENGINE_RUNTIME_VERSIONS = {
   'dsh-plugin-wallpaper-engine': '0.7.5',
   'jpeg-js': '0.4.4',

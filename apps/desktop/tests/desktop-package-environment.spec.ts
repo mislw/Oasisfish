@@ -45,7 +45,7 @@ describe('Desktop local packaging configuration', () => {
     const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
     const verifyLockfile = preparation.verifyWallpaperEngineRuntimeLockfile as (body: string) => void
     expect(() => {
-      verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: ace8a05124d4c0e87aa58274bc7957efa11e1d1abdad8573ad76d2351983bbac\n')
+      verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: b3818065c598d5de52d90d8dec31f93a950bbdae077ae6981126462ff4cc53af\n')
     }).not.toThrow()
     expect(() => {
       verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: wrong\n')

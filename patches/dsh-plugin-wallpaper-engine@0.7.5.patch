@@ -1,6 +1,38 @@
 diff --git a/lib/client.js b/lib/client.js
 --- a/lib/client.js
 +++ b/lib/client.js
-@@ -6037 +6037 @@ window.__ModuleLoader__.load({
+@@ -561,0 +562 @@ window.__ModuleLoader__.load({
++		let persistNormalized = true;
+@@ -608 +609,2 @@ window.__ModuleLoader__.load({
+-		  persistWrites++;
++		  persistNormalized = true;
++		  persistWrites++;
+@@ -652,0 +655 @@ window.__ModuleLoader__.load({
++		    if (!parsedLocal && !stale) persistNormalized = false;
+@@ -724 +727 @@ window.__ModuleLoader__.load({
+-		    persistSelection();
++		    if (persistNormalized) persistSelection();
+@@ -728 +731 @@ window.__ModuleLoader__.load({
+-		    persistSelection();
++		    if (persistNormalized) persistSelection();
+@@ -740 +743 @@ window.__ModuleLoader__.load({
+-		    persistSelection();
++		    if (persistNormalized) persistSelection();
+@@ -831 +834 @@ window.__ModuleLoader__.load({
+-		    persistSelection();
++		    if (persistNormalized) persistSelection();
+@@ -836 +839 @@ window.__ModuleLoader__.load({
+-		    persistSelection();
++		    if (persistNormalized) persistSelection();
+@@ -842 +845 @@ window.__ModuleLoader__.load({
+-		  applySelection(selection.id);
++		  applySelection(selection.id, persistNormalized);
+@@ -1022 +1025 @@ window.__ModuleLoader__.load({
+-		function applySelection(id) {
++		function applySelection(id, persist = true) {
+@@ -1027 +1030 @@ window.__ModuleLoader__.load({
+-		  persistSelection();
++		  if (persist) persistSelection();
+@@ -6037 +6040 @@ window.__ModuleLoader__.load({
 -		  tag.dataset.plugin = "dsh-wallpaper-engine";
 +		  tag.dataset.plugin = "dsh-plugin-wallpaper-engine";

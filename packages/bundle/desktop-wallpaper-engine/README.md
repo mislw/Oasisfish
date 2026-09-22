@@ -39,14 +39,17 @@ The upstream package owns Wallpaper Engine discovery, HTTP routes, background re
 
 The bundle is a static patch carrier. Its single insert adds exactly two rows and owns no service, event, mutable state, or runtime invariant beyond that composition. Each inserted package owns its own lifecycle and cleanup.
 
+The reviewed pnpm patch keeps a Host `settings: null` response durable across Client inventory normalization and refreshes until a user settings mutation, while preserving normalization of an existing saved object and its notifications. The same patch assigns the global stylesheet to the Client module id so Loader disposal removes it.
+
 ### Source map
 
 | File | Role |
 |---|---|
 | [`cordis.patch.yml`](cordis.patch.yml) | Inserts the pinned upstream row and the first-party onboarding row |
+| [`../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch`](../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch) | Audited compatibility changes for first-run persistence and stylesheet ownership |
 | [`src/index.ts`](src/index.ts) | Package entry with no runtime API |
 | - | No runtime invariant companion is published; the package is a static patch-list carrier and the inserted packages own their runtime relationships. |
-| [`tests/desktop-wallpaper-engine.spec.ts`](tests/desktop-wallpaper-engine.spec.ts) | Dependency pin, patch composition, order, ordinary-Web isolation, and Loader disposal checks |
+| [`tests/desktop-wallpaper-engine.spec.ts`](tests/desktop-wallpaper-engine.spec.ts) | Dependency pin, patched artifact, composition, order, ordinary-Web isolation, and Loader disposal checks |
 
 </details>
 
@@ -74,7 +77,7 @@ The bundle adds no request content and does not invalidate an otherwise reusable
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Compatibility follows the exact upstream release** - updating `dsh-plugin-wallpaper-engine` requires reviewing its Host routes, Client registrations, global styling, and cleanup against the current Desktop Web application before changing the pin.
+- **Compatibility follows the exact upstream release** - updating `dsh-plugin-wallpaper-engine` requires re-auditing the pnpm patch, Host routes, Client persistence, registrations, global styling, and cleanup against the current Desktop Web application before changing the pin.
 - **The layer requires a Web-backed profile** - adding it to Headless, SDK, SDK Minimal, or ACP composition is unsupported and does not create a browser surface.
 
 <a id="dev-note"></a>

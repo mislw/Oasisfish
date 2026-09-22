@@ -39,14 +39,17 @@ kind: "package-bundle"
 
 本 bundle 是静态 patch 载体。它的单个 insert 恰好添加两行；除了该组合外，本包不拥有服务、事件、可变状态或运行时不变式。每个插入包负责自己的生命周期与清理。
 
+经审查的 pnpm patch 使 Host 的 `settings: null` 响应在 Client inventory 规范化与刷新期间保持持久状态，直至用户更改 settings，同时保留对已有已保存对象的规范化及其通知。该 patch 还把全局样式表归属到 Client 模块 id，使 Loader 释放时能将其移除。
+
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
 | [`cordis.patch.yml`](cordis.patch.yml) | 插入固定版本的上游行与第一方引导行 |
+| [`../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch`](../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch) | 首次使用持久化与样式表归属的审查后兼容性改动 |
 | [`src/index.ts`](src/index.ts) | 不含运行时 API 的包入口 |
 | - | 不发布运行时不变式伴生入口；本包是静态 patch 列表载体，插入的各包负责自己的运行时关系。 |
-| [`tests/desktop-wallpaper-engine.spec.ts`](tests/desktop-wallpaper-engine.spec.ts) | 依赖版本、patch 组合、顺序、普通 Web 隔离与 Loader 释放检查 |
+| [`tests/desktop-wallpaper-engine.spec.ts`](tests/desktop-wallpaper-engine.spec.ts) | 依赖版本、已应用 patch 的产物、组合、顺序、普通 Web 隔离与 Loader 释放检查 |
 
 </details>
 
@@ -74,7 +77,7 @@ kind: "package-bundle"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **兼容性跟随固定的上游版本** - 更新 `dsh-plugin-wallpaper-engine` 固定版本前，必须针对当前 Desktop Web 应用复查其 Host 路由、Client 注册、全局样式与清理行为。
+- **兼容性跟随固定的上游版本** - 更新 `dsh-plugin-wallpaper-engine` 固定版本前，必须针对当前 Desktop Web 应用重新审查 pnpm patch、Host 路由、Client 持久化、注册、全局样式与清理行为。
 - **该层需要基于 Web 的 profile** - 不支持把它加入 Headless、SDK、SDK Minimal 或 ACP 组合；这样做不会创建浏览器表层。
 
 <a id="dev-note"></a>

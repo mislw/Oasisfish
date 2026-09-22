@@ -32,11 +32,16 @@ describe('desktop wallpaper engine bundle', () => {
     expect(lockfile).not.toMatch(/^  '@deepseek-ai\/dsh-client-runtime@/mu)
   })
 
-  test('uses the Client module id as the stylesheet owner', () => {
+  test('applies the audited Client compatibility patch', () => {
     const client = readFileSync(require.resolve('dsh-plugin-wallpaper-engine/client'), 'utf8')
 
     expect(client).toContain('tag.dataset.plugin = "dsh-plugin-wallpaper-engine"')
     expect(client).not.toContain('tag.dataset.plugin = "dsh-wallpaper-engine"')
+    expect(client).toContain('if (!parsedLocal && !stale) persistNormalized = false')
+    expect(client).toContain('function persistSelection() {\n\t\t  persistNormalized = true;\n\t\t  persistWrites++;')
+    expect(client).toContain('loadPersisted().then(loadInventory)')
+    expect(client).toContain('\t\t  applyEffects();\n\t\t  emit();')
+    expect(client).not.toContain('return persistNormalized;')
   })
 
   test('adds exactly the two Desktop rows without changing the ordinary Web roster', () => {
