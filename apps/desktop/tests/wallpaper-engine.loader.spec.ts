@@ -39,6 +39,8 @@ const { RemoteMock } = await import(REMOTE_MOCK_SPECIFIER)
 const realFetch = globalThis.fetch.bind(globalThis)
 const running = new Set<RunningDesktop>()
 const roots = new Set<string>()
+const ENV_RESTORATION_PROBE = 'DSH_DESKTOP_WALLPAPER_ENV_RESTORATION_PROBE'
+const originalEnvRestorationProbe = process.env[ENV_RESTORATION_PROBE]
 
 type DesktopApplication = Awaited<ReturnType<typeof runProfile>>
 
@@ -78,6 +80,24 @@ function installDom(): () => void {
     dom.window.close()
     for (const key of keys) Reflect.deleteProperty(globalThis, key)
     for (const [key, value] of originals) Reflect.set(globalThis, key, value)
+  }
+}
+
+async function withClientBrowserEnvironment<T>(
+  browserFetch: typeof globalThis.fetch,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const disposeDom = installDom()
+  const previousFetch = globalThis.fetch
+  globalThis.fetch = browserFetch
+  try {
+    return await operation()
+  } finally {
+    try {
+      globalThis.fetch = previousFetch
+    } finally {
+      disposeDom()
+    }
   }
 }
 
@@ -135,8 +155,8 @@ async function startDesktop(profileDir: string): Promise<AuthenticatedDesktop> {
 }
 
 async function stopDesktop(desktop: RunningDesktop): Promise<void> {
-  running.delete(desktop)
   await desktop.application.shutdown.shutdown(0)
+  running.delete(desktop)
 }
 
 async function route(desktop: AuthenticatedDesktop, path: string, init?: RequestInit): Promise<Response> {
@@ -172,23 +192,120 @@ function clientRoster() {
     : row)).closure([UPSTREAM_CLIENT, ONBOARDING_CLIENT, SETTINGS_GENERAL_CLIENT])
 }
 
-afterEach(async () => {
-  vi.unstubAllGlobals()
+async function cleanupResources(): Promise<void> {
+  const errors: unknown[] = []
   for (const desktop of [...running]) {
     try {
       await stopDesktop(desktop)
-    } catch {
-      // The test failure owns the diagnostic; root cleanup below still removes its private state.
+    } catch (error) {
+      errors.push(error)
     }
   }
-  for (const root of roots) {
-    await unlinkTreeLinks(root)
-    await rm(root, { recursive: true, force: true })
+  if (running.size === 0) {
+    for (const root of [...roots]) {
+      try {
+        await unlinkTreeLinks(root)
+        await rm(root, { recursive: true, force: true })
+        roots.delete(root)
+      } catch (error) {
+        errors.push(error)
+      }
+    }
   }
-  roots.clear()
+  if (errors.length === 1) throw errors[0]
+  if (errors.length > 1) {
+    throw new AggregateError(errors, 'Desktop Wallpaper Engine test cleanup failed')
+  }
+}
+
+afterEach(async () => {
+  try {
+    await cleanupResources()
+  } finally {
+    try {
+      vi.unstubAllGlobals()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  }
 })
 
 describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
+  it('restores stubbed environment variables after each test', () => {
+    vi.stubEnv(ENV_RESTORATION_PROBE, 'stubbed-by-wallpaper-loader-test')
+    expect(process.env[ENV_RESTORATION_PROBE]).toBe('stubbed-by-wallpaper-loader-test')
+  })
+
+  it('observes the original environment after the preceding test', () => {
+    expect(process.env[ENV_RESTORATION_PROBE]).toBe(originalEnvRestorationProbe)
+  })
+
+  it('restores browser globals when Client startup fails', async () => {
+    const previousDocument = globalThis.document
+    const previousFetch = globalThis.fetch
+    const startupError = new Error('simulated Client startup failure')
+
+    await expect(withClientBrowserEnvironment(vi.fn(), async () => {
+      throw startupError
+    })).rejects.toBe(startupError)
+
+    expect(globalThis.document).toBe(previousDocument)
+    expect(globalThis.fetch).toBe(previousFetch)
+  })
+
+  it('retains shutdown ownership until shutdown succeeds', async () => {
+    const shutdownError = new Error('simulated desktop shutdown failure')
+    let failShutdown = true
+    const desktop = {
+      application: {
+        shutdown: {
+          shutdown: vi.fn(async () => {
+            if (failShutdown) throw shutdownError
+          }),
+        },
+      },
+      launchUrl: 'http://desktop.invalid/',
+    } as unknown as RunningDesktop
+    running.add(desktop)
+
+    await expect(stopDesktop(desktop)).rejects.toBe(shutdownError)
+    const retained = running.has(desktop)
+    failShutdown = false
+    if (!retained) running.add(desktop)
+
+    expect(retained).toBe(true)
+  })
+
+  it('surfaces cleanup failures and preserves roots owned by a live desktop', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-desktop-wallpaper-cleanup-'))
+    const marker = join(root, 'marker.txt')
+    await writeFile(marker, 'owned')
+    roots.add(root)
+    const shutdownError = new Error('simulated cleanup shutdown failure')
+    let failShutdown = true
+    const desktop = {
+      application: {
+        shutdown: {
+          shutdown: vi.fn(async () => {
+            if (failShutdown) throw shutdownError
+          }),
+        },
+      },
+      launchUrl: 'http://desktop.invalid/',
+    } as unknown as RunningDesktop
+    running.add(desktop)
+
+    await expect(cleanupResources()).rejects.toBe(shutdownError)
+    expect(running.has(desktop)).toBe(true)
+    await expect(readFile(marker, 'utf8')).resolves.toBe('owned')
+
+    failShutdown = false
+    await cleanupResources()
+    expect(running.has(desktop)).toBe(false)
+    expect(roots.has(root)).toBe(false)
+    await expect(readFile(marker, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('restores saved settings across restart and removes the integration during native recovery', { timeout: 240_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-desktop-wallpaper-'))
     roots.add(root)
@@ -219,70 +336,68 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
     expect(inventory.status).toBe(200)
     expect(await inventory.json()).toMatchObject({ wallpapers: expect.any(Array), playlists: expect.any(Array) })
 
-    const disposeDom = installDom()
-    const browserFetch = globalThis.fetch
-    globalThis.fetch = (input: string | URL | Request, init?: RequestInit) => {
+    const routedBrowserFetch = (input: string | URL | Request, init?: RequestInit) => {
       const value = typeof input === 'string' || input instanceof URL ? String(input) : input.url
       const target = new URL(value, activeDesktop.origin)
       browserRequests.push(target.pathname)
       return route(activeDesktop, `${target.pathname}${target.search}`, init)
     }
-    const mock = RemoteMock.create().load(remoteDefaultResponses)
-    const client = await TestClient.start({
-      roster: clientRoster(),
-      provide: {
-        [UPSTREAM_CLIENT]: await loadUpstreamClient(),
-        [ONBOARDING_CLIENT]: onboardingClient,
-      },
-    }, mock)
-    try {
-      const slots = client.ctx.get('slots') as Slots
-      await vi.waitFor(() => {
-        expect(slots.entries('settings.section').map(entry => entry.options.id)).toContain('wallpaper-engine')
-        expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).toContain('wallpaper-engine-setup')
-      })
-      await vi.waitFor(() => {
-        expect(browserRequests).toContain('/wallpaper-engine/settings')
-        expect(browserRequests).toContain('/wallpaper-engine/inventory')
-      })
-      expect(document.querySelectorAll(STYLE_SELECTOR)).toHaveLength(1)
-      const onboarding = slots.entries('settings.onboarding')
-        .find(entry => entry.options.id === 'wallpaper-engine-setup')
-      if (onboarding?.inject === undefined) throw new Error('Wallpaper Engine onboarding entry omitted its injected probe')
-      await expect(onboarding.inject().probe(new AbortController().signal))
-        .resolves.toEqual({ kind: 'setup-required' })
+    await withClientBrowserEnvironment(routedBrowserFetch, async () => {
+      const mock = RemoteMock.create().load(remoteDefaultResponses)
+      const client = await TestClient.start({
+        roster: clientRoster(),
+        provide: {
+          [UPSTREAM_CLIENT]: await loadUpstreamClient(),
+          [ONBOARDING_CLIENT]: onboardingClient,
+        },
+      }, mock)
+      try {
+        const slots = client.ctx.get('slots') as Slots
+        await vi.waitFor(() => {
+          expect(slots.entries('settings.section').map(entry => entry.options.id)).toContain('wallpaper-engine')
+          expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).toContain('wallpaper-engine-setup')
+        })
+        await vi.waitFor(() => {
+          expect(browserRequests).toContain('/wallpaper-engine/settings')
+          expect(browserRequests).toContain('/wallpaper-engine/inventory')
+        })
+        expect(document.querySelectorAll(STYLE_SELECTOR)).toHaveLength(1)
+        const onboarding = slots.entries('settings.onboarding')
+          .find(entry => entry.options.id === 'wallpaper-engine-setup')
+        if (onboarding?.inject === undefined) throw new Error('Wallpaper Engine onboarding entry omitted its injected probe')
+        await expect(onboarding.inject().probe(new AbortController().signal))
+          .resolves.toEqual({ kind: 'setup-required' })
 
-      const saved = await route(desktop, '/wallpaper-engine/settings', {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: '' }),
-      })
-      expect(saved.status).toBe(200)
-      const savedBody = await saved.json() as { settings: Record<string, unknown> }
-      expect(savedBody.settings).toMatchObject({ id: '' })
-      await stopDesktop(desktop)
+        const saved = await route(desktop, '/wallpaper-engine/settings', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: '' }),
+        })
+        expect(saved.status).toBe(200)
+        const savedBody = await saved.json() as { settings: Record<string, unknown> }
+        expect(savedBody.settings).toMatchObject({ id: '' })
+        await stopDesktop(desktop)
 
-      desktop = await startDesktop(profileDir)
-      activeDesktop = desktop
-      const restored = await route(desktop, '/wallpaper-engine/settings')
-      expect(restored.status).toBe(200)
-      expect(await restored.json()).toMatchObject({ settings: savedBody.settings })
-      await expect(onboarding.inject().probe(new AbortController().signal))
-        .resolves.toEqual({ kind: 'configured' })
+        desktop = await startDesktop(profileDir)
+        activeDesktop = desktop
+        const restored = await route(desktop, '/wallpaper-engine/settings')
+        expect(restored.status).toBe(200)
+        expect(await restored.json()).toMatchObject({ settings: savedBody.settings })
+        await expect(onboarding.inject().probe(new AbortController().signal))
+          .resolves.toEqual({ kind: 'configured' })
 
-      const disabledRoster = clientRoster().without([UPSTREAM_CLIENT, ONBOARDING_CLIENT])
-      const modules = client.ctx.loader.internal as {
-        entries: { sync(graph: ReturnType<typeof graphFromRoster>): Promise<void> }
+        const disabledRoster = clientRoster().without([UPSTREAM_CLIENT, ONBOARDING_CLIENT])
+        const modules = client.ctx.loader.internal as {
+          entries: { sync(graph: ReturnType<typeof graphFromRoster>): Promise<void> }
+        }
+        await modules.entries.sync(graphFromRoster(disabledRoster.rows))
+        expect(document.querySelectorAll(STYLE_SELECTOR)).toHaveLength(0)
+        expect(slots.entries('settings.section').map(entry => entry.options.id)).not.toContain('wallpaper-engine')
+        expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).not.toContain('wallpaper-engine-setup')
+      } finally {
+        await client.dispose()
       }
-      await modules.entries.sync(graphFromRoster(disabledRoster.rows))
-      expect(document.querySelectorAll(STYLE_SELECTOR)).toHaveLength(0)
-      expect(slots.entries('settings.section').map(entry => entry.options.id)).not.toContain('wallpaper-engine')
-      expect(slots.entries('settings.onboarding').map(entry => entry.options.id)).not.toContain('wallpaper-engine-setup')
-    } finally {
-      await client.dispose()
-      globalThis.fetch = browserFetch
-      disposeDom()
-    }
+    })
 
     const configPath = join(userHome, '.dsh-wallpaper-engine', 'config.json')
     const savedConfig = await readFile(configPath, 'utf8')
