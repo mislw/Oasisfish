@@ -3,9 +3,31 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
-import { DesktopProjectManager } from '../src/project-manager.ts'
-import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
+import {
+  DESKTOP_PROFILE_DEFAULT_BUNDLES,
+  DESKTOP_WALLPAPER_BUNDLE,
+  DesktopProjectManager,
+  offerDesktopDefaultBundles,
+  parseDesktopDefaultBundleState,
+  type DesktopDefaultBundleState,
+} from '../src/project-manager.ts'
+import { initProfile, PROFILE_TEMPLATES, readProfileManifest, readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
 import { runtimeFixture } from './runtime-fixture.ts'
+
+const atomicWriteControl = vi.hoisted(() => ({ rejectPath: undefined as string | undefined }))
+vi.mock('@deepseek-ai/dsh-atomic-write', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@deepseek-ai/dsh-atomic-write')>()
+  return {
+    ...actual,
+    writeFileAtomic: vi.fn(async (...args: Parameters<typeof actual.writeFileAtomic>) => {
+      if (args[0] === atomicWriteControl.rejectPath) throw new Error('injected atomic writer failure')
+      await actual.writeFileAtomic(...args)
+    }),
+  }
+})
+
+const WALLPAPER_BUNDLE = '@deepseek-ai/dsh-desktop-wallpaper-engine'
+const DEFAULT_BUNDLE_STATE = 'desktop-default-bundles.json'
 
 const roots: string[] = []
 function temporaryRoot(): string {
@@ -39,10 +61,153 @@ function setup(): { root: string; manager: DesktopProjectManager } {
   return { root, manager: new DesktopProjectManager(resolveDesktopPaths(join(root, '.dsh')), { dsh }) }
 }
 afterEach(() => {
+  atomicWriteControl.rejectPath = undefined
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
+function profileBundles(manager: DesktopProjectManager): readonly string[] {
+  return readProfileManifest('test', manager.paths.profile).dsh?.profile?.bundles ?? []
+}
+
+function defaultBundleState(manager: DesktopProjectManager): DesktopDefaultBundleState {
+  return JSON.parse(readFileSync(join(manager.paths.profile, DEFAULT_BUNDLE_STATE), 'utf8')) as DesktopDefaultBundleState
+}
+
+describe('desktop default bundle state', () => {
+  it('exports the Desktop-only default after the ordinary Web bundles', () => {
+    expect(DESKTOP_WALLPAPER_BUNDLE).toBe(WALLPAPER_BUNDLE)
+    expect(DESKTOP_PROFILE_DEFAULT_BUNDLES).toEqual([
+      ...PROFILE_TEMPLATES.web!.bundles,
+      WALLPAPER_BUNDLE,
+    ])
+  })
+
+  it('parses the versioned offer record', () => {
+    expect(parseDesktopDefaultBundleState({
+      schemaVersion: 1,
+      offeredBundles: [WALLPAPER_BUNDLE],
+    })).toEqual({ schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE] })
+  })
+
+  it.each([
+    ['wrong schema version', { schemaVersion: 2, offeredBundles: [WALLPAPER_BUNDLE] }],
+    ['duplicate offered bundles', { schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE, WALLPAPER_BUNDLE] }],
+    ['non-string offered bundle', { schemaVersion: 1, offeredBundles: [7] }],
+  ])('rejects %s', (_name, value) => {
+    expect(() => parseDesktopDefaultBundleState(value)).toThrow('desktop default bundles: invalid state')
+  })
+
+  it('records duplicate defaults only once', async () => {
+    const { manager } = setup()
+    initProfile(manager.paths.profile, PROFILE_TEMPLATES.web!.bundles)
+    await offerDesktopDefaultBundles(manager.paths.profile, [WALLPAPER_BUNDLE, WALLPAPER_BUNDLE])
+    expect(profileBundles(manager)).toEqual([...PROFILE_TEMPLATES.web!.bundles, WALLPAPER_BUNDLE])
+    expect(defaultBundleState(manager)).toEqual({ schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE] })
+  })
+})
+
 describe('desktop external plugin profile', () => {
+  it('creates a fresh profile with the Desktop default and records the one-time offer', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    expect(profileBundles(manager)).toEqual([...PROFILE_TEMPLATES.web!.bundles, WALLPAPER_BUNDLE])
+    expect(defaultBundleState(manager)).toEqual({ schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE] })
+  })
+
+  it('offers the Desktop default to an existing Web-only profile', async () => {
+    const { manager } = setup()
+    initProfile(manager.paths.profile, PROFILE_TEMPLATES.web!.bundles)
+    await manager.applyRelease()
+    expect(profileBundles(manager)).toEqual([...PROFILE_TEMPLATES.web!.bundles, WALLPAPER_BUNDLE])
+    expect(defaultBundleState(manager)).toEqual({ schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE] })
+  })
+
+  it('does not rewrite the offer record or manifest on repeated release application', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const statePath = join(manager.paths.profile, DEFAULT_BUNDLE_STATE)
+    const manifest = readFileSync(manifestPath)
+    const state = readFileSync(statePath)
+    await manager.applyRelease()
+    expect(readFileSync(manifestPath)).toEqual(manifest)
+    expect(readFileSync(statePath)).toEqual(state)
+  })
+
+  it('preserves a user-disabled Desktop default after it has been offered', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const manifest = readProfileManifest('test', manager.paths.profile)
+    manifest.dsh!.profile!.bundles = manifest.dsh!.profile!.bundles!.filter(bundle => bundle !== WALLPAPER_BUNDLE)
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, undefined, 2)}\n`)
+    const disabled = readFileSync(manifestPath)
+    await manager.applyRelease()
+    expect(profileBundles(manager)).toEqual(PROFILE_TEMPLATES.web!.bundles)
+    expect(readFileSync(manifestPath)).toEqual(disabled)
+    expect(defaultBundleState(manager)).toEqual({ schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE] })
+  })
+
+  it('records a missing offer state without duplicating an already-present default', async () => {
+    const { manager } = setup()
+    initProfile(manager.paths.profile, [...PROFILE_TEMPLATES.web!.bundles, WALLPAPER_BUNDLE])
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const manifest = readFileSync(manifestPath)
+    await manager.applyRelease()
+    expect(readFileSync(manifestPath)).toEqual(manifest)
+    expect(profileBundles(manager)).toEqual([...PROFILE_TEMPLATES.web!.bundles, WALLPAPER_BUNDLE])
+    expect(defaultBundleState(manager)).toEqual({ schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE] })
+  })
+
+  it.each([
+    ['malformed JSON', '{broken'],
+    ['wrong schema version', '{"schemaVersion":2,"offeredBundles":[]}\n'],
+    ['duplicate offered bundles', `{"schemaVersion":1,"offeredBundles":["${WALLPAPER_BUNDLE}","${WALLPAPER_BUNDLE}"]}\n`],
+    ['non-string offered bundle', '{"schemaVersion":1,"offeredBundles":[17]}\n'],
+  ])('rejects %s state without rewriting profile files', async (_name, state) => {
+    const { manager } = setup()
+    initProfile(manager.paths.profile, PROFILE_TEMPLATES.web!.bundles)
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const statePath = join(manager.paths.profile, DEFAULT_BUNDLE_STATE)
+    const seededManifest = readProfileManifest('test', manager.paths.profile)
+    seededManifest.dependencies = { ...seededManifest.dependencies, '@deepseek-ai/dsh-base': '1.0.0' }
+    writeFileSync(manifestPath, `${JSON.stringify(seededManifest, undefined, 2)}\n`)
+    writeFileSync(statePath, state)
+    const manifest = readFileSync(manifestPath)
+    const stateBytes = readFileSync(statePath)
+    await expect(manager.applyRelease(true)).rejects.toThrow()
+    expect(readFileSync(manifestPath)).toEqual(manifest)
+    expect(readFileSync(statePath)).toEqual(stateBytes)
+    expect(existsSync(manager.paths.lock)).toBe(false)
+  })
+
+  it('preserves both files when manifest publication fails', async () => {
+    const { manager } = setup()
+    initProfile(manager.paths.profile, PROFILE_TEMPLATES.web!.bundles)
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const manifest = readFileSync(manifestPath)
+    atomicWriteControl.rejectPath = manifestPath
+    await expect(manager.applyRelease()).rejects.toThrow('injected atomic writer failure')
+    expect(readFileSync(manifestPath)).toEqual(manifest)
+    expect(existsSync(join(manager.paths.profile, DEFAULT_BUNDLE_STATE))).toBe(false)
+    expect(existsSync(manager.paths.lock)).toBe(false)
+  })
+
+  it('publishes the manifest before state so a failed state write retries without a duplicate', async () => {
+    const { manager } = setup()
+    initProfile(manager.paths.profile, PROFILE_TEMPLATES.web!.bundles)
+    const statePath = join(manager.paths.profile, DEFAULT_BUNDLE_STATE)
+    atomicWriteControl.rejectPath = statePath
+    await expect(manager.applyRelease()).rejects.toThrow('injected atomic writer failure')
+    expect(profileBundles(manager)).toEqual([...PROFILE_TEMPLATES.web!.bundles, WALLPAPER_BUNDLE])
+    expect(existsSync(statePath)).toBe(false)
+    expect(existsSync(manager.paths.lock)).toBe(false)
+    atomicWriteControl.rejectPath = undefined
+    await manager.applyRelease()
+    expect(profileBundles(manager)).toEqual([...PROFILE_TEMPLATES.web!.bundles, WALLPAPER_BUNDLE])
+    expect(defaultBundleState(manager)).toEqual({ schemaVersion: 1, offeredBundles: [WALLPAPER_BUNDLE] })
+  })
+
   it('cleans application packages only when preparing a production launch', async () => {
     const { manager } = setup()
     await manager.applyRelease()
@@ -103,6 +268,19 @@ describe('desktop external plugin profile', () => {
     expect(manifest.dsh.profile.bundles).toContain('@deepseek-ai/dsh-web-app')
     await manager.applyRelease()
     expect(readFileSync(patch, 'utf8')).toContain('[]')
+  })
+
+  it('native recovery removes the Desktop default without clearing or repeating its offer', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const statePath = join(manager.paths.profile, DEFAULT_BUNDLE_STATE)
+    const state = readFileSync(statePath)
+    await manager.disableAllPlugins()
+    expect(profileBundles(manager)).toEqual(PROFILE_TEMPLATES.web!.bundles)
+    expect(readFileSync(statePath)).toEqual(state)
+    await manager.applyRelease()
+    expect(profileBundles(manager)).toEqual(PROFILE_TEMPLATES.web!.bundles)
+    expect(readFileSync(statePath)).toEqual(state)
   })
 
   it('needs no runtime or package manifest when no plugins have been installed', async () => {
