@@ -68,7 +68,7 @@ macOS 上自定义应用菜单还会声明标准的 File、Window 和应用菜�
 4. 主应用的“插件”页面通过共享[插件管理器](../../packages/boot/plugin-manager/README.zh.md)操作 Desktop profile。包操作使用内置 pnpm 及正常的用户和 profile 配置。
 5. 共享管理器负责安装错误、激活和重启要求。即使 Host 无法启动，原生恢复仍可禁用第三方 bundle。
 
-Desktop 默认 manifest 使用普通 `web` bundle 列表，并在末尾追加 `@deepseek-ai/dsh-desktop-wallpaper-engine`。新的用户 profile、开发项目和打包运行时项目都使用该列表。对于已有 Desktop profile，`desktop-default-bundles.json` 记录已向该 profile 提供过的每个 Desktop 专用默认 bundle；记录不存在时，启动仅在包装 bundle 缺失时追加一次，然后写入记录。之后用户在“插件”页面移除该包装 bundle，启动不会再次恢复它。
+官方 Desktop 构建使用普通 `web` bundle 列表，并在末尾追加 `@deepseek-ai/dsh-desktop-wallpaper-engine`。新的用户 profile、开发项目和打包运行时项目都使用该列表。对于已有 Desktop profile，`desktop-default-bundles.json` 记录已向该 profile 提供过的每个 Desktop 专用默认 bundle；记录不存在时，启动仅在包装 bundle 缺失时追加一次，然后写入记录。之后用户在“插件”页面移除该包装 bundle，启动不会再次恢复它。
 
 Desktop 在 profile 清理前验证现有提供记录；JSON 格式错误、未知 schema、重复名称或非字符串名称会使 profile 准备失败，且不改写 manifest 或记录。提供操作改变启用列表时，Desktop 先原子发布 `package.json`，再发布状态记录。因此，状态写入失败可能留下已更新的 manifest 和缺失的记录；启动失败并释放事务锁，下次启动会重试，且不会重复追加 bundle。原生恢复仅恢复普通 Web bundle 并保留提供记录，因此会禁用包装 bundle，后续启动也不会重新启用它。
 
@@ -79,6 +79,10 @@ Desktop 在 profile 清理前验证现有提供记录；JSON 格式错误、未�
 原生弹窗详情最多包含 1,200 个 UTF-16 代码单元和八行诊断；完整的已报告错误写入 Electron 控制台。Host 错误诊断仅保留 stderr 输出的最后 64 Ki 个字符。更早的输出会被丢弃，避免长期运行的 Host 使壳的诊断缓冲区无限增长。
 
 恢复操作等待 Host 关闭后才修改插件启用状态。原生恢复操作在 profile 事务锁内调用共享 app-boot 恢复函数。它禁用第三方 bundle，并将 profile 的 `cordis.patch.yml` 重命名为 `cordis.patch.yml.bak-<timestamp>`（重名时追加序号），无需解析；下次启动创建空 patch。已安装包和已有备份保留。home 级 patch 不变。Electron 控制台记录备份路径（或原文件不存在）以及 home 级 patch 未修改。profile 数据无效、重命名失败或写入失败会作为恢复操作错误报告；已完成的修改保留，Desktop 不会假装恢复成功后重启。Desktop 不提供 profile 重置操作或应急 HTML 文档。
+
+仅当上游 `GET /wallpaper-engine/settings` 响应包含 `settings: null` 时，Wallpaper Engine 提示才会出现；任何 settings 对象（包括空对象）都会抑制后续引导。上游插件把配置存储在 `~/.dsh-wallpaper-engine`，在 Host 或 Desktop 重启后恢复配置，并自行负责壁纸选择；Desktop 不保存副本。
+
+在“插件”页面禁用包装 bundle 会同时移除上游集成与引导，并在重启后继续生效。原生恢复执行相同的完整禁用，同时保留上游配置目录。Wallpaper Engine 设置分区内的中英文混合文案与平台发现行为仍是固定版本上游插件的限制。
 
 包事务独占 `$DSH_HOME/profiles/desktop/lock`，直到 pnpm 进程退出。pnpm 运行前，共享模块回退辅助函数只删除其拥有的链接，保留 pnpm 管理的目录；开发 Host 在启动时重建所需链接。链接清理保留目标目录。原生构建遵循 pnpm 配置的构建策略；发布准备使用独立的构建期允许列表。
 
