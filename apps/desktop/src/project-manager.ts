@@ -88,6 +88,8 @@ function readDesktopDefaultBundleState(projectDir: string): DesktopDefaultBundle
 /**
  * Append defaults not previously offered and publish the updated offer record.
  * The caller owns the Desktop profile transaction lock.
+ * If state publication rejects after a manifest change, the manifest remains
+ * committed and a later locked call is expected to retry without appending a duplicate.
  * @param projectDir - Desktop profile package directory.
  * @param defaults - New application defaults eligible for a one-time offer.
  * @returns Resolves after the manifest and offer record are published in that order.
