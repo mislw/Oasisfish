@@ -1,0 +1,6 @@
+diff --git a/lib/client.js b/lib/client.js
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -6037 +6037 @@ window.__ModuleLoader__.load({
+-		  tag.dataset.plugin = "dsh-wallpaper-engine";
++		  tag.dataset.plugin = "dsh-plugin-wallpaper-engine";

@@ -1,0 +1,14 @@
+{
+  "name": "@deepseek-ai/dsh-desktop-wallpaper-engine",
+  "version": "1.20260919.1",
+  "type": "module",
+  "dependencies": {
+    "dsh-plugin-wallpaper-engine": "0.7.5"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-slots": "workspace:^",
+    "@deepseek-ai/dsh-host-webserver": "workspace:^",
+    "react": "^18.2.0"
+  }
+}
