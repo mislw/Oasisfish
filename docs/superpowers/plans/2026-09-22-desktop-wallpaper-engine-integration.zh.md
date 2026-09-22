@@ -93,7 +93,7 @@
 
 创建 Bundle 测试文件，读取实际解析到的已安装 `lib/client.js` 并要求模块所有权标签：
 
-```ts
+```ts ignore
 const client = readFileSync(require.resolve('dsh-plugin-wallpaper-engine/client'), 'utf8')
 expect(client).toContain('tag.dataset.plugin = "dsh-plugin-wallpaper-engine"')
 expect(client).not.toContain('tag.dataset.plugin = "dsh-wallpaper-engine"')
@@ -164,7 +164,7 @@ git commit -m "build(desktop): pin wallpaper engine plugin"
 
 覆盖以下精确情况：`{ settings: null }`、`{ settings: {} }`、`{ settings: { id: '' } }`、非 2xx 响应、损坏 JSON、缺少 `settings`、数组 settings、fetch 抛错，以及 dispose 期间一次被中止的请求。
 
-```ts
+```ts ignore
 await expect(probeWallpaperSettings(fetcher({ settings: null }))).resolves.toEqual({ kind: 'setup-required' })
 await expect(probeWallpaperSettings(fetcher({ settings: {} }))).resolves.toEqual({ kind: 'configured' })
 await expect(probeWallpaperSettings(fetcher({ settings: { id: '' } }))).resolves.toEqual({ kind: 'configured' })
@@ -195,7 +195,7 @@ export type WallpaperSettingsReadiness =
 
 使用 `@deepseek-ai/dsh-client-ui-primitives` 的 `Modal`，显示期间保持 `#root` inert，聚焦标题，并且只提供一个主操作。在 `settings.wallpaper-engine-onboarding` 命名空间下注册类型化字典，并注入探测闭包和 `ctx.logger.warn`。
 
-```ts
+```ts ignore
 const openSettings = (): void => {
   complete()
   openSection('wallpaper-engine')
@@ -296,7 +296,7 @@ git commit -m "feat(desktop): add wallpaper engine bundle"
 
 加入新 Profile、没有 wrapper 的现有 Profile、重复应用发布、用户禁用 wrapper、原生恢复、缺失状态、损坏 JSON、错误 schema version、重复 offered bundle、非字符串条目，以及原子写入器拒绝时没有部分更新文件的测试。
 
-```ts
+```ts ignore
 expect(manifest.dsh.profile.bundles).toEqual([...PROFILE_TEMPLATES.web.bundles, DESKTOP_WALLPAPER_BUNDLE])
 expect(state).toEqual({ schemaVersion: 1, offeredBundles: [DESKTOP_WALLPAPER_BUNDLE] })
 ```

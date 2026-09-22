@@ -93,7 +93,7 @@ English | [中文](2026-09-22-desktop-wallpaper-engine-integration.zh.md)
 
 Create the bundle test file with an assertion that reads the resolved installed `lib/client.js` and requires the module-owned tag:
 
-```ts
+```ts ignore
 const client = readFileSync(require.resolve('dsh-plugin-wallpaper-engine/client'), 'utf8')
 expect(client).toContain('tag.dataset.plugin = "dsh-plugin-wallpaper-engine"')
 expect(client).not.toContain('tag.dataset.plugin = "dsh-wallpaper-engine"')
@@ -164,7 +164,7 @@ git commit -m "build(desktop): pin wallpaper engine plugin"
 
 Cover these exact cases: `{ settings: null }`, `{ settings: {} }`, `{ settings: { id: '' } }`, non-2xx response, malformed JSON, missing `settings`, array settings, thrown fetch, and one aborted request during disposal.
 
-```ts
+```ts ignore
 await expect(probeWallpaperSettings(fetcher({ settings: null }))).resolves.toEqual({ kind: 'setup-required' })
 await expect(probeWallpaperSettings(fetcher({ settings: {} }))).resolves.toEqual({ kind: 'configured' })
 await expect(probeWallpaperSettings(fetcher({ settings: { id: '' } }))).resolves.toEqual({ kind: 'configured' })
@@ -195,7 +195,7 @@ Assert that loading renders nothing; configured and unavailable call `complete()
 
 Use `Modal` from `@deepseek-ai/dsh-client-ui-primitives`, keep `#root` inert while visible, focus the title, and expose only one primary action. Register typed dictionaries under namespace `settings.wallpaper-engine-onboarding` and inject a probe closure plus `ctx.logger.warn`.
 
-```ts
+```ts ignore
 const openSettings = (): void => {
   complete()
   openSection('wallpaper-engine')
@@ -296,7 +296,7 @@ git commit -m "feat(desktop): add wallpaper engine bundle"
 
 Add tests for a fresh profile, an existing profile without the wrapper, repeated release application, a user-disabled wrapper, native recovery, missing state, malformed JSON, wrong schema version, duplicate offered bundles, non-string entries, and no partially updated file when the atomic writer rejects.
 
-```ts
+```ts ignore
 expect(manifest.dsh.profile.bundles).toEqual([...PROFILE_TEMPLATES.web.bundles, DESKTOP_WALLPAPER_BUNDLE])
 expect(state).toEqual({ schemaVersion: 1, offeredBundles: [DESKTOP_WALLPAPER_BUNDLE] })
 ```

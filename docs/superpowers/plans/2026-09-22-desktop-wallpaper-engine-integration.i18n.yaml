@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/superpowers/plans/2026-09-22-desktop-wallpaper-engine-integration.md
-2026-09-22-desktop-wallpaper-engine-integration.md: 139073622354cb1d0e5cb1ff48bada85ca638eaa
-2026-09-22-desktop-wallpaper-engine-integration.zh.md: e4587f5c8450467f4da38cbc9c79b624c55206d4
+2026-09-22-desktop-wallpaper-engine-integration.md: 69375cf3f1a1b25f6a51b4096c4939168841fdd1
+2026-09-22-desktop-wallpaper-engine-integration.zh.md: 9f4496e243a939c057fa5525532a493a313075de
