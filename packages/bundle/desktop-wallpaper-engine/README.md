@@ -39,14 +39,14 @@ The upstream package owns Wallpaper Engine discovery, HTTP routes, background re
 
 The bundle is a static patch carrier. Its single insert adds exactly two rows and owns no service, event, mutable state, or runtime invariant beyond that composition. Each inserted package owns its own lifecycle and cleanup.
 
-The reviewed pnpm patch keeps a Host `settings: null` response durable across Client inventory normalization and refreshes until a user settings mutation, while preserving normalization of an existing saved object and its notifications. The same patch assigns the global stylesheet to the Client module id so Loader disposal removes it.
+The reviewed pnpm patch keeps a Host `settings: null` response durable across Client inventory normalization and refreshes until a user settings mutation, while preserving normalization of an existing saved object and its notifications. It also assigns the global stylesheet to the Client module id and owns the asynchronous settings and inventory startup in an abortable plugin effect, so Loader disposal removes global styling and prevents late responses from restoring it.
 
 ### Source map
 
 | File | Role |
 |---|---|
 | [`cordis.patch.yml`](cordis.patch.yml) | Inserts the pinned upstream row and the first-party onboarding row |
-| [`../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch`](../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch) | Audited compatibility changes for first-run persistence and stylesheet ownership |
+| [`../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch`](../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch) | Audited compatibility changes for first-run persistence, stylesheet ownership, and startup cancellation |
 | [`src/index.ts`](src/index.ts) | Package entry with no runtime API |
 | - | No runtime invariant companion is published; the package is a static patch-list carrier and the inserted packages own their runtime relationships. |
 | [`tests/desktop-wallpaper-engine.spec.ts`](tests/desktop-wallpaper-engine.spec.ts) | Dependency pin, patched artifact, composition, order, ordinary-Web isolation, and Loader disposal checks |

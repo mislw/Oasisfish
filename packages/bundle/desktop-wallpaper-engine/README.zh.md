@@ -39,14 +39,14 @@ kind: "package-bundle"
 
 本 bundle 是静态 patch 载体。它的单个 insert 恰好添加两行；除了该组合外，本包不拥有服务、事件、可变状态或运行时不变式。每个插入包负责自己的生命周期与清理。
 
-经审查的 pnpm patch 使 Host 的 `settings: null` 响应在 Client inventory 规范化与刷新期间保持持久状态，直至用户更改 settings，同时保留对已有已保存对象的规范化及其通知。该 patch 还把全局样式表归属到 Client 模块 id，使 Loader 释放时能将其移除。
+经审查的 pnpm patch 使 Host 的 `settings: null` 响应在 Client inventory 规范化与刷新期间保持持久状态，直至用户更改 settings，同时保留对已有已保存对象的规范化及其通知。该 patch 还把全局样式表归属到 Client 模块 id，并以可中止的插件 effect 管理异步 settings 与 inventory 启动，因此 Loader 释放会移除全局样式，并阻止延迟响应重新应用这些样式。
 
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
 | [`cordis.patch.yml`](cordis.patch.yml) | 插入固定版本的上游行与第一方引导行 |
-| [`../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch`](../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch) | 首次使用持久化与样式表归属的审查后兼容性改动 |
+| [`../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch`](../../../patches/dsh-plugin-wallpaper-engine@0.7.5.patch) | 首次使用持久化、样式表归属与启动取消的审查后兼容性改动 |
 | [`src/index.ts`](src/index.ts) | 不含运行时 API 的包入口 |
 | - | 不发布运行时不变式伴生入口；本包是静态 patch 列表载体，插入的各包负责自己的运行时关系。 |
 | [`tests/desktop-wallpaper-engine.spec.ts`](tests/desktop-wallpaper-engine.spec.ts) | 依赖版本、已应用 patch 的产物、组合、顺序、普通 Web 隔离与 Loader 释放检查 |

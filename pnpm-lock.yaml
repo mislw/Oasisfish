@@ -14,7 +14,7 @@ packageExtensionsChecksum: sha256-VbzvOM5QQc3wNmOy+LNAC5FQxYc3+RhI3R+88UI/HMU=
 patchedDependencies:
   '@electron/osx-sign@1.3.3': 280e7b2816caf01423097d24e79107a66afeb563a348630ce9928ae8499a5861
   '@yao-pkg/pkg@6.21.0': 07f08c630d0d3886d81fd4600116d07e4871ddcd57f92cb22746b6d246cdc337
-  dsh-plugin-wallpaper-engine@0.7.5: b3818065c598d5de52d90d8dec31f93a950bbdae077ae6981126462ff4cc53af
+  dsh-plugin-wallpaper-engine@0.7.5: c072d3bab81f7d5983a6939ef13eb452ba6b4971786eb412215b6741fe5e79ce
   node-pty@1.2.0-beta.15: b40ae545608897914bd25fb009c97eeac478c34e8a910298ddcb01b746534bb0
 
 importers:
@@ -1913,7 +1913,7 @@ importers:
         version: link:../../client/ui-wallpaper-engine-onboarding
       dsh-plugin-wallpaper-engine:
         specifier: 0.7.5
-        version: 0.7.5(patch_hash=b3818065c598d5de52d90d8dec31f93a950bbdae077ae6981126462ff4cc53af)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-client-ui-slots@packages+client+ui-slots)(@deepseek-ai/dsh-host-webserver@packages+host+webserver)(react@18.3.1)
+        version: 0.7.5(patch_hash=c072d3bab81f7d5983a6939ef13eb452ba6b4971786eb412215b6741fe5e79ce)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-client-ui-slots@packages+client+ui-slots)(@deepseek-ai/dsh-host-webserver@packages+host+webserver)(react@18.3.1)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:^
@@ -24049,7 +24049,7 @@ snapshots:
 
   dotenv@16.6.1: {}
 
-  dsh-plugin-wallpaper-engine@0.7.5(patch_hash=b3818065c598d5de52d90d8dec31f93a950bbdae077ae6981126462ff4cc53af)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-client-ui-slots@packages+client+ui-slots)(@deepseek-ai/dsh-host-webserver@packages+host+webserver)(react@18.3.1):
+  dsh-plugin-wallpaper-engine@0.7.5(patch_hash=c072d3bab81f7d5983a6939ef13eb452ba6b4971786eb412215b6741fe5e79ce)(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-client-ui-slots@packages+client+ui-slots)(@deepseek-ai/dsh-host-webserver@packages+host+webserver)(react@18.3.1):
     dependencies:
       '@deepseek-ai/cordis': link:vendor/cordis
       '@deepseek-ai/dsh-client-ui-slots': link:packages/client/ui-slots

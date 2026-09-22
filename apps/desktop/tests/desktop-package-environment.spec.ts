@@ -1,7 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { spawnSync } from 'node:child_process'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { loadDesktopPackageEnvironment, validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 
 const WINDOWS = { platform: 'win32', arch: 'x64' } as const
@@ -20,8 +21,40 @@ async function withDirectory(action: (directory: string) => Promise<void>): Prom
 }
 
 describe('Desktop local packaging configuration', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
   it('imports runtime preparation without starting a packaging run', async () => {
     await expect(import('../scripts/prepare-dsh.ts')).resolves.toBeDefined()
+  })
+
+  it('imports runtime preparation without validating an unsupported execution target', async () => {
+    vi.stubEnv('DSH_DESKTOP_TARGET_PLATFORM', 'linux')
+    vi.stubEnv('DSH_DESKTOP_TARGET_ARCH', 'x64')
+    vi.resetModules()
+
+    await expect(import('../scripts/prepare-dsh.ts')).resolves.toHaveProperty('prepareWallpaperEngineRuntimePatch')
+  })
+
+  it('validates the target when runtime preparation executes', () => {
+    const result = spawnSync(process.execPath, [
+      '--import',
+      'tsx/esm',
+      resolve(import.meta.dirname, '../scripts/prepare-dsh.ts'),
+    ], {
+      cwd: resolve(import.meta.dirname, '..', '..', '..'),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        DSH_DESKTOP_TARGET_PLATFORM: 'linux',
+        DSH_DESKTOP_TARGET_ARCH: 'x64',
+      },
+    })
+
+    expect(result.status).not.toBe(0)
+    expect(`${result.stdout}${result.stderr}`).toMatch(/unsupported target linux-x64/u)
   })
 
   it('copies the reviewed wallpaper patch and names it in the temporary workspace', async () => {
@@ -45,7 +78,7 @@ describe('Desktop local packaging configuration', () => {
     const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
     const verifyLockfile = preparation.verifyWallpaperEngineRuntimeLockfile as (body: string) => void
     expect(() => {
-      verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: b3818065c598d5de52d90d8dec31f93a950bbdae077ae6981126462ff4cc53af\n')
+      verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: c072d3bab81f7d5983a6939ef13eb452ba6b4971786eb412215b6741fe5e79ce\n')
     }).not.toThrow()
     expect(() => {
       verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: wrong\n')

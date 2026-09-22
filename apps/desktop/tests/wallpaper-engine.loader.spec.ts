@@ -273,6 +273,52 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
     expect(globalThis.fetch).toBe(previousFetch)
   })
 
+  it('does not resume Client startup after disposal', async () => {
+    let resolveSettings: ((response: Response) => void) | undefined
+    const settingsResponse = new Promise<Response>((resolve) => {
+      resolveSettings = resolve
+    })
+    const requests: Array<{ method: string; path: string }> = []
+
+    await withClientBrowserEnvironment(async (input, init) => {
+      const value = typeof input === 'string' || input instanceof URL ? String(input) : input.url
+      const target = new URL(value, 'http://localhost/')
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
+      requests.push({ method, path: target.pathname })
+      if (method === 'GET' && target.pathname === '/wallpaper-engine/settings') return settingsResponse
+      throw new Error(`Unexpected Wallpaper Engine request ${method} ${target.pathname}`)
+    }, async () => {
+      const mock = RemoteMock.create().load(remoteDefaultResponses)
+      const client = await TestClient.start({
+        roster: clientRoster(),
+        provide: {
+          [UPSTREAM_CLIENT]: await loadUpstreamClient(),
+          [ONBOARDING_CLIENT]: onboardingClient,
+        },
+      }, mock)
+      expect(requests).toEqual([{ method: 'GET', path: '/wallpaper-engine/settings' }])
+      expect(document.body.style.getPropertyValue('--we-glass-alpha')).not.toBe('')
+
+      await client.dispose()
+      expect(document.body.style.getPropertyValue('--we-glass-alpha')).toBe('')
+      expect(document.body.hasAttribute('data-we-glass-window')).toBe(false)
+
+      resolveSettings!(new Response(JSON.stringify({
+        settings: {
+          fontCustom: true,
+          fontColor: '#123456',
+          glassWindow: true,
+        },
+      }), { headers: { 'content-type': 'application/json' } }))
+      await new Promise<void>(resolve => setTimeout(resolve, 0))
+
+      expect(document.body.style.getPropertyValue('--we-glass-alpha')).toBe('')
+      expect(document.body.hasAttribute('data-we-glass-window')).toBe(false)
+      expect(document.getElementById('we-font-patch')).toBeNull()
+      expect(requests).toEqual([{ method: 'GET', path: '/wallpaper-engine/settings' }])
+    })
+  })
+
   it('retains shutdown ownership until shutdown succeeds', async () => {
     const shutdownError = new Error('simulated desktop shutdown failure')
     let failShutdown = true
@@ -373,21 +419,22 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
       if (browserWindow === null) throw new Error('Wallpaper Engine Client test omitted its browser window')
       const browserSetTimeout = browserWindow.setTimeout.bind(browserWindow)
       const persistTimerSpy = vi.spyOn(browserWindow, 'setTimeout').mockImplementation((handler, timeout, ...args) => {
-        if (timeout === 200 && typeof handler === 'function') {
+        if (timeout === 200 && typeof handler === 'function' && handler.name === 'flushPersist') {
           persistFlushes.push(() => handler(...args))
           return browserSetTimeout(() => undefined, 0) as unknown as ReturnType<typeof globalThis.setTimeout>
         }
         return browserSetTimeout(handler, timeout, ...args) as unknown as ReturnType<typeof globalThis.setTimeout>
       })
       let settingsRoot: ReactRoot | undefined
-      let client = await TestClient.start({
-        roster: clientRoster(),
-        provide: {
-          [UPSTREAM_CLIENT]: await loadUpstreamClient(),
-          [ONBOARDING_CLIENT]: onboardingClient,
-        },
-      }, mock)
+      let client
       try {
+        client = await TestClient.start({
+          roster: clientRoster(),
+          provide: {
+            [UPSTREAM_CLIENT]: await loadUpstreamClient(),
+            [ONBOARDING_CLIENT]: onboardingClient,
+          },
+        }, mock)
         let slots = client.ctx.get('slots') as Slots
         await vi.waitFor(() => {
           expect(slots.entries('settings.section').map(entry => entry.options.id)).toContain('wallpaper-engine')
@@ -455,6 +502,7 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
         activeDesktop = desktop
         browserRequests.length = 0
         await client.dispose()
+        client = undefined
         client = await TestClient.start({
           roster: clientRoster(),
           provide: {
@@ -489,7 +537,7 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
       } finally {
         try {
           settingsRoot?.unmount()
-          await client.dispose()
+          await client?.dispose()
         } finally {
           persistTimerSpy.mockRestore()
         }

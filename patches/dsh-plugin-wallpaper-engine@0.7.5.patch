@@ -1,38 +1,85 @@
 diff --git a/lib/client.js b/lib/client.js
+index 0cda8dee..182f9898 100644
 --- a/lib/client.js
 +++ b/lib/client.js
 @@ -561,0 +562 @@ window.__ModuleLoader__.load({
 +		let persistNormalized = true;
-@@ -608 +609,2 @@ window.__ModuleLoader__.load({
--		  persistWrites++;
+@@ -608,0 +610 @@ window.__ModuleLoader__.load({
 +		  persistNormalized = true;
-+		  persistWrites++;
-@@ -652,0 +655 @@ window.__ModuleLoader__.load({
+@@ -618 +620 @@ window.__ModuleLoader__.load({
+-		async function loadPersisted() {
++		async function loadPersisted(startup) {
+@@ -626 +628,3 @@ window.__ModuleLoader__.load({
+-		    const res = await fetch(SETTINGS_URL, { cache: "no-store" });
++		    const signal = startup && startup.controller ? startup.controller.signal : undefined;
++		    const res = await fetch(SETTINGS_URL, signal ? { cache: "no-store", signal } : { cache: "no-store" });
++		    if (startup && startup.cancelled) return false;
+@@ -629,0 +634 @@ window.__ModuleLoader__.load({
++		      if (startup && startup.cancelled) return false;
+@@ -635,0 +641 @@ window.__ModuleLoader__.load({
++		  if (startup && startup.cancelled) return false;
+@@ -652,0 +659 @@ window.__ModuleLoader__.load({
 +		    if (!parsedLocal && !stale) persistNormalized = false;
-@@ -724 +727 @@ window.__ModuleLoader__.load({
+@@ -664,0 +672 @@ window.__ModuleLoader__.load({
++		  return true;
+@@ -671 +679,2 @@ window.__ModuleLoader__.load({
+-		async function loadInventory() {
++		async function loadInventory(startup) {
++		  if (startup && startup.cancelled) return;
+@@ -677 +686,3 @@ window.__ModuleLoader__.load({
+-		    const res = await fetch(INVENTORY_URL, { cache: "no-store" });
++		    const signal = startup && startup.controller ? startup.controller.signal : undefined;
++		    const res = await fetch(INVENTORY_URL, signal ? { cache: "no-store", signal } : { cache: "no-store" });
++		    if (startup && startup.cancelled) return;
+@@ -680,0 +692 @@ window.__ModuleLoader__.load({
++		    if (startup && startup.cancelled) return;
+@@ -690,0 +703 @@ window.__ModuleLoader__.load({
++		    if (startup && startup.cancelled) return;
+@@ -700 +713 @@ window.__ModuleLoader__.load({
+-		  if (seq !== inventorySeq) return; // superseded by a newer loadInventory()
++		  if ((startup && startup.cancelled) || seq !== inventorySeq) return; // disposed or superseded
+@@ -724 +737 @@ window.__ModuleLoader__.load({
 -		    persistSelection();
 +		    if (persistNormalized) persistSelection();
-@@ -728 +731 @@ window.__ModuleLoader__.load({
+@@ -728 +741 @@ window.__ModuleLoader__.load({
 -		    persistSelection();
 +		    if (persistNormalized) persistSelection();
-@@ -740 +743 @@ window.__ModuleLoader__.load({
+@@ -740 +753 @@ window.__ModuleLoader__.load({
 -		    persistSelection();
 +		    if (persistNormalized) persistSelection();
-@@ -831 +834 @@ window.__ModuleLoader__.load({
+@@ -831 +844 @@ window.__ModuleLoader__.load({
 -		    persistSelection();
 +		    if (persistNormalized) persistSelection();
-@@ -836 +839 @@ window.__ModuleLoader__.load({
+@@ -836 +849 @@ window.__ModuleLoader__.load({
 -		    persistSelection();
 +		    if (persistNormalized) persistSelection();
-@@ -842 +845 @@ window.__ModuleLoader__.load({
+@@ -842 +855 @@ window.__ModuleLoader__.load({
 -		  applySelection(selection.id);
 +		  applySelection(selection.id, persistNormalized);
-@@ -1022 +1025 @@ window.__ModuleLoader__.load({
+@@ -1022 +1035 @@ window.__ModuleLoader__.load({
 -		function applySelection(id) {
 +		function applySelection(id, persist = true) {
-@@ -1027 +1030 @@ window.__ModuleLoader__.load({
+@@ -1027 +1040 @@ window.__ModuleLoader__.load({
 -		  persistSelection();
 +		  if (persist) persistSelection();
-@@ -6037 +6040 @@ window.__ModuleLoader__.load({
+@@ -6037 +6050 @@ window.__ModuleLoader__.load({
 -		  tag.dataset.plugin = "dsh-wallpaper-engine";
 +		  tag.dataset.plugin = "dsh-plugin-wallpaper-engine";
+@@ -6244,2 +6257,15 @@ window.__ModuleLoader__.load({
+-		  // persisted id and can resolve its media URL.
+-		  loadPersisted().then(loadInventory);
++		  // persisted id and can resolve its media URL. The effect owns the startup
++		  // requests so disabling or reloading the plugin cannot resume them afterward.
++		  if (ctx.effect) {
++		    ctx.effect(() => {
++		      const controller = typeof AbortController === "function" ? new AbortController() : null;
++		      const startup = { cancelled: false, controller };
++		      loadPersisted(startup).then((loaded) => {
++		        if (loaded && !startup.cancelled) return loadInventory(startup);
++		      });
++		      return () => {
++		        startup.cancelled = true;
++		        if (controller) controller.abort();
++		      };
++		    });
++		  }

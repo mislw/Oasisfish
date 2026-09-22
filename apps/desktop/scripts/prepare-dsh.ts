@@ -34,16 +34,9 @@ import { selectOfficeEngine } from '../../../scripts/libreoffice-engine.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
-const BUILD_PATHS = resolveDesktopTargetBuildPaths()
-const DSH_OUTPUT_ROOT = BUILD_PATHS.dsh
-const RUNTIME_ROOT = BUILD_PATHS.runtime
-const PNPM_BUILD_STATE = BUILD_PATHS.dshPnpm
-const PACKAGE_SET_ROOT = BUILD_PATHS.packageSet
-const NODE = join(BUILD_PATHS.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
-const PNPM = join(RUNTIME_ROOT, 'pnpm', 'bin', 'pnpm.mjs')
 const WALLPAPER_ENGINE_PACKAGE = 'dsh-plugin-wallpaper-engine@0.7.5'
 const WALLPAPER_ENGINE_PATCH_FILE = `patches/${WALLPAPER_ENGINE_PACKAGE}.patch`
-const WALLPAPER_ENGINE_PATCH_HASH = 'b3818065c598d5de52d90d8dec31f93a950bbdae077ae6981126462ff4cc53af'
+const WALLPAPER_ENGINE_PATCH_HASH = 'c072d3bab81f7d5983a6939ef13eb452ba6b4971786eb412215b6741fe5e79ce'
 const WALLPAPER_ENGINE_RUNTIME_VERSIONS = {
   'dsh-plugin-wallpaper-engine': '0.7.5',
   'jpeg-js': '0.4.4',
@@ -115,13 +108,13 @@ function manifestVersion(path: string, subject: string): string {
   return manifest.version
 }
 
-function desktopRelease(): DesktopRelease {
+function desktopRelease(runtimeRoot: string): DesktopRelease {
   const version = manifestVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   const dshVersion = manifestVersion(resolve(APP_ROOT, '..', '..', 'package.json'), 'root dsh package')
   if (version !== dshVersion) {
     throw new Error(`desktop runtime: Electron ${version} must bind the same version of @deepseek-ai/dsh, found ${dshVersion}`)
   }
-  const runtime = JSON.parse(readFileSync(join(RUNTIME_ROOT, 'versions.json'), 'utf8')) as Record<string, unknown>
+  const runtime = JSON.parse(readFileSync(join(runtimeRoot, 'versions.json'), 'utf8')) as Record<string, unknown>
   return parseDesktopRelease({
     schemaVersion: 1,
     version,
@@ -131,17 +124,24 @@ function desktopRelease(): DesktopRelease {
   })
 }
 
-function runPnpm(buildRoot: string, storeRoot: string, args: readonly string[]): Promise<void> {
+function runPnpm(
+  buildRoot: string,
+  storeRoot: string,
+  args: readonly string[],
+  paths: ReturnType<typeof resolveDesktopTargetBuildPaths>,
+): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     const [command, ...commandArgs] = args
     if (command === undefined) throw new Error('desktop runtime: pnpm command is required')
-    const config = join(PNPM_BUILD_STATE, 'config')
+    const config = join(paths.dshPnpm, 'config')
     const userConfig = join(config, 'npmrc')
+    const node = join(paths.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
+    const pnpm = join(paths.runtime, 'pnpm', 'bin', 'pnpm.mjs')
     mkdirSync(config, { recursive: true })
     writeFileSync(userConfig, '')
-    const child = spawn(NODE, [
+    const child = spawn(node, [
       '--expose-internals',
-      PNPM,
+      pnpm,
       '--config.registry=https://registry.npmjs.org/',
       `--config.store-dir=${storeRoot}`,
       '--config.enable-global-virtual-store=false',
@@ -157,11 +157,11 @@ function runPnpm(buildRoot: string, storeRoot: string, args: readonly string[]):
         NPM_CONFIG_REGISTRY: 'https://registry.npmjs.org/',
         NPM_CONFIG_STORE_DIR: storeRoot,
         NPM_CONFIG_USERCONFIG: userConfig,
-        ...desktopNodeEnvironment(NODE, join(RUNTIME_ROOT, 'bin'), {}),
-        PATH: `${join(RUNTIME_ROOT, 'bin')}${delimiter}${process.env.PATH ?? ''}`,
-        XDG_CACHE_HOME: join(PNPM_BUILD_STATE, 'cache'),
+        ...desktopNodeEnvironment(node, join(paths.runtime, 'bin'), {}),
+        PATH: `${join(paths.runtime, 'bin')}${delimiter}${process.env.PATH ?? ''}`,
+        XDG_CACHE_HOME: join(paths.dshPnpm, 'cache'),
         XDG_CONFIG_HOME: config,
-        XDG_STATE_HOME: join(PNPM_BUILD_STATE, 'state'),
+        XDG_STATE_HOME: join(paths.dshPnpm, 'state'),
       },
       stdio: 'inherit',
     })
@@ -174,71 +174,77 @@ function runPnpm(buildRoot: string, storeRoot: string, args: readonly string[]):
 }
 
 async function main(): Promise<void> {
+  const paths = resolveDesktopTargetBuildPaths()
+  const dshOutputRoot = paths.dsh
+  const runtimeRoot = paths.runtime
+  const pnpmBuildState = paths.dshPnpm
+  const packageSetRoot = paths.packageSet
+  const node = join(paths.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
   const buildRoot = mkdtempSync(join(tmpdir(), 'dsh-desktop-runtime-'))
   const storeRoot = join(buildRoot, 'store')
-  rmSync(DSH_OUTPUT_ROOT, { recursive: true, force: true })
-  rmSync(PNPM_BUILD_STATE, { recursive: true, force: true })
+  rmSync(dshOutputRoot, { recursive: true, force: true })
+  rmSync(pnpmBuildState, { recursive: true, force: true })
   mkdirSync(storeRoot, { recursive: true })
   try {
-    const release = desktopRelease()
-    copyFileSync(join(PACKAGE_SET_ROOT, DESKTOP_PACKAGE_SET_FILE), join(buildRoot, DESKTOP_PACKAGE_SET_FILE))
-    cpSync(join(PACKAGE_SET_ROOT, DESKTOP_PACKAGES_DIR), join(buildRoot, DESKTOP_PACKAGES_DIR), { recursive: true })
+    const release = desktopRelease(runtimeRoot)
+    copyFileSync(join(packageSetRoot, DESKTOP_PACKAGE_SET_FILE), join(buildRoot, DESKTOP_PACKAGE_SET_FILE))
+    cpSync(join(packageSetRoot, DESKTOP_PACKAGES_DIR), join(buildRoot, DESKTOP_PACKAGES_DIR), { recursive: true })
     createRuntimeProjectMetadata(buildRoot, release)
     prepareWallpaperEngineRuntimePatch(buildRoot)
-    await runPnpm(buildRoot, storeRoot, ['install', '--lockfile-only'])
+    await runPnpm(buildRoot, storeRoot, ['install', '--lockfile-only'], paths)
     const lockfile = readFileSync(join(buildRoot, 'pnpm-lock.yaml'), 'utf8')
     verifyDesktopCoreLockfile(
       lockfile,
       readDesktopCorePackageSet(buildRoot, release.version),
     )
     verifyWallpaperEngineRuntimeLockfile(lockfile)
-    await runPnpm(buildRoot, storeRoot, ['install', '--prod', '--frozen-lockfile', '--trust-lockfile'])
+    await runPnpm(buildRoot, storeRoot, ['install', '--prod', '--frozen-lockfile', '--trust-lockfile'], paths)
     const packageSet = readDesktopCorePackageSet(buildRoot, release.version)
     const targetName = resolveDesktopBuildTarget()
     const target = { platform: process.platform, arch: targetName.endsWith('arm64') ? 'arm64' : 'x64' }
     const modules = join(buildRoot, 'node_modules')
     const officeManifest = JSON.parse(readFileSync(join(modules, '@deepseek-ai/libreoffice-kit/package.json'), 'utf8'))
     const officeEngine = selectOfficeEngine(officeManifest, target)
-    mkdirSync(DSH_OUTPUT_ROOT, { recursive: true })
-    cpSync(modules, join(DSH_OUTPUT_ROOT, 'node_modules'), {
+    mkdirSync(dshOutputRoot, { recursive: true })
+    cpSync(modules, join(dshOutputRoot, 'node_modules'), {
       recursive: true, dereference: true,
       filter: source => desktopRuntimeFileExclusion(relative(modules, source), target, officeEngine) === undefined,
     })
-    writeFileSync(join(DSH_OUTPUT_ROOT, 'package.json'), `${JSON.stringify({
+    writeFileSync(join(dshOutputRoot, 'package.json'), `${JSON.stringify({
       name: '@deepseek-ai/dsh-desktop-runtime', private: true, version: release.version, type: 'module',
       dependencies: Object.fromEntries(packageSet.packages.map(entry => [entry.name, entry.version])),
     }, undefined, 2)}\n`)
-    verifyWallpaperEngineRuntimePackages(DSH_OUTPUT_ROOT, release.version)
+    verifyWallpaperEngineRuntimePackages(dshOutputRoot, release.version)
     for (const file of DESKTOP_HOST_RUNTIME_FILES) {
-      if (!existsSync(join(DSH_OUTPUT_ROOT, 'node_modules', DESKTOP_HOST_PACKAGE, file))) {
+      if (!existsSync(join(dshOutputRoot, 'node_modules', DESKTOP_HOST_PACKAGE, file))) {
         throw new Error(`desktop runtime: missing private Host file ${file}`)
       }
     }
-    if (!existsSync(join(DSH_OUTPUT_ROOT, 'node_modules', '@deepseek-ai', `libreoffice-kit-${officeEngine}`, 'prebuilds.json'))) {
+    if (!existsSync(join(dshOutputRoot, 'node_modules', '@deepseek-ai', `libreoffice-kit-${officeEngine}`, 'prebuilds.json'))) {
       throw new Error(`desktop runtime: missing required LibreOffice engine ${officeEngine}`)
     }
     if (process.platform === 'darwin') {
-      await signMacOSRuntime(DSH_OUTPUT_ROOT, resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env))
-      await signMacOSRuntime(join(RUNTIME_ROOT, 'primary-runtime'), resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env))
+      await signMacOSRuntime(dshOutputRoot, resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env))
+      await signMacOSRuntime(join(runtimeRoot, 'primary-runtime'), resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env))
     }
-    smokePrimaryRuntime(join(RUNTIME_ROOT, 'primary-runtime'))
-    writeDesktopRuntime(DSH_OUTPUT_ROOT, release, packageSet.packages.map(entry => entry.name), target)
-    const descriptor = await verifyDesktopRuntime(DSH_OUTPUT_ROOT, release.version, target)
+    smokePrimaryRuntime(join(runtimeRoot, 'primary-runtime'))
+    writeDesktopRuntime(dshOutputRoot, release, packageSet.packages.map(entry => entry.name), target)
+    const descriptor = await verifyDesktopRuntime(dshOutputRoot, release.version, target)
     await new Promise<void>((accept, reject) => {
-      execFile(NODE, ['--expose-internals', join(APP_ROOT, 'tests/fixtures/runtime-payload-smoke.mjs'), DSH_OUTPUT_ROOT],
-        { timeout: 120_000, env: desktopNodeEnvironment(NODE, join(RUNTIME_ROOT, 'bin'), { ...process.env, NODE_OPTIONS: '' }) }, (error, stdout, stderr) => {
+      execFile(node, ['--expose-internals', join(APP_ROOT, 'tests/fixtures/runtime-payload-smoke.mjs'), dshOutputRoot],
+        { timeout: 120_000, env: desktopNodeEnvironment(node, join(runtimeRoot, 'bin'), { ...process.env, NODE_OPTIONS: '' }) }, (error, stdout, stderr) => {
           if (error !== null) reject(new Error(`desktop native payload smoke failed: ${stderr}`, { cause: error }))
           else { process.stdout.write(stdout); accept() }
         })
     })
-    await smokeDesktopRuntime(DSH_OUTPUT_ROOT, NODE, descriptor)
-    await verifyDesktopRuntime(DSH_OUTPUT_ROOT, release.version, target)
+    await smokeDesktopRuntime(dshOutputRoot, node, descriptor)
+    await verifyDesktopRuntime(dshOutputRoot, release.version, target)
   } catch (error) {
-    rmSync(DSH_OUTPUT_ROOT, { recursive: true, force: true })
+    rmSync(dshOutputRoot, { recursive: true, force: true })
     throw error
   } finally {
     rmSync(buildRoot, { recursive: true, force: true })
-    rmSync(PNPM_BUILD_STATE, { recursive: true, force: true })
+    rmSync(pnpmBuildState, { recursive: true, force: true })
   }
 }
 
