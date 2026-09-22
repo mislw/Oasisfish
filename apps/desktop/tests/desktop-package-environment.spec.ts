@@ -1,6 +1,6 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadDesktopPackageEnvironment, validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 
@@ -20,6 +20,38 @@ async function withDirectory(action: (directory: string) => Promise<void>): Prom
 }
 
 describe('Desktop local packaging configuration', () => {
+  it('imports runtime preparation without starting a packaging run', async () => {
+    await expect(import('../scripts/prepare-dsh.ts')).resolves.toBeDefined()
+  })
+
+  it('copies the reviewed wallpaper patch and names it in the temporary workspace', async () => {
+    await withDirectory(async (directory) => {
+      const workspace = 'packages:\n  - .\n\nnodeLinker: hoisted\n'
+      await writeFile(join(directory, 'pnpm-workspace.yaml'), workspace)
+      const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
+      const preparePatch = preparation.prepareWallpaperEngineRuntimePatch as (root: string) => void
+      preparePatch(directory)
+      const patch = 'patches/dsh-plugin-wallpaper-engine@0.7.5.patch'
+      expect(await readFile(join(directory, 'pnpm-workspace.yaml'), 'utf8')).toBe(
+        `${workspace}patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: ${patch}\n`,
+      )
+      expect(await readFile(join(directory, patch), 'utf8')).toBe(
+        await readFile(resolve(import.meta.dirname, '..', '..', '..', patch), 'utf8'),
+      )
+    })
+  })
+
+  it('requires the reviewed wallpaper patch hash in the generated lockfile', async () => {
+    const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
+    const verifyLockfile = preparation.verifyWallpaperEngineRuntimeLockfile as (body: string) => void
+    expect(() => {
+      verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: ace8a05124d4c0e87aa58274bc7957efa11e1d1abdad8573ad76d2351983bbac\n')
+    }).not.toThrow()
+    expect(() => {
+      verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: wrong\n')
+    }).toThrow(/patch hash/u)
+  })
+
   it('selects the platform file, preserves literal secrets, and excludes stale ambient release settings', async () => {
     await withDirectory(async (directory) => {
       await writeFile(join(directory, '.env.windows'), '\uFEFFDSH_DESKTOP_APP_ID=com.example.windows\r\nDSH_DESKTOP_PRODUCT_NAME=Oasisfish\r\nDSH_DESKTOP_ARTIFACT_PREFIX=Oasisfish\r\nDSH_DESKTOP_WINDOWS_TOKEN_PIN=" #!$%&literal "\r\nDSH_DESKTOP_WINDOWS_CER_FILE="keys/public certificate.cer"\r\n')

@@ -1,3 +1,5 @@
+import { globSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assertDesktopHostPackageFiles,
@@ -7,6 +9,23 @@ import {
 
 function packed(name: string, manifest: Record<string, unknown> = {}): PackedDesktopPackage {
   return { tarball: `${name}.tgz`, manifest: { name, version: '1.0.0', ...manifest } }
+}
+
+const REPOSITORY_ROOT = resolve(import.meta.dirname, '..', '..', '..')
+
+function productionPackages(): Map<string, PackedDesktopPackage> {
+  const manifests = [
+    'package.json',
+    ...globSync(['vendor/*/package.json', 'packages/*/*/package.json', 'native/system/package.json',
+      'native/system/packages/*/package.json', 'apps/*/package.json', 'benchmarks/package.json', 'website/package.json',
+      'python/sdk-runtime/package.json'], { cwd: REPOSITORY_ROOT }),
+  ]
+  return new Map(manifests.map((path) => {
+    const manifest = JSON.parse(readFileSync(resolve(REPOSITORY_ROOT, path), 'utf8')) as Record<string, unknown>
+    const name = manifest.name
+    if (typeof name !== 'string') throw new Error(`test package manifest ${path} has no name`)
+    return [name, { tarball: `${name}.tgz`, manifest }] as const
+  }))
 }
 
 describe('desktop package-set selection', () => {
@@ -44,6 +63,22 @@ describe('desktop package-set selection', () => {
       '@deepseek-ai/dsh-desktop-host',
       '@deepseek-ai/platform-package',
     ])
+  })
+
+  it('declares the Desktop wallpaper wrapper as a Host runtime dependency', () => {
+    const host = productionPackages().get('@deepseek-ai/dsh-desktop-host')?.manifest
+    expect(host?.dependencies).toMatchObject({
+      '@deepseek-ai/dsh-desktop-wallpaper-engine': 'workspace:^',
+    })
+  })
+
+  it('includes the wallpaper wrapper and onboarding Client in the production closure', () => {
+    expect(selectDesktopPackageClosure(productionPackages()).map(entry => entry.manifest.name)).toEqual(
+      expect.arrayContaining([
+        '@deepseek-ai/dsh-desktop-wallpaper-engine',
+        '@deepseek-ai/dsh-client-ui-wallpaper-engine-onboarding',
+      ]),
+    )
   })
 
   it.each([

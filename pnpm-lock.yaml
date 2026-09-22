@@ -611,6 +611,9 @@ importers:
       '@deepseek-ai/dsh-client-connection':
         specifier: workspace:^
         version: link:../../packages/client/connection
+      '@deepseek-ai/dsh-desktop-wallpaper-engine':
+        specifier: workspace:^
+        version: link:../../packages/bundle/desktop-wallpaper-engine
       '@deepseek-ai/dsh-home-paths':
         specifier: workspace:^
         version: link:../../packages/util/home-paths

@@ -9,7 +9,7 @@ import { prepareInstalledUpdateBootstrap } from '../scripts/prepare-installed-up
 import { prepareInstalledUpdateApplication } from '../scripts/prepare-installed-update-application.ts'
 import { verifyInstalledUpdatePackageContent } from '../scripts/installed-update-package-content.ts'
 import { readDesktopRuntime, writeDesktopRuntime } from '../src/runtime-tree.ts'
-import { runtimeFixture } from './runtime-fixture.ts'
+import { runtimeFixture, writePackage } from './runtime-fixture.ts'
 import { validateInstalledUpdateArchivePaths, verifyInstalledUpdatePackage } from '../scripts/verify-installed-update-package.ts'
 
 type ArchiveExecute = (tool: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<{
@@ -68,6 +68,13 @@ async function fixture(body: (context: {
     }
     const dsh = join(run.root, version, 'dsh')
     const descriptor = runtimeFixture(dsh, version)
+    const modules = join(dsh, 'node_modules')
+    const manifestExport = { exports: { '.': './index.js', './package.json': './package.json' } }
+    writePackage(modules, '@deepseek-ai/dsh-desktop-wallpaper-engine', { version, ...manifestExport })
+    writePackage(modules, '@deepseek-ai/dsh-client-ui-wallpaper-engine-onboarding', { version, ...manifestExport })
+    writePackage(modules, 'dsh-plugin-wallpaper-engine', { version: '0.7.5', ...manifestExport })
+    writePackage(modules, 'jpeg-js', { version: '0.4.4', ...manifestExport })
+    writePackage(modules, '@shaderfrog/glsl-parser', { version: '7.0.1', ...manifestExport })
     await writeFile(join(dsh, 'tool.exe'), 'inert executable fixture')
     const reseal = (directory: string): void => {
       writeDesktopRuntime(directory, descriptor.release, descriptor.sharedPackages.map(entry => entry.name), { platform: 'win32', arch: 'x64' })
@@ -98,6 +105,23 @@ describe('installed update archive contents', () => {
         resignedExecutables: [join(payload, 'resources/app.asar.unpacked/dsh/tool.exe')],
       })
     }, version)
+  })
+
+  it('resolves the wallpaper engine package set from installed application resources', async () => {
+    await fixture(async ({ source, version }) => {
+      const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
+      const verifyRuntime = preparation.verifyWallpaperEngineRuntimePackages as
+        (root: string, releaseVersion: string) => void
+      const root = join(source, 'dsh')
+      expect(() => {
+        verifyRuntime(root, version)
+      }).not.toThrow()
+      await writeFile(join(root, 'node_modules/dsh-plugin-wallpaper-engine/package.json'),
+        JSON.stringify({ name: 'dsh-plugin-wallpaper-engine', version: '0.7.4' }))
+      expect(() => {
+        verifyRuntime(root, version)
+      }).toThrow(/dsh-plugin-wallpaper-engine@0\.7\.5/u)
+    })
   })
 
   it.each(['name', 'version', 'dshDesktopAppId', 'main', 'type', 'dshMandatoryUpdatePolicy'])(
