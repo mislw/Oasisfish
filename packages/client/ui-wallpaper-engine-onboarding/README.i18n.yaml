@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-wallpaper-engine-onboarding/README.md
-README.md: a1f98bd2c1aeaf3e6e12ade175e1b7ed913c8684
-README.zh.md: 79d002dfbd207cc8d46b0110327cef86c29e223d
+README.md: 49a745601766e4226558d0e5b479857f55cfb686
+README.zh.md: 2cf8a1920812292872b0e8bbd25641901699c548

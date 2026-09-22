@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /** Wallpaper Engine onboarding rendering, completion, and request lifetime. */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WallpaperOnboarding } from '../src/client/WallpaperOnboarding.tsx'
 import type { WallpaperOnboardingProps } from '../src/client/WallpaperOnboarding.tsx'
@@ -32,11 +32,12 @@ function harness(probe: (signal: AbortSignal) => Promise<WallpaperSettingsReadin
 }
 
 describe('WallpaperOnboarding', () => {
-  it('renders nothing while probing and aborts the request on disposal', () => {
+  it('renders nothing while probing, aborts on disposal, and suppresses late settlement', async () => {
     let signal: AbortSignal | undefined
+    const reply = Promise.withResolvers<WallpaperSettingsReadiness>()
     const h = harness(vi.fn((requestSignal: AbortSignal) => {
       signal = requestSignal
-      return new Promise<WallpaperSettingsReadiness>(() => {})
+      return reply.promise
     }))
     const view = render(<WallpaperOnboarding {...h.props} />)
 
@@ -45,12 +46,33 @@ describe('WallpaperOnboarding', () => {
     expect(signal?.aborted).toBe(false)
     view.unmount()
     expect(signal?.aborted).toBe(true)
+    await act(async () => {
+      reply.resolve({ kind: 'unavailable', diagnostic: '/wallpaper-engine/settings fetch' })
+      await reply.promise
+    })
     expect(h.complete).not.toHaveBeenCalled()
     expect(h.warn).not.toHaveBeenCalled()
   })
 
+  it('keeps one pending probe across owner rerenders and completes through the latest callback', async () => {
+    const reply = Promise.withResolvers<WallpaperSettingsReadiness>()
+    const probe = vi.fn(() => reply.promise)
+    const h = harness(probe)
+    const latestComplete = vi.fn()
+    const view = render(<WallpaperOnboarding {...h.props} />)
+
+    view.rerender(<WallpaperOnboarding {...h.props} complete={latestComplete} />)
+    expect(probe).toHaveBeenCalledOnce()
+    await act(async () => {
+      reply.resolve({ kind: 'configured' })
+      await reply.promise
+    })
+    expect(h.complete).not.toHaveBeenCalled()
+    expect(latestComplete).toHaveBeenCalledOnce()
+  })
+
   it('completes configured readiness once without rendering', async () => {
-    const h = harness(vi.fn(async () => ({ kind: 'configured' })))
+    const h = harness(vi.fn(async (): Promise<WallpaperSettingsReadiness> => ({ kind: 'configured' })))
     const view = render(<WallpaperOnboarding {...h.props} />)
     await waitFor(() => { expect(h.complete).toHaveBeenCalledOnce() })
     view.rerender(<WallpaperOnboarding {...h.props} />)
@@ -60,7 +82,7 @@ describe('WallpaperOnboarding', () => {
   })
 
   it('logs an unavailable probe once, completes once, and renders nothing', async () => {
-    const h = harness(vi.fn(async () => ({
+    const h = harness(vi.fn(async (): Promise<WallpaperSettingsReadiness> => ({
       kind: 'unavailable', diagnostic: '/wallpaper-engine/settings http',
     })))
     const view = render(<WallpaperOnboarding {...h.props} />)
@@ -72,7 +94,7 @@ describe('WallpaperOnboarding', () => {
   })
 
   it('shows localized setup copy, inerts the product, and focuses the title', async () => {
-    const h = harness(vi.fn(async () => ({ kind: 'setup-required' })))
+    const h = harness(vi.fn(async (): Promise<WallpaperSettingsReadiness> => ({ kind: 'setup-required' })))
     render(<WallpaperOnboarding {...h.props} />)
 
     expect(await screen.findByRole('dialog', { name: en.title })).toBeTruthy()
@@ -84,7 +106,7 @@ describe('WallpaperOnboarding', () => {
   })
 
   it('completes before opening Wallpaper Engine settings', async () => {
-    const h = harness(vi.fn(async () => ({ kind: 'setup-required' })))
+    const h = harness(vi.fn(async (): Promise<WallpaperSettingsReadiness> => ({ kind: 'setup-required' })))
     render(<WallpaperOnboarding {...h.props} />)
     fireEvent.click(await screen.findByRole('button', { name: en.openSettings }))
 
@@ -94,7 +116,7 @@ describe('WallpaperOnboarding', () => {
   })
 
   it('cannot be dismissed implicitly and restores the previous inert value', async () => {
-    const h = harness(vi.fn(async () => ({ kind: 'setup-required' })))
+    const h = harness(vi.fn(async (): Promise<WallpaperSettingsReadiness> => ({ kind: 'setup-required' })))
     h.appRoot.inert = true
     const view = render(<WallpaperOnboarding {...h.props} />)
     await screen.findByRole('dialog')

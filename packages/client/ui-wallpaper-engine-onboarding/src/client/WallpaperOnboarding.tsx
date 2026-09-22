@@ -10,11 +10,16 @@ import css from './WallpaperOnboarding.module.css'
 
 const ignoreImplicitDismiss = (): void => {}
 
+/* v8 ignore next 3 -- closed-union default only defends future source widening */
+function assertNever(_value: never): never {
+  throw new Error('unexpected Wallpaper Engine readiness')
+}
+
 /** Registration-side dependencies of {@link WallpaperOnboarding}. */
 export interface WallpaperOnboardingInjected {
   /** Localized copy captured for this registration generation. */
   copy: WallpaperOnboardingCopy
-  /** Read upstream settings under the component lifetime. */
+  /** Read upstream settings once under the mounted component lifetime. */
   probe: (signal: AbortSignal) => Promise<WallpaperSettingsReadiness>
   /** Report one bounded readiness diagnostic. */
   warn: (diagnostic: string) => void
@@ -25,7 +30,9 @@ export type WallpaperOnboardingProps =
   PropsRuntime<'settings.onboarding'> & InjectFace<WallpaperOnboardingInjected>
 
 /**
- * Prompt only desktops whose Wallpaper Engine settings are absent.
+ * Prompt only desktops whose Wallpaper Engine settings are absent. Owner
+ * callback replacements do not restart the probe; settlement uses the latest
+ * completion callback.
  * @param props - onboarding coordinator callbacks and injected dependencies.
  * @returns the setup modal, or null while probing and after completion.
  */
@@ -35,27 +42,36 @@ export function WallpaperOnboarding({
   const [readiness, setReadiness] = useState<WallpaperSettingsReadiness>()
   const titleRef = useRef<HTMLHeadingElement | null>(null)
   const completed = useRef(false)
+  const completeRef = useRef(complete)
   const warned = useRef(false)
+  completeRef.current = complete
   const finish = useCallback((): void => {
     if (completed.current) return
     completed.current = true
-    complete()
-  }, [complete])
+    completeRef.current()
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
     void probe(controller.signal).then((result) => {
       if (!active) return
-      setReadiness(result)
-      if (result.kind === 'configured') {
-        finish()
-      } else if (result.kind === 'unavailable') {
-        if (!warned.current) {
-          warned.current = true
-          warn(result.diagnostic)
-        }
-        finish()
+      switch (result.kind) {
+        case 'setup-required':
+          setReadiness(result)
+          return
+        case 'configured':
+          finish()
+          return
+        case 'unavailable':
+          if (!warned.current) {
+            warned.current = true
+            warn(result.diagnostic)
+          }
+          finish()
+          return
+        default:
+          return assertNever(result)
       }
     })
     return () => {

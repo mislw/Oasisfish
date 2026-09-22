@@ -44,7 +44,7 @@ Select **Open Wallpaper Engine settings** to complete the current onboarding ste
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The browser plugin registers typed English and Chinese dictionaries and contributes one root-scoped onboarding row at order `100`. Each locale change replaces that row with a fresh detached copy snapshot. The mounted component starts one abortable request, renders nothing while it waits, and guards warning and completion so each happens at most once. The visible modal owns `#root` inert state, focuses its title, refuses implicit dismissal, and calls completion before settings navigation.
+The browser plugin registers typed English and Chinese dictionaries and contributes one root-scoped onboarding row at order `100`. Each locale change replaces that row with a fresh detached copy snapshot. The mounted component starts one abortable request, keeps it across owner callback replacements, renders nothing while it waits, and completes through the latest callback after settlement; warning and completion each happen at most once. The visible modal owns `#root` inert state, focuses its title, refuses implicit dismissal, and calls completion before settings navigation.
 
 ### Source map
 
