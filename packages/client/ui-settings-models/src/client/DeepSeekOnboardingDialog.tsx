@@ -6,7 +6,7 @@
  * the onboarding plugin's shared modal, so the key is entered once.
  */
 
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -18,6 +18,26 @@ import { ProviderEditor } from './ProviderEditor.tsx'
 import type { en } from './locales.ts'
 import { OnboardingModal } from './OnboardingModal.tsx'
 import styles from './DeepSeekOnboardingDialog.module.css'
+
+const DISMISSAL_KEY = 'dsh.onboarding.deepseek-official.dismissed.v1'
+
+function dismissalRemembered(): boolean {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    return localStorage.getItem(DISMISSAL_KEY) === 'true'
+  } catch (_error) {
+    return false
+  }
+}
+
+function rememberDismissal(): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(DISMISSAL_KEY, 'true')
+  } catch (_error) {
+    // Storage failure must not prevent dismissal for the current page.
+  }
+}
 
 /** Registration-side dependencies of {@link DeepSeekOnboardingDialog}. */
 export interface DeepSeekOnboardingInjected {
@@ -54,18 +74,28 @@ export function DeepSeekOnboardingDialog(props: DeepSeekOnboardingDialogProps): 
   const { complete, controller, useModels, operations, schema, t } = props
   const state = useModels(snapshot => snapshot)
   const readiness = onboardingReadiness(state)
+  const dismissed = dismissalRemembered()
+  const completionSent = useRef(false)
+  const completeOnce = useCallback((): void => {
+    if (completionSent.current) return
+    completionSent.current = true
+    complete()
+  }, [complete])
 
   useEffect(() => {
-    if (state.status === 'idle') void controller.load()
-  }, [controller, state.status])
+    if (!dismissed && state.status === 'idle') void controller.load()
+  }, [controller, dismissed, state.status])
 
   useEffect(() => {
     if (
-      readiness.kind === 'adapter-absent'
+      dismissed
+      || readiness.kind === 'adapter-absent'
       || readiness.kind === 'provider-ready'
       || readiness.kind === 'unavailable'
-    ) complete()
-  }, [complete, readiness.kind])
+    ) completeOnce()
+  }, [completeOnce, dismissed, readiness.kind])
+
+  if (dismissed) return null
 
   switch (readiness.kind) {
     case 'loading':
@@ -90,7 +120,8 @@ export function DeepSeekOnboardingDialog(props: DeepSeekOnboardingDialogProps): 
 
   const finishCredential = (changed: boolean): void => {
     if (!changed) {
-      complete()
+      rememberDismissal()
+      completeOnce()
       return
     }
     void controller.load()

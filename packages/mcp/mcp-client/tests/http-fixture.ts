@@ -13,7 +13,7 @@ export interface HttpMcpFixture {
   close: () => Promise<void>
 }
 
-/** Start a local stateless MCP endpoint exposing one `ping` tool. */
+/** Start a local stateless MCP endpoint exposing deterministic test tools. */
 export async function startHttpMcpFixture(): Promise<HttpMcpFixture> {
   const calls: string[] = []
   const authorization: Array<string | undefined> = []
@@ -25,6 +25,12 @@ export async function startHttpMcpFixture(): Promise<HttpMcpFixture> {
     mcp.registerTool('ping', { description: 'Replies pong.', inputSchema: z.object({}) }, async (): Promise<CallToolResult> => {
       calls.push('ping')
       return { content: [{ type: 'text', text: 'pong' }] }
+    })
+    mcp.registerTool('shout', {
+      description: 'Uppercases one message.', inputSchema: z.object({ message: z.string() }),
+    }, async ({ message }): Promise<CallToolResult> => {
+      calls.push('shout')
+      return { content: [{ type: 'text', text: message.toUpperCase() }] }
     })
     return mcp
   })

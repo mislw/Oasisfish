@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `ctx.tokenMeter` to estimate a session's current request and context pressure or price one message. Measurements replay the durable session log, remain deterministic, and make no model calls, so compaction, occupancy displays, and telemetry can share one result. When session projections are available, consumers can read `tokenUsage`, `contextPressure`, and `contextBreakdown`; text and routes without image pricing use an approximate fixed heuristic, declared visual-token pricing applies when available, and files are priced as model-visible handle text. Provider-reported usage is reused only for an identical request envelope; the package adds no model-visible content and makes no loop decisions.
+Use `ctx.tokenMeter` to estimate current request and context pressure, price one message, or summarize reported usage and cost over a time interval. Measurements replay the durable Session log without model calls, so compaction, occupancy displays, and telemetry can share deterministic results. Session projections expose `tokenUsage`, `usageCost`, `contextPressure`, and `contextBreakdown`; text and routes without image pricing use a fixed heuristic, declared visual pricing applies when available, and files use model-visible handle text. Provider usage is reused only for an identical request envelope. The package adds no model-visible content and makes no loop decisions.
 
 ## Table of Contents
 
@@ -46,7 +46,9 @@ The measurement anchor includes the priced surface immediately before the succes
 
 ### Session projections
 
-When the composition provides `ctx.sessionProjections`, token-meter registers three projection units. `tokenUsage` carries the complete durable log's `uncachedInputTokens`, `outputTokens`, `cacheReadTokens`, and `cacheWriteTokens`. A final assistant-message sample replaces streaming usage from the same attempt; `llm/retry-started` ends that replacement scope, so a retry in the same step contributes another billed attempt. `contextPressure` carries optional `pressureTokens` (the newest provider-reported prompt size), optional `projectedTokens` (what the next request's prompt would cost), and optional `contextWindow` from the newest `request/context` record. `contextBreakdown` carries heuristic `systemTokens`, `toolsTokens`, and `messageTokens` — the context's composition, not its provider-billed size. Unloading the plugin removes all three keys.
+When the composition provides `ctx.sessionProjections`, token-meter registers four projection units. `tokenUsage` carries the complete durable log's `uncachedInputTokens`, `outputTokens`, `cacheReadTokens`, and `cacheWriteTokens`. A final assistant-message sample replaces streaming usage from the same attempt; `llm/retry-started` ends that replacement scope, so a retry in the same step contributes another billed attempt. `usageCost` applies the active adapter's synchronous price ranges to those disjoint buckets and carries estimated minimum/maximum nano-USD totals, priced and unpriced request counts, and the latest request disclosure. A request with an unknown route or an unpriced nonzero bucket remains wholly unpriced instead of mixing a partial estimate into the total. `contextPressure` carries optional `pressureTokens` (the newest provider-reported prompt size), optional `projectedTokens` (what the next request's prompt would cost), and optional `contextWindow` from the newest `request/context` record. `contextBreakdown` carries heuristic `systemTokens`, `toolsTokens`, and `messageTokens` — the context's composition, not its provider-billed size. Unloading the plugin removes all four keys.
+
+`summarizeUsage(events, fromInclusive, toExclusive)` folds non-inherited events into token, Turn, request, and estimated-cost totals for an explicit event-time interval. The caller owns inherited-event removal because the same logical log can be read through a parent or fork.
 
 Image offload reprices existing node identities while preserving prior usage anchors. The fixed reference heuristic excludes `offloaded` metadata, so an offload decision does not change `contextBreakdown` or the scalar heuristic total; route-aware measurement replaces the selected visual prices with placeholder text.
 
@@ -85,11 +87,12 @@ The service is built on one fold and one anchor. Each session gets an isolated r
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | The `TokenMeter` service: replay state, fold, `measure()` and `estimateMessage()` |
+| [`src/index.ts`](src/index.ts) | The `TokenMeter` service: replay state, fold, measurement, message estimates, and period summaries |
 | [`src/estimate.ts`](src/estimate.ts) | The fixed heuristic: four characters per token plus block and role overhead |
 | [`src/surface-fold.ts`](src/surface-fold.ts) | The positional surface fold shared with `measure()` |
 | [`src/surface-projection.ts`](src/surface-projection.ts) | Shadow-price protocol for the O(1) projection units |
 | [`src/usage-projection.ts`](src/usage-projection.ts) | `tokenUsage` and `contextPressure` projection definitions |
+| [`src/usage-cost.ts`](src/usage-cost.ts) | Provider-priced request projection and explicit-period usage summary |
 | [`src/breakdown-projection.ts`](src/breakdown-projection.ts) | `contextBreakdown` projection definition |
 | [`src/client.ts`](src/client.ts) | Browser-safe client surface for projection consumers |
 | [`src/turn-usage.ts`](src/turn-usage.ts) | Pure fold for exact per-attempt and per-Turn usage |

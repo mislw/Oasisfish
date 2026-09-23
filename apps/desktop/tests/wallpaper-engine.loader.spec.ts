@@ -32,10 +32,12 @@ const CLIENT_ROSTER_SPECIFIER = '@deepseek-ai/dsh-client-test-runtime/src/assemb
 const ONBOARDING_CLIENT_SPECIFIER = '@deepseek-ai/dsh-client-ui-wallpaper-engine-onboarding/' + 'client'
 const REMOTE_MOCK_SPECIFIER = '@deepseek-ai/dsh-' + 'remote-mock'
 // Host typechecking must not pull Client-face source into tsconfig.host.json.
-const { ClientRoster, TestClient, bundleRoster, remoteDefaultResponses } = await import(CLIENT_RUNTIME_SPECIFIER)
-const { graphFromRoster } = await import(CLIENT_ROSTER_SPECIFIER)
-const onboardingClient = await import(ONBOARDING_CLIENT_SPECIFIER)
-const { RemoteMock } = await import(REMOTE_MOCK_SPECIFIER)
+const clientRuntime = await import(CLIENT_RUNTIME_SPECIFIER) as unknown as ClientRuntimeModule
+const { ClientRoster, TestClient, bundleRoster, remoteDefaultResponses } = clientRuntime
+const clientRosterModule = await import(CLIENT_ROSTER_SPECIFIER) as unknown as ClientRosterModule
+const { graphFromRoster } = clientRosterModule
+const onboardingClient = await import(ONBOARDING_CLIENT_SPECIFIER) as unknown as ClientPluginModule
+const { RemoteMock } = await import(REMOTE_MOCK_SPECIFIER) as unknown as RemoteMockModule
 const realFetch = globalThis.fetch.bind(globalThis)
 const running = new Set<RunningDesktop>()
 const roots = new Set<string>()
@@ -49,6 +51,48 @@ type DesktopApplication = Awaited<ReturnType<typeof runProfile>>
 
 interface ClientPluginModule {
   apply(...args: never[]): unknown
+}
+
+interface ClientRosterHandle {
+  readonly rows: readonly ClientRosterRow[]
+  closure(names: readonly string[]): ClientRosterHandle
+  without(names: readonly string[]): ClientRosterHandle
+}
+
+interface TestClientHandle {
+  readonly ctx: {
+    get(name: string): unknown
+    readonly loader: { readonly internal: unknown }
+  }
+  dispose(): Promise<void>
+}
+
+interface RemoteMockHandle {
+  load(table: unknown): RemoteMockHandle
+}
+
+interface ClientRuntimeModule {
+  readonly ClientRoster: {
+    readonly of: (rows: readonly ClientRosterRow[]) => ClientRosterHandle
+  }
+  readonly TestClient: {
+    readonly start: (
+      plan: { roster: ClientRosterHandle; provide?: Readonly<Record<string, unknown>> },
+      mock: RemoteMockHandle,
+    ) => Promise<TestClientHandle>
+  }
+  readonly bundleRoster: (bundles: readonly string[], anchor: string) => ClientRosterHandle
+  readonly remoteDefaultResponses: unknown
+}
+
+interface ClientRosterModule {
+  readonly graphFromRoster: (rows: readonly ClientRosterRow[]) => unknown
+}
+
+interface RemoteMockModule {
+  readonly RemoteMock: {
+    create(): RemoteMockHandle
+  }
 }
 
 interface ReactModule {
@@ -205,8 +249,8 @@ async function createDesktopProfile(profileDir: string): Promise<void> {
   await offerDesktopDefaultBundles(profileDir, [DESKTOP_WALLPAPER_BUNDLE])
 }
 
-function clientRoster() {
-  const roster = bundleRoster(DESKTOP_PROFILE_DEFAULT_BUNDLES, SPEC_PATH) as { rows: readonly ClientRosterRow[] }
+function clientRoster(): ClientRosterHandle {
+  const roster = bundleRoster(DESKTOP_PROFILE_DEFAULT_BUNDLES, SPEC_PATH)
   return ClientRoster.of(roster.rows.map((row: ClientRosterRow) => row.name === UPSTREAM_CLIENT
     ? { ...row, inject: [] }
     : row)).closure([UPSTREAM_CLIENT, ONBOARDING_CLIENT, SETTINGS_GENERAL_CLIENT])
@@ -401,7 +445,9 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
     expect(await initialSettings.json()).toMatchObject({ settings: null })
     const inventory = await route(desktop, '/wallpaper-engine/inventory')
     expect(inventory.status).toBe(200)
-    expect(await inventory.json()).toMatchObject({ wallpapers: expect.any(Array), playlists: expect.any(Array) })
+    const inventoryBody = await inventory.json() as { wallpapers: unknown; playlists: unknown }
+    expect(Array.isArray(inventoryBody.wallpapers)).toBe(true)
+    expect(Array.isArray(inventoryBody.playlists)).toBe(true)
 
     const routedBrowserFetch = (input: string | URL | Request, init?: RequestInit) => {
       const value = typeof input === 'string' || input instanceof URL ? String(input) : input.url
@@ -420,13 +466,13 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
       const browserSetTimeout = browserWindow.setTimeout.bind(browserWindow)
       const persistTimerSpy = vi.spyOn(browserWindow, 'setTimeout').mockImplementation((handler, timeout, ...args) => {
         if (timeout === 200 && typeof handler === 'function' && handler.name === 'flushPersist') {
-          persistFlushes.push(() => handler(...args))
+          persistFlushes.push(() => { handler(...args) })
           return browserSetTimeout(() => undefined, 0) as unknown as ReturnType<typeof globalThis.setTimeout>
         }
         return browserSetTimeout(handler, timeout, ...args) as unknown as ReturnType<typeof globalThis.setTimeout>
       })
       let settingsRoot: ReactRoot | undefined
-      let client
+      let client: TestClientHandle | undefined
       try {
         client = await TestClient.start({
           roster: clientRoster(),
@@ -512,8 +558,11 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
         }, mock)
         slots = client.ctx.get('slots') as Slots
         await vi.waitFor(() => {
+          expect(browserRequests).toContainEqual({ method: 'GET', path: '/wallpaper-engine/settings' })
           expect(browserRequests).toContainEqual({ method: 'GET', path: '/wallpaper-engine/inventory' })
         })
+        await Promise.all(browserRequestSettlements.splice(0))
+        await new Promise<void>(resolve => browserSetTimeout(resolve, 0))
         await vi.waitFor(() => {
           expect(browserRequests).toContainEqual({ method: 'PUT', path: '/wallpaper-engine/settings' })
         })
@@ -528,7 +577,7 @@ describe('Desktop Wallpaper Engine real Loader lifecycle', () => {
 
         const disabledRoster = clientRoster().without([UPSTREAM_CLIENT, ONBOARDING_CLIENT])
         const modules = client.ctx.loader.internal as {
-          entries: { sync(graph: ReturnType<typeof graphFromRoster>): Promise<void> }
+          entries: { sync(graph: unknown): Promise<void> }
         }
         await modules.entries.sync(graphFromRoster(disabledRoster.rows))
         expect(document.querySelectorAll(STYLE_SELECTOR)).toHaveLength(0)

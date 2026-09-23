@@ -55,7 +55,17 @@ async function bench() {
     openSession,
   } as never)
   runtime.remote.provideNamespaces({
-    session: { openWorkspacePath: vi.fn(async () => ({ ok: true, value: { opened: true } })) },
+    session: {
+      openWorkspacePath: vi.fn(async () => ({ ok: true, value: { opened: true } })),
+      usageSummary: vi.fn(async () => ({
+        ok: true,
+        value: {
+          uncachedInputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0,
+          turns: 0, minimumNanoUsd: 0, maximumNanoUsd: 0,
+          pricedRequests: 0, unpricedRequests: 0, failedSessions: 0,
+        },
+      })),
+    },
   })
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
@@ -88,7 +98,7 @@ describe('Chat apply wiring', () => {
     expect(resolveSlotLabel(views[0]?.options.label)).toBe('对话')
     expect(b.runtime.slots.spec('conversation.chat.node'))
       .toMatchObject({ kind: 'keyed', scope: 'session' })
-    expect(b.runtime.slots.entries('conversation.composer.dock').map(row => row.options.id))
+    expect(b.runtime.slots.entries('conversation.status').map(row => row.options.id))
       .toEqual(['stats'])
     expect(b.runtime.slots.entries('settings.general.item').map(row => row.options.id))
       .toEqual(['transcript-view', 'composer-enter'])

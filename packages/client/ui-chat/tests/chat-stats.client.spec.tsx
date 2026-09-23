@@ -8,7 +8,9 @@ import type {
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import { StatsPills, deriveStats, formatDuration, type StatsPillsProps } from '../src/client/chat/StatsPills.tsx'
+import {
+  StatsPills, deriveStats, estimateStreamingTokens, formatCostRange, formatDuration, type StatsPillsProps,
+} from '../src/client/chat/StatsPills.tsx'
 import { formatTokens } from '../src/client/chat/token-format.ts'
 import { en, zh } from '../src/client/locale.ts'
 import { chatSnapshotFixture } from './chat-snapshot-fixture.client.ts'
@@ -123,6 +125,11 @@ describe('formatters', () => {
     expect(formatDuration(45_230, tEn)).toBe('45.2s')
     expect(formatDuration(162_000, tEn)).toBe('2m42s')
   })
+
+  it('formats cost intervals and estimates mixed streaming text', () => {
+    expect(formatCostRange(1_000_000, 2_000_000)).toBe('$0.0010-$0.0020')
+    expect(estimateStreamingTokens([{ kind: 'text', text: '你好 test' }])).toBe(3)
+  })
 })
 
 describe('StatsPills', () => {
@@ -145,7 +152,12 @@ describe('StatsPills', () => {
     source: { getSnapshot(): ChatSnapshot; subscribe(fn: () => void): () => void },
     values: Record<string, unknown> = { tokenUsage: USAGE },
   ): StatsPillsProps {
-    return { useChat: bindSnapshotSelector(source), useProjection: projections(values), t: tEn }
+    return {
+      useChat: bindSnapshotSelector(source),
+      useProjection: projections(values),
+      loadDailyUsage: () => new Promise(() => {}),
+      t: tEn,
+    }
   }
 
   function tokenUsage(cacheReadTokens: number, uncachedInputTokens: number) {
@@ -430,6 +442,64 @@ describe('StatsPills', () => {
     expect(view.getByRole('dialog').textContent).toContain('Cache write100 tok')
   })
 
+  it('shows session cost detail and the cross-Session daily summary', async () => {
+    const { source } = makeSource({ nodes: [assistant(1, 1)] })
+    const loadDailyUsage = vi.fn(async () => ({
+      uncachedInputTokens: 50,
+      outputTokens: 20,
+      cacheReadTokens: 450,
+      cacheWriteTokens: 30,
+      turns: 4,
+      minimumNanoUsd: 20_000_000,
+      maximumNanoUsd: 40_000_000,
+      pricedRequests: 3,
+      unpricedRequests: 1,
+      failedSessions: 2,
+    }))
+    const view = render(<StatsPills {...props(source, {
+      tokenUsage: USAGE,
+      usageCost: {
+        minimumNanoUsd: 1_500_000,
+        maximumNanoUsd: 3_000_000,
+        pricedRequests: 2,
+        unpricedRequests: 1,
+        latest: {
+          provider: 'deepseek-official',
+          model: 'deepseek-flash',
+          occurredAt: 1,
+          usage: { uncachedInputTokens: 2, outputTokens: 3, cacheReadTokens: 5, cacheWriteTokens: 0 },
+          minimumNanoUsd: 1_000_000,
+          maximumNanoUsd: 2_000_000,
+        },
+      },
+    })} loadDailyUsage={loadDailyUsage} />)
+    await act(async () => { await Promise.resolve() })
+
+    const [usagePill, dailyPill] = view.getAllByRole('button')
+    expect(usagePill!.textContent).toBe('105 tok·Cache hit 90%·≈$0.0015-$0.0030')
+    expect(usagePill!.getAttribute('aria-label'))
+      .toBe('105 tok · Cache hit 90% · ≈$0.0015-$0.0030')
+    expect(dailyPill!.textContent).toBe('Today 550 tok · ≈$0.020-$0.040')
+
+    fireEvent.click(usagePill!)
+    let details = view.getByRole('dialog').querySelector('[data-session-stats-usage]') as HTMLElement
+    expect(details.textContent).toContain('Estimated cost range≈$0.0015-$0.0030')
+    expect(details.textContent).toContain('Model requests3')
+    expect(details.textContent).toContain('Provider / modeldeepseek-official / deepseek-flash')
+    expect(details.textContent).toContain('Latest request usage10 tok')
+    expect(details.textContent).toContain('Latest request estimated cost≈$0.0010-$0.0020')
+
+    fireEvent.click(dailyPill!)
+    details = view.getByRole('dialog').querySelector('[data-daily-usage-details]') as HTMLElement
+    expect(details.textContent).toContain('Turns4')
+    expect(details.textContent).toContain('Model requests4')
+    expect(details.textContent).toContain('Cache hit85%')
+    expect(details.textContent).toContain('Cache write30 tok')
+    expect(details.textContent).toContain('Estimated cost range≈$0.020-$0.040')
+    expect(details.textContent).toContain('Unpriced requests1')
+    expect(details.textContent).toContain('Unreadable sessions2')
+  })
+
   it('renders ZERO times during streaming chunk frames (RFC hard acceptance)', () => {
     const { set, source } = makeSource({ nodes: [assistant(1, 1)] })
     let renders = 0
@@ -443,5 +513,6 @@ describe('StatsPills', () => {
     act(() => { set({ partial: { turn: 1, step: 2, blocks: [{ kind: 'text', text: 'a' }] } }) })
     act(() => { set({ partial: { turn: 1, step: 2, blocks: [{ kind: 'text', text: 'ab' }] } }) })
     expect(renders).toBe(before)
+    expect(document.body.textContent).toContain('Turn ~1 tok')
   })
 })

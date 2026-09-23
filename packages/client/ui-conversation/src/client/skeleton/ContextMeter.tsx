@@ -1,4 +1,4 @@
-/** Composer context-occupancy meter: a ring and percentage below the card fed by the
+/** Conversation context-occupancy meter: a ring and percentage in the status bar fed by the
  * `contextPressure` projection, with a click-open panel of the heuristic
  * `contextBreakdown` composition (system prompt, tools, conversation).
  * Renders nothing until a provider reports both pressure and a route
@@ -10,7 +10,7 @@ import type { UseProjection } from '@deepseek-ai/dsh-api-session-controller/clie
 // Type-only: the `contextPressure` / `contextBreakdown` projection key merges.
 import type {} from '@deepseek-ai/dsh-token-meter/client'
 import { Tooltip, useAnchoredPosition, useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ComposerBarProps } from '../contract/slots.ts'
+import type { ConversationContentProps } from '../contract/slots.ts'
 import { contextOccupancy } from '../context-occupancy.ts'
 import css from './ContextMeter.module.css'
 
@@ -38,7 +38,7 @@ const ROWS = [
  * @param t - Conversation locale seat with shared compact-number templates.
  * @returns Compact localized count using K or M when needed.
  */
-function formatTokens(value: number, t: ComposerBarProps['t']): string {
+function formatTokens(value: number, t: ConversationContentProps['t']): string {
   const scaled = (candidate: number): string => candidate >= 100
     ? String(Math.round(candidate))
     : String(Math.round(candidate * 10) / 10)
@@ -49,8 +49,8 @@ function formatTokens(value: number, t: ComposerBarProps['t']): string {
 
 export interface ContextMeterProps {
   useProjection: UseProjection
-  /** The owning bar's locale seat, passed down as a plain prop. */
-  t: ComposerBarProps['t']
+  /** The owning Conversation content's locale seat, passed down as a plain prop. */
+  t: ConversationContentProps['t']
 }
 
 export function ContextMeter({ useProjection, t }: ContextMeterProps) {

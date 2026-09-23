@@ -43,7 +43,9 @@ Each nonempty appended `system/message` owns a collapsed prompt row, including a
 
 A completed Turn shows an expandable usage row only when the loaded window includes `turn/start` and every started model attempt reports safe, exact usage. The row omits unavailable optional buckets. Incomplete or contradictory accounting hides the complete disclosure instead of presenting a partial total.
 
-After Assistant replies settle, the completed-turn timing dialog omits TTFT and decoding speed, both after live replies and after reopening history. Elapsed turn time remains available. The Session Stats pill reads timing independently from its durable projection.
+The Conversation status bar shows a CJK-aware approximate current-Turn count while streaming, then whole-Session Turn and Step counts, decoding speed, provider-reported tokens, cache-hit percentage, and the adapter-priced estimated cost range. A daily pill aggregates list-visible Sessions over the browser's local calendar day and discloses Turns, requests, token buckets, cache hit, estimated cost, unpriced requests, and unreadable Sessions. Session details also disclose the latest request's model, tokens, and estimate. The bar reads durable projections after settlement, so pagination and compaction do not change accumulated figures; its horizontal scroller keeps every pill reachable on narrow screens.
+
+After Assistant replies settle, the completed-turn timing dialog omits TTFT and decoding speed, both after live replies and after reopening history. Elapsed turn time remains available. The Session Stats reading derives timing independently from its durable projection.
 
 <a id="completed-turn-footer"></a>
 ## Completed-turn footer

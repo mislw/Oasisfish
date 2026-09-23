@@ -45,6 +45,7 @@ import {
   type Config,
 } from './config.ts'
 import { SessionCorpus } from './corpus.ts'
+import type { LogicalProjectionResult, LogicalSessionSource } from './corpus.ts'
 import {
   SessionObservationReader,
   type SessionObservation,
@@ -70,6 +71,7 @@ export {
 } from './config.ts'
 export { readColdSessionLog } from './cold-read.ts'
 export type { ColdSessionLog } from './cold-read.ts'
+export type { LogicalProjectionResult, LogicalSessionSource } from './corpus.ts'
 export { extractSessionEventText } from './extraction.ts'
 export { buildSessionEventRecords, buildSessionEventSearchDocuments } from './documents.ts'
 export {
@@ -173,6 +175,22 @@ export abstract class SessionQueryEngine extends Service {
    */
   listSessions(signal?: AbortSignal): Promise<SessionRecord[]> {
     return this._corpus.listSessions(signal)
+  }
+
+  /**
+   * Project unique logical Sessions from one bounded-concurrency corpus observation.
+   * The callback borrows each full log only for its synchronous invocation.
+   * @param sessionIds - Sessions to resolve in first-occurrence order.
+   * @param project - synchronous fold that clones every retained value.
+   * @param signal - optional cancellation shared by listing and reads.
+   * @returns one fulfilled or rejected result per unique Session id.
+   */
+  projectSessions<Value>(
+    sessionIds: readonly SessionId[],
+    project: (source: LogicalSessionSource) => Value,
+    signal?: AbortSignal,
+  ): Promise<LogicalProjectionResult<Value>[]> {
+    return this._corpus.projectMany(sessionIds, project, signal)
   }
 
   /**

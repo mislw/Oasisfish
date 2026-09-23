@@ -39,6 +39,7 @@ export {
   resolveRequestImageTarget,
 } from './common/request-pricing.ts'
 export { deepSeekImageTokens, deepSeekRequestImageDimensions } from './common/image-tokens.ts'
+export { deepSeekTokenPricing } from './common/token-pricing.ts'
 export { DeepSeekFileStore, MAX_IMAGE_BYTES } from './common/file-store.ts'
 export type { DeepSeekFileConnection, DeepSeekFilePolicy, DeepSeekFileReference } from './common/file-store.ts'
 export { DeepSeekFilesClient, MAX_FILE_EXPIRY_SECONDS, MAX_FILE_UPLOAD_BYTES, MAX_STORED_FILE_BYTES, MAX_STORED_FILE_COUNT, MIN_FILE_EXPIRY_SECONDS } from './common/files-api.ts'

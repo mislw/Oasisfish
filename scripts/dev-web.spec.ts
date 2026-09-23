@@ -11,7 +11,7 @@ import {
   watchClientPlugins,
 } from './dev-web.ts'
 
-it('samples one local environment at startup without validating watcher outputs', async () => {
+it('selects the Oasisfish client profile by default without validating watcher outputs', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-dev-web-environment-'))
   try {
     await mkdir(join(root, 'apps/web/dist'), { recursive: true })
@@ -29,13 +29,13 @@ it('samples one local environment at startup without validating watcher outputs'
 
     expect(devWebBuildEnvironment(root, {
       PATH: '/bin',
-      DSH_BUILD_CLIENT_PROFILE: 'official',
       DSH_CLIENT_COMMIT_HASH: 'abc1234',
       DSH_CLIENT_EXTRA: 'launch-value',
     })).toEqual({
       PATH: '/bin',
+      DSH_CLIENT_BUILD_PROFILE: 'oasisfish',
       DSH_CLIENT_COMMIT_HASH: 'abc1234',
-      DSH_CLIENT_EXTRA: 'launch-value',
+      DSH_CLIENT_TITLE: 'Oasisfish',
       DSH_CLIENT_VERSION: '1.2.3',
     })
   } finally {

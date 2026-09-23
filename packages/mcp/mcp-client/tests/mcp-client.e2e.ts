@@ -214,6 +214,32 @@ describe('fixture server — duplicate serverName', () => {
   }, 30_000)
 })
 
+describe('fixture server — configured tool filters', () => {
+  it('publishes the selected generation through the real stdio protocol', async () => {
+    const ctx = await mountRegistry()
+    await apply(ctx, {
+      transport: 'stdio',
+      serverName: 'filtered',
+      command: process.execPath,
+      args: [fixtureServerPath],
+      env: {},
+      cwd: packageDir,
+      toolCallTimeoutMs: 15_000,
+      failOnStartupError: true,
+      includeTools: ['add', 'greet', 'fail'],
+      excludeTools: ['fail'],
+    })
+    try {
+      expect(ctx.tools.get('mcp__filtered__add')).toBeDefined()
+      expect(ctx.tools.get('mcp__filtered__greet')).toBeDefined()
+      expect(ctx.tools.get('mcp__filtered__fail')).toBeUndefined()
+      expect(ctx.tools.get('mcp__filtered__image')).toBeUndefined()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  }, 30_000)
+})
+
 describe('fixture server — disposal', () => {
   it('disposes cleanly without error', async () => {
     const ctx = await mountRegistry()

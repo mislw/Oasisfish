@@ -259,6 +259,8 @@
       "@deepseek-ai/dsh-client-ui-settings-unarchive-sessions": ["./packages/client/ui-settings-unarchive-sessions/src"],
       "@deepseek-ai/dsh-client-ui-wallpaper-engine-onboarding": ["./packages/client/ui-wallpaper-engine-onboarding/src"],
       "@deepseek-ai/dsh-client-ui-wallpaper-engine-onboarding/client": ["./packages/client/ui-wallpaper-engine-onboarding/src/client/index.ts"],
+      "@deepseek-ai/dsh-client-ui-codex-bridge": ["./packages/client/ui-codex-bridge/src"],
+      "@deepseek-ai/dsh-client-ui-codex-bridge/client": ["./packages/client/ui-codex-bridge/src/client/index.ts"],
       "@deepseek-ai/dsh-client-locale": ["./packages/client/locale/src"],
       "@deepseek-ai/dsh-client-web/injections": ["./packages/client/web/src/apply-injections.ts"],
       "@deepseek-ai/dsh-client-web": ["./packages/client/web/src"],

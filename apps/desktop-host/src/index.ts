@@ -10,6 +10,17 @@ import * as desktopOffice from './office.ts'
 
 import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 
+/**
+ * Select application-owned overlays for one built client identity.
+ * @param profile - Client build profile embedded in the renderer artifacts.
+ * @returns absolute patch paths applied after the Desktop profile.
+ */
+export function desktopPatchFiles(profile: string | undefined): string[] {
+  return profile === 'oasisfish'
+    ? [join(import.meta.dirname, '..', 'oasisfish.cordis.patch.yml')]
+    : []
+}
+
 async function main(): Promise<void> {
   const runtimeDir = process.argv[2] as string
   const projectDir = process.argv[3] as string
@@ -20,7 +31,7 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolutionMode: process.argv[5] === 'runtime' ? 'runtime' : 'link',
     resolvedProfile: { profile, installAnchor },
-    patchFiles: [],
+    patchFiles: desktopPatchFiles(process.env.DSH_CLIENT_BUILD_PROFILE),
     args: ['--no-open', '--port', '19387'],
     ...(process.argv[6] === undefined ? {} : {
       packageManager: {

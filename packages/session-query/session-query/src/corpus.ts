@@ -22,6 +22,8 @@ export interface LogicalSession {
 export interface LogicalSessionSource {
   /** Header selected with `events`; callers must clone retained output. */
   readonly header: SessionHeader
+  /** Exact fork-inherited event count paired with the borrowed log. */
+  readonly inheritedEventCount: SessionLogOffset
   /** Raw events selected with `header`; valid only for the projection call. */
   readonly events: readonly SessionEvent[]
 }
@@ -189,6 +191,7 @@ export class SessionCorpus {
         assertSessionHeadersCompatible(loaded.header, listed)
         resolved.set(sessionId, projectSource(sessionId, {
           header: loaded.header,
+          inheritedEventCount: loaded.inheritedEventCount,
           events: loaded.events,
         }, project, signal))
       } catch (error: unknown) {
@@ -243,8 +246,12 @@ function projectSource<Value>(
 }
 
 function sourceLive(session: Session): LogicalSessionSource {
-  // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
-  return { header: session.header, events: session.snapshotEvents() }
+  return {
+    header: session.header,
+    inheritedEventCount: session.inheritedEventCount,
+    // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
+    events: session.snapshotEvents(),
+  }
 }
 
 function orderedResults<Value>(

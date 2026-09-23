@@ -1,6 +1,6 @@
 import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { IpcMainInvokeEvent } from 'electron'
+import { protocol, type IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -10,6 +10,7 @@ import { MANDATORY_IPC } from '../src/mandatory-update-ipc.ts'
 import { DesktopHostUncleanExitError } from '../src/host-process.ts'
 import { en } from '../src/locale.ts'
 import { DesktopUpdatePreparationError } from '../src/update-error.ts'
+import { serveWebDocument } from '../src/web-document.ts'
 
 type InvokeEvent = { sender?: unknown; senderFrame: { url: string } }
 type InvokeHandler = (event: InvokeEvent, ...args: unknown[]) => unknown
@@ -494,7 +495,11 @@ describe('desktop main startup', () => {
     if (platform === 'darwin') {
       expect(window.options).toMatchObject({ titleBarStyle: 'hiddenInset', vibrancy: 'sidebar', backgroundColor: '#00000000' })
     } else if (platform === 'win32') {
-      expect(window.options).toMatchObject({ titleBarStyle: 'hidden', titleBarOverlay: { height: WINDOWS_TITLEBAR_HEIGHT } })
+      expect(window.options).toMatchObject({
+        icon: join('desktop-test-resources', 'icon.png'),
+        titleBarStyle: 'hidden',
+        titleBarOverlay: { height: WINDOWS_TITLEBAR_HEIGHT },
+      })
       expect(window.options).not.toHaveProperty('vibrancy')
       expect(harness.menu.setApplicationMenu).toHaveBeenCalledWith(null)
     } else {
@@ -502,6 +507,27 @@ describe('desktop main startup', () => {
       expect(window.options).not.toHaveProperty('vibrancy')
     }
     expect(harness.hosts).toHaveLength(0)
+  })
+
+  it('uses the platform icon for an unpackaged Windows window', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    harness.app.isPackaged = false
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    expect(harness.windows[0]!.options).toMatchObject({
+      icon: join('desktop-test-app', 'resources', 'icon-windows.png'),
+    })
+  })
+
+  it('serves shell-owned dialog documents from packaged renderer assets', async () => {
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    const handler = vi.mocked(protocol).handle.mock.calls
+      .find(([scheme]) => scheme === 'dsh-app')?.[1]
+    expect(handler).toBeDefined()
+    const request = new Request('dsh-app://shell/update-dialog.html')
+    await handler!(request)
+    expect(serveWebDocument).toHaveBeenCalledWith(request, join('desktop-test-app', 'renderer'))
   })
 
   it('follows the Windows primary document language and palette without trusting other frames', async () => {

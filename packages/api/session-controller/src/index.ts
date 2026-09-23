@@ -7,6 +7,7 @@ import { errorChain } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-client-file-upload'
 import { canOpenNativePath, nativeFileManager, openNativePath, revealNativePath } from '@deepseek-ai/dsh-native-command'
 import type { SessionId } from '@deepseek-ai/dsh-session'
+import type { UsagePeriodSummary } from '@deepseek-ai/dsh-token-meter'
 import type { SessionInspection } from '@deepseek-ai/dsh-session-persistence'
 import type { SessionObservation } from '@deepseek-ai/dsh-session-query'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
@@ -53,6 +54,8 @@ import type {
   SessionSelectModelValue,
   SessionUpdateQueueRequest,
   SessionUpdateQueueValue,
+  SessionUsageSummaryRequest,
+  SessionUsageSummaryValue,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -94,6 +97,7 @@ export class SessionController extends TypertRemoteService {
     'sessions',
     'sessionProjections',
     'sessionQuery',
+    'tokenMeter',
     'typert',
     'workspaceRegistry',
   ]
@@ -223,6 +227,67 @@ export class SessionController extends TypertRemoteService {
   @Remote('list')
   async list(_request: SessionListRequest, signal: AbortSignal): Promise<SessionListValue> {
     return { items: await this.listState.list(signal) }
+  }
+
+  /**
+   * Aggregate non-inherited request usage across every visible Session.
+   * @param request - browser-local interval expressed as absolute epoch bounds.
+   * @param signal - cancellation for corpus listing and persisted reads.
+   * @returns token, Turn, request, cost-range, and isolated-read-failure totals.
+   */
+  @Remote('usageSummary')
+  async usageSummary(
+    request: SessionUsageSummaryRequest,
+    signal: AbortSignal,
+  ): Promise<SessionUsageSummaryValue> {
+    const { fromInclusive, toExclusive } = request
+    if (!Number.isSafeInteger(fromInclusive) || !Number.isSafeInteger(toExclusive)
+      || fromInclusive < 0 || toExclusive <= fromInclusive) {
+      throw new RemoteError(
+        'gateway/bad-request',
+        'usage summary requires safe epoch bounds with toExclusive greater than fromInclusive',
+        {},
+      )
+    }
+    const visible = await this.listState.list(signal)
+    const results = await this.ctx.sessionQuery.projectSessions(
+      visible.map(item => item.sessionId),
+      source => this.ctx.tokenMeter.summarizeUsage(
+        source.events.slice(source.inheritedEventCount),
+        fromInclusive,
+        toExclusive,
+      ),
+      signal,
+    )
+    const total = {
+      uncachedInputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      turns: 0,
+      minimumNanoUsd: 0,
+      maximumNanoUsd: 0,
+      pricedRequests: 0,
+      unpricedRequests: 0,
+      failedSessions: 0,
+    }
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        total.failedSessions += 1
+        continue
+      }
+      const value: UsagePeriodSummary = result.value
+      total.uncachedInputTokens += value.uncachedInputTokens
+      total.outputTokens += value.outputTokens
+      total.cacheReadTokens += value.cacheReadTokens
+      total.cacheWriteTokens += value.cacheWriteTokens
+      total.turns += value.turns
+      total.minimumNanoUsd += value.minimumNanoUsd
+      total.maximumNanoUsd += value.maximumNanoUsd
+      total.pricedRequests += value.pricedRequests
+      total.unpricedRequests += value.unpricedRequests
+    }
+    return total satisfies SessionUsageSummaryValue
   }
 
   /**

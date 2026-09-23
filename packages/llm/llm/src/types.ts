@@ -175,6 +175,26 @@ export interface TokenUsage {
   reasoningTokens?: number
 }
 
+/** Inclusive USD price range for one token in one provider billing bucket. */
+export interface LlmTokenUnitPriceRange {
+  /** Lowest possible price in billionths of one USD per token. */
+  readonly minimumNanoUsd: number
+  /** Highest possible price in billionths of one USD per token. */
+  readonly maximumNanoUsd: number
+}
+
+/** Provider-owned billing rates for one exact model route. */
+export interface LlmTokenPricing {
+  /** Uncached prompt-token price range. */
+  readonly uncachedInput: LlmTokenUnitPriceRange
+  /** Cached prompt-token read price range. */
+  readonly cacheRead: LlmTokenUnitPriceRange
+  /** Cache-write price range, absent when the provider publishes no compatible rate. */
+  readonly cacheWrite?: LlmTokenUnitPriceRange
+  /** Generated output-token price range. */
+  readonly output: LlmTokenUnitPriceRange
+}
+
 /**
  * Request price of one ordered image occurrence under one exact model route's
  * request projection. Every occurrence resolves to the pair the wire actually

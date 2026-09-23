@@ -6,6 +6,7 @@ import type { DeepSeekAdapterOptions } from './common/types.ts'
 import { ChatCompletionsAdapter } from './protocols/chat-completions/adapter.ts'
 import { DeepSeekFileStore } from './common/file-store.ts'
 import { DeepSeekMessagesAdapter } from './protocols/messages/adapter.ts'
+import { deepSeekTokenPricing } from './common/token-pricing.ts'
 
 /** One provider route with protocol-local transport and shared credentials and model configuration. */
 export class DeepSeekAdapter extends LlmAdapter {
@@ -48,6 +49,9 @@ export class DeepSeekAdapter extends LlmAdapter {
   }
   override imageRequestPricing(provider: string, model: string) {
     return this.implementation().imageRequestPricing(provider, model)
+  }
+  override tokenPricing(_provider: string, model: string, _occurredAt: number) {
+    return deepSeekTokenPricing(model)
   }
   override prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
     return this.implementation().prepareCall(provider, model, signal)

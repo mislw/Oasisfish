@@ -36,6 +36,7 @@ Use `ctx.sessionQuery` from application code when you need to read or search ses
 | `filterSessions(filters)` | Sessions matching ANDed metadata and availability predicates |
 | `filterEvents(id, filters)` | Semantic event documents matching metadata and literal-text predicates |
 | `readTitleSnapshots(ids)` | The latest folded title per session, bound to its source header |
+| `projectSessions(ids, project)` | One live-preferred, bounded-concurrency batch projection with an isolated fulfilled or rejected result per unique id |
 | `listEvents(id)` / `readSurface(id)` | Lightweight per-event records, or the complete current model surface |
 | `readEvent(request)` | One full event plus a bounded raw-log window around it |
 | `traceSession(id)` | The known ancestor chain and recursive descendant trees |

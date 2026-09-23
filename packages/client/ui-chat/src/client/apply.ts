@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionBinding } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionUsageSummaryValue } from '@deepseek-ai/dsh-api-session-controller/types'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-browser/client'
 import type {} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
@@ -176,9 +177,16 @@ export function apply(ctx: Context): void {
     return disposeView
   })
 
-  ctx.slots.inject('conversation.composer.dock', () =>
+  ctx.slots.inject('conversation.status', () =>
     ctx.slots.register({
-      name: 'conversation.composer.dock', id: 'stats', order: 0, locale: NS,
+      name: 'conversation.status', id: 'stats', order: 0, locale: NS,
+      inject: () => ({
+        loadDailyUsage: async (fromInclusive: number, toExclusive: number): Promise<SessionUsageSummaryValue> => {
+          const result = await ctx.remote.session.usageSummary({ fromInclusive, toExclusive })
+          if (!result.ok) throw new Error(result.error.message)
+          return result.value
+        },
+      }),
     }, StatsPills))
 
   ctx.slots.inject('conversation.approval.detail', () =>

@@ -1,18 +1,18 @@
-// Session stats under the composer, split into two icon pills: a gauge pill
+// Session stats in the Conversation status bar, split into two icon pills: a gauge pill
 // (turn/step counts + output speed) opening the time-and-speed dialog, and a
 // database pill (total tokens + cache hit) opening the token-usage dialog.
 // Settled-node identity prevents stream-delta updates from rerendering the row.
-// Mounted on 'conversation.composer.dock' so it sticks with the composer in the
-// active conversation scrollport (see ConversationRoot data-conversation-scroll).
+// Mounted on 'conversation.status' so it stays visible below every Session View.
 
-import { memo, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { IconDatabaseOutline16, IconGaugeOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconClockOutline16, IconDatabaseOutline16, IconGaugeOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { UseProjection } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionUsageSummaryValue } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: merges the sessionStats key into SessionProjectionMap for useProjection.
 import type {} from '@deepseek-ai/dsh-session-stats/client'
-import type { TokenUsageProjection } from '@deepseek-ai/dsh-token-meter/client'
+import type { TokenUsageProjection, UsageCostProjection } from '@deepseek-ai/dsh-token-meter/client'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import { formatTokensPerSecond } from './message-chrome.ts'
@@ -21,6 +21,9 @@ import { formatCacheHitPercent, formatExactTokens, formatTokens } from './token-
 import { MEASURE_STYLE, useStatDialog } from './stat-dialog.ts'
 import css from './StatsPills.module.css'
 import dialogCss from './stat-dialog.module.css'
+
+const CJK_CHARACTER = /\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Hangul}/u
+const WHITESPACE_CHARACTER = /\s/u
 
 interface WindowStats {
   turns: number
@@ -126,6 +129,8 @@ export interface StatsPillsProps {
   useProjection: UseProjection
   /** The owning dock's locale seat. */
   t: ChatViewSlotProps['t']
+  /** Read cross-Session usage for one browser-local absolute interval. */
+  loadDailyUsage: (fromInclusive: number, toExclusive: number) => Promise<SessionUsageSummaryValue>
 }
 
 function exactCount(value: number, t: ChatViewSlotProps['t']): string {
@@ -134,6 +139,33 @@ function exactCount(value: number, t: ChatViewSlotProps['t']): string {
 
 /** External open state one pill's dialog reads and writes (the row's exclusive slot). */
 type PillDialog = Pick<ReturnType<typeof useStatDialog>, 'open' | 'setOpen'>
+
+function formatUsd(nanoUsd: number): string {
+  const dollars = nanoUsd / 1_000_000_000
+  const digits = dollars < 0.01 ? 4 : dollars < 1 ? 3 : 2
+  return `$${dollars.toFixed(digits)}`
+}
+
+/** Format a provider price interval without implying an exact tariff selection. */
+export function formatCostRange(minimumNanoUsd: number, maximumNanoUsd: number): string {
+  const minimum = formatUsd(minimumNanoUsd)
+  const maximum = formatUsd(maximumNanoUsd)
+  return minimum === maximum ? minimum : `${minimum}-${maximum}`
+}
+
+/** Estimate visible streaming output with a CJK-aware lightweight display heuristic. */
+export function estimateStreamingTokens(blocks: readonly { kind: string; text?: string }[]): number {
+  let cjk = 0
+  let other = 0
+  for (const block of blocks) {
+    if ((block.kind !== 'text' && block.kind !== 'reasoning') || block.text === undefined) continue
+    for (const character of block.text) {
+      if (CJK_CHARACTER.test(character)) cjk += 1
+      else if (!WHITESPACE_CHARACTER.test(character)) other += 1
+    }
+  }
+  return cjk + Math.ceil(other / 4)
+}
 
 function TimePill({ stats, t, dialog }: {
   stats: WindowStats
@@ -233,8 +265,9 @@ function TimePill({ stats, t, dialog }: {
   )
 }
 
-function UsagePill({ usage, t, dialog }: {
+function UsagePill({ usage, cost, t, dialog }: {
   usage: TokenUsageProjection
+  cost: UsageCostProjection | undefined
   t: ChatViewSlotProps['t']
   dialog: PillDialog
 }) {
@@ -244,6 +277,10 @@ function UsagePill({ usage, t, dialog }: {
   const totalText = t('message.turnUsage.count', { count: formatTokens(total, t) })
   const cacheHit = cacheHitPercent(usage)
   const cacheHitText = cacheHit !== null ? t('stats.cacheHit', { percent: cacheHit }) : null
+  const costText = cost !== undefined && cost.pricedRequests > 0
+    ? t('stats.estimatedCost', { cost: formatCostRange(cost.minimumNanoUsd, cost.maximumNanoUsd) })
+    : null
+  const ariaLabel = [totalText, cacheHitText, costText].filter(value => value !== null).join(' · ')
   return (
     <span ref={rootRef} className={css.anchor}>
       <button
@@ -251,7 +288,7 @@ function UsagePill({ usage, t, dialog }: {
         className={css.pill}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={cacheHitText === null ? totalText : `${totalText} · ${cacheHitText}`}
+        aria-label={ariaLabel}
         onClick={() => { setOpen(!open) }}
       >
         <IconDatabaseOutline16 />
@@ -261,6 +298,12 @@ function UsagePill({ usage, t, dialog }: {
             <>
               <span className={css.sep} aria-hidden>·</span>
               {cacheHitText}
+            </>
+          )}
+          {costText !== null && (
+            <>
+              <span className={css.sep} aria-hidden>·</span>
+              {costText}
             </>
           )}
         </span>
@@ -305,6 +348,43 @@ function UsagePill({ usage, t, dialog }: {
             )}
             <dt>{t('message.turnUsage.output')}</dt>
             <dd>{exactCount(usage.outputTokens, t)}</dd>
+            {costText !== null && (
+              <>
+                <dt>{t('stats.dialog.estimatedCost')}</dt>
+                <dd>{costText}</dd>
+              </>
+            )}
+            {cost !== undefined && (cost.pricedRequests > 0 || cost.unpricedRequests > 0) && (
+              <>
+                <dt>{t('stats.dialog.requests')}</dt>
+                <dd>{cost.pricedRequests + cost.unpricedRequests}</dd>
+              </>
+            )}
+            {cost !== undefined && cost.unpricedRequests > 0 && (
+              <>
+                <dt>{t('stats.dialog.unpricedRequests')}</dt>
+                <dd>{cost.unpricedRequests}</dd>
+              </>
+            )}
+            {cost?.latest !== undefined && (
+              <>
+                <dt>{t('message.turnUsage.model')}</dt>
+                <dd>{`${cost.latest.provider} / ${cost.latest.model}`}</dd>
+                <dt>{t('stats.dialog.latestRequest')}</dt>
+                <dd>{exactCount(
+                  billedInputTokens(cost.latest.usage) + cost.latest.usage.outputTokens,
+                  t,
+                )}</dd>
+                {cost.latest.minimumNanoUsd !== undefined && cost.latest.maximumNanoUsd !== undefined && (
+                  <>
+                    <dt>{t('stats.dialog.latestRequestCost')}</dt>
+                    <dd>{t('stats.estimatedCost', {
+                      cost: formatCostRange(cost.latest.minimumNanoUsd, cost.latest.maximumNanoUsd),
+                    })}</dd>
+                  </>
+                )}
+              </>
+            )}
           </dl>
           {/* jscpd:ignore-end */}
         </div>,
@@ -314,11 +394,117 @@ function UsagePill({ usage, t, dialog }: {
   )
 }
 
-export const StatsPills = memo(function StatsPills({ useChat, useProjection, t }: StatsPillsProps) {
+function LiveTurnPill({ tokens, t }: { tokens: number; t: ChatViewSlotProps['t'] }) {
+  return (
+    <span className={css.anchor}>
+      <span className={css.pill} aria-label={t('stats.liveTurnAria', { tokens: formatExactTokens(tokens, t) })}>
+        <IconGaugeOutline16 />
+        <span className={css.label}>{t('stats.liveTurn', { tokens: formatTokens(tokens, t) })}</span>
+      </span>
+    </span>
+  )
+}
+
+function DailyUsagePill({ value, t, dialog }: {
+  value: SessionUsageSummaryValue
+  t: ChatViewSlotProps['t']
+  dialog: PillDialog
+}) {
+  const { open, setOpen, rootRef, panelRef, pos } = useStatDialog(dialog)
+  const total = billedInputTokens(value) + value.outputTokens
+  const cacheHit = cacheHitPercent(value)
+  const cost = value.pricedRequests > 0
+    ? t('stats.estimatedCost', { cost: formatCostRange(value.minimumNanoUsd, value.maximumNanoUsd) })
+    : null
+  const label = cost === null
+    ? t('stats.todayTokens', { tokens: formatTokens(total, t) })
+    : t('stats.todayTokensCost', { tokens: formatTokens(total, t), cost })
+  return (
+    <span ref={rootRef} className={css.anchor}>
+      <button
+        type="button"
+        className={css.pill}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={label}
+        onClick={() => { setOpen(!open) }}
+      >
+        <IconClockOutline16 />
+        <span className={css.label}>{label}</span>
+      </button>
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          className={dialogCss.panel}
+          role="dialog"
+          aria-label={t('stats.dialog.todayTitle')}
+          style={pos ?? MEASURE_STYLE}
+        >
+          <div className={dialogCss.title}>
+            <span className={dialogCss.titleLabel}>
+              <IconClockOutline16 />
+              {t('stats.dialog.todayTitle')}
+            </span>
+            <span className={dialogCss.titleValue}>{exactCount(total, t)}</span>
+          </div>
+          <div className={dialogCss.titleRule} aria-hidden />
+          <dl className={dialogCss.details} data-daily-usage-details>
+            <dt>{t('stats.dialog.turns')}</dt>
+            <dd>{value.turns}</dd>
+            <dt>{t('stats.dialog.requests')}</dt>
+            <dd>{value.pricedRequests + value.unpricedRequests}</dd>
+            {cacheHit !== null && (
+              <>
+                <dt>{t('message.turnUsage.cacheHit')}</dt>
+                <dd>{`${cacheHit}%`}</dd>
+              </>
+            )}
+            <dt>{t('message.turnUsage.input')}</dt>
+            <dd>{exactCount(value.uncachedInputTokens, t)}</dd>
+            <dt>{t('message.turnUsage.cacheRead')}</dt>
+            <dd>{exactCount(value.cacheReadTokens, t)}</dd>
+            {value.cacheWriteTokens > 0 && (
+              <>
+                <dt>{t('message.turnUsage.cacheWrite')}</dt>
+                <dd>{exactCount(value.cacheWriteTokens, t)}</dd>
+              </>
+            )}
+            <dt>{t('message.turnUsage.output')}</dt>
+            <dd>{exactCount(value.outputTokens, t)}</dd>
+            {cost !== null && (
+              <>
+                <dt>{t('stats.dialog.estimatedCost')}</dt>
+                <dd>{cost}</dd>
+              </>
+            )}
+            {value.unpricedRequests > 0 && (
+              <>
+                <dt>{t('stats.dialog.unpricedRequests')}</dt>
+                <dd>{value.unpricedRequests}</dd>
+              </>
+            )}
+            {value.failedSessions > 0 && (
+              <>
+                <dt>{t('stats.dialog.failedSessions')}</dt>
+                <dd>{value.failedSessions}</dd>
+              </>
+            )}
+          </dl>
+        </div>,
+        document.body,
+      )}
+    </span>
+  )
+}
+
+export const StatsPills = memo(function StatsPills({ useChat, useProjection, loadDailyUsage, t }: StatsPillsProps) {
   const settledNodes = useChat(s => s.legacy.nodes)
+  const partial = useChat(s => s.legacy.partial)
   const usage = useProjection('tokenUsage')
+  const cost = useProjection('usageCost')
   // One exclusive slot for both dialogs: opening either pill closes the other.
-  const [openPill, setOpenPill] = useState<'time' | 'usage' | null>(null)
+  const [openPill, setOpenPill] = useState<'time' | 'usage' | 'daily' | null>(null)
+  const [daily, setDaily] = useState<SessionUsageSummaryValue | null>(null)
   // Every figure rides the durable sessionStats projection, so paging and
   // compaction cannot change any of them; an assembly without the unit falls
   // back to the window-scoped fold wholesale (same field names), paid only
@@ -329,9 +515,22 @@ export const StatsPills = memo(function StatsPills({ useChat, useProjection, t }
   // billing (e.g. every request failed) shows its counts without a usage pill.
   const hasTokens = usage !== undefined
     && (billedInputTokens(usage) > 0 || usage.outputTokens > 0)
-  if (stats.steps === 0 && !hasTokens) return null
+  const liveTokens = partial === null ? 0 : estimateStreamingTokens(partial.blocks)
+  useEffect(() => {
+    let active = true
+    const now = new Date()
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime()
+    loadDailyUsage(from, to).then(
+      (value) => { if (active) setDaily(value) },
+      () => { if (active) setDaily(null) },
+    )
+    return () => { active = false }
+  }, [loadDailyUsage, usage?.uncachedInputTokens, usage?.cacheReadTokens, usage?.cacheWriteTokens, usage?.outputTokens])
+  if (stats.steps === 0 && !hasTokens && liveTokens === 0 && daily === null) return null
   return (
     <div className={css.root}>
+      {liveTokens > 0 && <LiveTurnPill tokens={liveTokens} t={t} />}
       {stats.steps > 0 && (
         <TimePill
           stats={stats}
@@ -345,10 +544,21 @@ export const StatsPills = memo(function StatsPills({ useChat, useProjection, t }
       {hasTokens && (
         <UsagePill
           usage={usage}
+          cost={cost}
           t={t}
           dialog={{
             open: openPill === 'usage',
             setOpen: (open) => { setOpenPill(open ? 'usage' : null) },
+          }}
+        />
+      )}
+      {daily !== null && (billedInputTokens(daily) > 0 || daily.outputTokens > 0) && (
+        <DailyUsagePill
+          value={daily}
+          t={t}
+          dialog={{
+            open: openPill === 'daily',
+            setOpen: (open) => { setOpenPill(open ? 'daily' : null) },
           }}
         />
       )}

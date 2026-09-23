@@ -32,6 +32,8 @@ import type {
 } from './types.ts'
 import { contextBreakdownProjectionDefinition } from './breakdown-projection.ts'
 import { contextPressureProjectionDefinition, tokenUsageProjectionDefinition } from './usage-projection.ts'
+import { summarizeUsagePeriod, usageCostProjectionDefinition } from './usage-cost.ts'
+import type { UsagePeriodSummary } from './usage-cost.ts'
 import { estimateContent, estimateMessage, estimateToolsTokens, ROLE_OVERHEAD } from './estimate.ts'
 import { commitSurfaceTokens, planSurfaceTokens } from './surface-fold.ts'
 import type { MeterSurfaceNode } from './surface-fold.ts'
@@ -43,6 +45,8 @@ export type * from './types.ts'
 // in aggregate programs that only import the package root.
 export type * from './usage-projection.ts'
 export type * from './breakdown-projection.ts'
+export type * from './usage-cost.ts'
+export { summarizeUsagePeriod } from './usage-cost.ts'
 
 /**
  * Raw anchor facts captured at the latest successful call; the baseline is
@@ -114,6 +118,9 @@ export class TokenMeter extends Service {
     ctx.sessionProjections.register(tokenUsageProjectionDefinition)
     ctx.sessionProjections.register(contextPressureProjectionDefinition)
     ctx.sessionProjections.register(contextBreakdownProjectionDefinition)
+    ctx.sessionProjections.register(usageCostProjectionDefinition(
+      (provider, model, occurredAt) => ctx.get('llm')?.tokenPricing(provider, model, occurredAt),
+    ))
 
     // Readers catch up independently, while eager observation bounds ordinary
     // read latency without creating state for sessions no consumer has read.
@@ -213,6 +220,26 @@ export class TokenMeter extends Service {
    */
   estimateMessage(message: Message): number {
     return estimateMessage(message)
+  }
+
+  /**
+   * Fold non-inherited durable events into one time-range usage summary.
+   * @param events - one Session's non-inherited events in log order.
+   * @param fromInclusive - interval start in Unix epoch milliseconds.
+   * @param toExclusive - interval end in Unix epoch milliseconds.
+   * @returns token, Turn, request, and estimated-cost totals.
+   */
+  summarizeUsage(
+    events: readonly SessionEvent[],
+    fromInclusive: number,
+    toExclusive: number,
+  ): UsagePeriodSummary {
+    return summarizeUsagePeriod(
+      events,
+      (provider, model, occurredAt) => this.ctx.get('llm')?.tokenPricing(provider, model, occurredAt),
+      fromInclusive,
+      toExclusive,
+    )
   }
 
   /** Catch one session's fold up to the current durable tail. */

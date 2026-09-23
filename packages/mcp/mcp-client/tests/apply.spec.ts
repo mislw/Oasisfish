@@ -123,6 +123,26 @@ describe('mcp-client plugin module exports', () => {
     expect(resolved.serverName).toBe('github-prod_1')
   })
 
+  it('Config schema preserves omitted and explicit tool filters', () => {
+    const omitted = ConfigSchema({
+      transport: 'stdio',
+      serverName: 'srv',
+      command: 'echo',
+    } as never)
+    expect(omitted.includeTools).toEqual([])
+    expect(omitted.excludeTools).toEqual([])
+
+    const filtered = ConfigSchema({
+      transport: 'stdio',
+      serverName: 'srv',
+      command: 'echo',
+      includeTools: [],
+      excludeTools: ['admin.reset'],
+    } as never)
+    expect(filtered.includeTools).toEqual([])
+    expect(filtered.excludeTools).toEqual(['admin.reset'])
+  })
+
   it('Config schema materializes reconnect defaults and merges partial overrides', () => {
     const omitted = ConfigSchema({
       transport: 'stdio',
@@ -212,6 +232,27 @@ describe('apply (plugin lifecycle)', () => {
     expect(ctx.tools.get('remote')).toBeUndefined()
   })
 
+  it('passes configured tool filters into initial discovery', async () => {
+    mockListTools.mockResolvedValue({
+      tools: [
+        { name: 'visible', inputSchema: { type: 'object' } },
+        { name: 'excluded', inputSchema: { type: 'object' } },
+        { name: 'unlisted', inputSchema: { type: 'object' } },
+      ],
+      nextCursor: undefined,
+    })
+
+    await apply(ctx, {
+      ...stdioConfig,
+      includeTools: ['visible', 'excluded'],
+      excludeTools: ['excluded'],
+    })
+
+    expect(ctx.tools.get('mcp__srv__visible')).toBeDefined()
+    expect(ctx.tools.get('mcp__srv__excluded')).toBeUndefined()
+    expect(ctx.tools.get('mcp__srv__unlisted')).toBeUndefined()
+  })
+
   it('asks before explicitly configured MCP tools and leaves other tools executable', async () => {
     mockListTools.mockResolvedValue({
       tools: [
@@ -224,7 +265,7 @@ describe('apply (plugin lifecycle)', () => {
     await apply(ctx, {
       ...stdioConfig,
       approvalRequiredTools: ['calendar_create'],
-    } as Config)
+    })
 
     const denied = await ctx.tools.execute({
       signal: testToolSignal,
@@ -233,7 +274,7 @@ describe('apply (plugin lifecycle)', () => {
       arguments: {},
     })
     expect(denied.isError).toBe(true)
-    expect(denied.content[0]).toMatchObject({ text: expect.stringContaining('requires approval') })
+    expect(JSON.stringify(denied.content)).toContain('requires approval')
     expect(mockCallTool).not.toHaveBeenCalled()
 
     const allowed = await ctx.tools.execute({

@@ -98,9 +98,18 @@ measure(session: Session, requestHeader?: EpochHeader): TokenMeasurement
  * @returns content and role-framing tokens under the fixed service heuristic.
  */
 estimateMessage(message: Message): number
+
+/**
+ * Fold non-inherited durable events into one time-range usage summary.
+ * @param events - one Session's non-inherited events in log order.
+ * @param fromInclusive - interval start in Unix epoch milliseconds.
+ * @param toExclusive - interval end in Unix epoch milliseconds.
+ * @returns token, Turn, request, and estimated-cost totals.
+ */
+summarizeUsage( events: readonly SessionEvent[], fromInclusive: number, toExclusive: number, ): UsagePeriodSummary
 ```
 
-Types: [EpochHeader](session.md) · [Message](llm-streaming.md) · [Session](session.md)
+Types: [EpochHeader](session.md) · [Message](llm-streaming.md) · [Session](session.md) · [SessionEvent](session.md)
 
 Source: [`packages/llm/token-meter/src/index.ts`](../../packages/llm/token-meter/src/index.ts)
 <!-- END GENERATED cordis-surface -->

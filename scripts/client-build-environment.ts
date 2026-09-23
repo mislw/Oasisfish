@@ -22,6 +22,12 @@ const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
   DSH_CLIENT_TITLE: 'DeepSeek Harness',
 } as const
 
+/** Public client identity for the repository's Oasisfish development build. */
+const OASISFISH_CLIENT_BUILD_ENVIRONMENT = {
+  DSH_CLIENT_BUILD_PROFILE: 'oasisfish',
+  DSH_CLIENT_TITLE: 'Oasisfish',
+} as const
+
 /** Public variable carrying the source commit embedded in client artifacts. */
 const CLIENT_COMMIT_HASH_VARIABLE = 'DSH_CLIENT_COMMIT_HASH'
 
@@ -149,6 +155,19 @@ export function officialClientBuildEnvironment(
   }
 }
 
+/**
+ * Resolve the complete public environment for the local Oasisfish build.
+ * @param root - repository root whose source metadata is embedded in the build.
+ * @param environment - optional source for an explicit commit hash.
+ * @returns complete Oasisfish client environment, including dirty-worktree state.
+ */
+export function oasisfishClientBuildEnvironment(
+  root: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): Readonly<Record<`DSH_CLIENT_${string}`, string>> {
+  return resolveClientBuildEnvironment(repositoryClientBuildEnvironment(root, environment), 'oasisfish')
+}
+
 /** Digest of every client artifact produced by the complete root build. */
 interface ClientArtifactDigest {
   /** Number of files covered by the digest. */
@@ -204,7 +223,23 @@ export function resolveClientBuildEnvironment(
       ...OFFICIAL_CLIENT_BUILD_ENVIRONMENT,
     }
   }
-  throw new Error(`unknown client build profile ${JSON.stringify(profile)}; expected "official"`)
+  if (profile === 'oasisfish') {
+    const commitHash = environment[CLIENT_COMMIT_HASH_VARIABLE]
+    const version = environment[CLIENT_VERSION_VARIABLE]
+    if (commitHash === undefined) {
+      throw new Error(`${CLIENT_COMMIT_HASH_VARIABLE} is required for the Oasisfish client build profile`)
+    }
+    if (version === undefined) {
+      throw new Error(`${CLIENT_VERSION_VARIABLE} is required for the Oasisfish client build profile`)
+    }
+    return {
+      DSH_CLIENT_COMMIT_HASH: commitHash,
+      ...(environment.DSH_CLIENT_GIT_DIRTY === 'true' ? { DSH_CLIENT_GIT_DIRTY: 'true' } : {}),
+      DSH_CLIENT_VERSION: version,
+      ...OASISFISH_CLIENT_BUILD_ENVIRONMENT,
+    }
+  }
+  throw new Error(`unknown client build profile ${JSON.stringify(profile)}; expected "official" or "oasisfish"`)
 }
 
 /**

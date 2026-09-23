@@ -814,6 +814,41 @@ describe('Client Typert API', () => {
     await dispose()
   })
 
+  it('mounts and withdraws a business method named remove', async () => {
+    const call = vi.fn<ConnectionHandle['rpc']['call']>()
+      .mockResolvedValue({ ok: true, value: 'removed' })
+    const ctx = await bench(call)
+    const descriptor = {
+      ...maybeDescriptor(),
+      id: '@fixture/probe#probe/remove',
+      method: 'remove',
+    }
+    const dispose = await ctx.remote.$mount({ package: '@fixture/remove', descriptors: [descriptor] })
+    const namespace = ctx.remote.probe as unknown as {
+      remove: (value: string) => Promise<RemoteResult<string | null | undefined>>
+    }
+    const retained = namespace.remove
+
+    await expect(namespace.remove('obsolete')).resolves.toEqual({ ok: true, value: 'removed' })
+    expect(call).toHaveBeenCalledWith(
+      '/api',
+      'probe/remove',
+      { args: { value: 'obsolete' } },
+      expect.any(AbortSignal),
+    )
+
+    await dispose()
+    expect((ctx.remote as unknown as Record<string, unknown>).probe).toBeUndefined()
+    await expect(retained('obsolete')).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: 'gateway/internal',
+        message: 'client api: Remote method probe/remove is no longer mounted',
+        details: {},
+      },
+    })
+  })
+
   it('projects one direct lookup descriptor onto an Agent-scoped alias', async () => {
     const call = vi.fn<ConnectionHandle['rpc']['call']>()
       .mockResolvedValue({ ok: true, value: { ref: 'goal-2' } })
@@ -924,7 +959,7 @@ describe('Client Typert API', () => {
     })).rejects.toThrow('scoped method probe/rename is already mounted')
     await expect(ctx.remote.$mount({
       package: '@fixture/service-method-conflict',
-      descriptors: [{ ...context, id: '@fixture/probe#probe/remove', method: 'remove' }],
+      descriptors: [{ ...context, id: '@fixture/probe#probe/installDirect', method: 'installDirect' }],
     })).rejects.toThrow('conflicts with its namespace service')
     const scopedService = ctx.get('remote.probe') as unknown as object
     Object.defineProperty(scopedService, 'custom', { configurable: true, value: () => undefined })

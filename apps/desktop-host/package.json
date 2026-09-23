@@ -7,7 +7,8 @@
   "type": "module",
   "main": "lib/index.js",
   "files": [
-    "lib/index.js"
+    "lib/index.js",
+    "oasisfish.cordis.patch.yml"
   ],
   "dependencies": {
     "@deepseek-ai/cordis": "workspace:^",

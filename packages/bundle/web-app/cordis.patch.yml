@@ -368,6 +368,12 @@
     - id: ui-settings-plugins
       name: '@deepseek-ai/dsh-client-ui-settings-plugins'
 
+    # Interactive preview for the proposed Codex-to-Harness bridge. The
+    # shipped Web profile keeps it disabled until the Host bridge exists.
+    - id: ui-codex-bridge
+      name: '@deepseek-ai/dsh-client-ui-codex-bridge'
+      disabled: true
+
     # Plan control: the composer plan seat over the plan projection + /plan channel.
     - id: ui-plan
       name: '@deepseek-ai/dsh-client-ui-plan'

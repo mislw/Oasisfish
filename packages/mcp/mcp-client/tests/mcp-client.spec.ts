@@ -194,6 +194,37 @@ describe('syncTools', () => {
     expect(ctx.tools.get('add')).toBeUndefined()
   })
 
+  it('publishes only included raw names and lets exclusions win', async () => {
+    const client = createMockClient([
+      { name: 'keep', inputSchema: { type: 'object' } },
+      { name: 'blocked', inputSchema: { type: 'object' } },
+      { name: 'unlisted', inputSchema: { type: 'object' } },
+    ])
+
+    const disposers = await syncTools(client as never, ctx, {
+      ...defaultOpts,
+      includeTools: new Set(['keep', 'blocked']),
+      excludeTools: new Set(['blocked']),
+    }, new Map())
+
+    expect([...disposers.keys()]).toEqual(['mcp__srv__keep'])
+    expect(ctx.tools.get('mcp__srv__keep')).toBeDefined()
+    expect(ctx.tools.get('mcp__srv__blocked')).toBeUndefined()
+    expect(ctx.tools.get('mcp__srv__unlisted')).toBeUndefined()
+  })
+
+  it('treats an empty include set as no allowlist', async () => {
+    const client = createMockClient([{ name: 'visible', inputSchema: { type: 'object' } }])
+
+    const disposers = await syncTools(client as never, ctx, {
+      ...defaultOpts,
+      includeTools: new Set(),
+    }, new Map())
+
+    expect(disposers.size).toBe(1)
+    expect(ctx.tools.get('mcp__srv__visible')).toBeDefined()
+  })
+
   it('lets two servers publish the same raw name side by side', async () => {
     const clientA = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])
     const clientB = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])
@@ -233,6 +264,18 @@ describe('syncTools', () => {
       .rejects.toThrow(/listed tool "dup" more than once/)
     // Nothing registered, previous generation untouched (it was empty).
     expect(ctx.tools.get('mcp__srv__dup')).toBeUndefined()
+  })
+
+  it('rejects duplicate raw names even when filters would hide them', async () => {
+    const client = createMockClient([
+      { name: 'dup', inputSchema: { type: 'object' } },
+      { name: 'dup', inputSchema: { type: 'object' } },
+    ])
+
+    await expect(syncTools(client as never, ctx, {
+      ...defaultOpts,
+      excludeTools: new Set(['dup']),
+    }, new Map())).rejects.toThrow(/listed tool "dup" more than once/)
   })
 
   it('keeps the previous generation when the fetch phase fails', async () => {

@@ -30,6 +30,10 @@ export interface ToolBridgeOptions {
   registrationFailure: 'contain' | 'throw'
   serverName: string
   toolCallTimeoutMs: number
+  /** Non-empty allowlist of raw MCP tool names; omission publishes every non-excluded tool. */
+  includeTools?: ReadonlySet<string>
+  /** Raw MCP tool names withheld after allowlist selection. */
+  excludeTools?: ReadonlySet<string>
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -121,13 +125,17 @@ export async function syncTools(
   const response = client.getServerCapabilities()?.tools === undefined
     ? { tools: [] }
     : await client.listTools(undefined, { cacheMode: 'refresh' })
+  const rawNames = new Set<string>()
   for (const tool of response.tools) {
-    const publicName = publicToolName(opts.serverName, tool.name)
-    if (definitions.has(publicName)) {
+    if (rawNames.has(tool.name)) {
       throw new Error(
         `mcp-client(${opts.serverName}): server listed tool "${tool.name}" more than once — invalid tool list`,
       )
     }
+    rawNames.add(tool.name)
+    if (opts.includeTools !== undefined && opts.includeTools.size > 0 && !opts.includeTools.has(tool.name)) continue
+    if (opts.excludeTools?.has(tool.name) === true) continue
+    const publicName = publicToolName(opts.serverName, tool.name)
     definitions.set(publicName, createMcpToolDefinition(ctx, {
       name: publicName,
       rawName: tool.name,

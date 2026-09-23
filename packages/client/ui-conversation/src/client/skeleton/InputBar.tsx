@@ -36,7 +36,6 @@ import {
 } from '../input/editor/view-binding.ts'
 import { resolveSubmitMode } from '../input/submission-policy.ts'
 import { attachmentErrorText, imageSizeText } from '../image-labels.ts'
-import { ContextMeter } from './ContextMeter.tsx'
 import css from './InputBar.module.css'
 
 export type InputBarProps = ComposerBarProps
@@ -485,7 +484,6 @@ export const InputBar = memo(function InputBar({
         {variant === 'composer' && input !== undefined && sessionId !== undefined
           ? renderSlot('conversation.composer.dock', {})
           : null}
-        <ContextMeter useProjection={useProjection} t={t} />
       </div>
     </div>
   )

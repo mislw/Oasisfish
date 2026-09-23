@@ -251,6 +251,26 @@ export interface SessionListValue {
   readonly items: readonly SessionSummary[]
 }
 
+/** Browser-local interval requested for aggregate usage reporting. */
+export interface SessionUsageSummaryRequest {
+  readonly fromInclusive: number
+  readonly toExclusive: number
+}
+
+/** Cross-Session token and estimated-cost totals over one explicit interval. */
+export interface SessionUsageSummaryValue {
+  readonly uncachedInputTokens: number
+  readonly outputTokens: number
+  readonly cacheReadTokens: number
+  readonly cacheWriteTokens: number
+  readonly turns: number
+  readonly minimumNanoUsd: number
+  readonly maximumNanoUsd: number
+  readonly pricedRequests: number
+  readonly unpricedRequests: number
+  readonly failedSessions: number
+}
+
 /** Session search request. */
 export interface SessionSearchRequest {
   readonly query: string

@@ -1317,6 +1317,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the owning adapter\'s image pricing for the route, when declared.',
       },
       {
+        signature: 'tokenPricing(provider: string, model: string, occurredAt: number): LlmTokenPricing | undefined',
+        description: 'Resolve token billing rates from the adapter that owns an exact route.',
+        parameters: [{ name: 'provider', description: 'registered provider route.' }, { name: 'model', description: 'exact provider model id.' }, { name: 'occurredAt', description: 'request occurrence time in Unix epoch milliseconds.' }],
+        returns: 'provider-owned token prices, or `undefined` when unavailable.',
+      },
+      {
         signature: 'fileRequestText(ref: FileAttachmentRef): string',
         description: 'Resolve the exact text one durable file occurrence contributes to every provider request in the current execution environment.',
         parameters: [{ name: 'ref', description: 'durable verbatim file reference from model history.' }],
@@ -1683,6 +1689,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'visible Session summaries ordered by activity.',
       },
       {
+        signature: '@Remote(\'usageSummary\') async usageSummary( request: SessionUsageSummaryRequest, signal: AbortSignal, ): Promise<SessionUsageSummaryValue>',
+        description: 'Aggregate non-inherited request usage across every visible Session.',
+        parameters: [{ name: 'request', description: 'browser-local interval expressed as absolute epoch bounds.' }, { name: 'signal', description: 'cancellation for corpus listing and persisted reads.' }],
+        returns: 'token, Turn, request, cost-range, and isolated-read-failure totals.',
+      },
+      {
         signature: '@Remote(\'search\') search(request: SessionSearchRequest, signal: AbortSignal): Promise<SessionSearchValue>',
         description: 'Search visible Session content without resuming an Agent.',
         parameters: [{ name: 'request', description: 'literal message-content query.' }, { name: 'signal', description: 'cancellation for list and search reads.' }],
@@ -1985,6 +1997,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List the complete logical corpus using live-preferred records.',
         parameters: [{ name: 'signal', description: 'optional cancellation for persistence listing.' }],
         returns: 'deterministic newest-first cloned session records.',
+      },
+      {
+        signature: 'projectSessions<Value>( sessionIds: readonly SessionId[], project: (source: LogicalSessionSource) => Value, signal?: AbortSignal, ): Promise<LogicalProjectionResult<Value>[]>',
+        description: 'Project unique logical Sessions from one bounded-concurrency corpus observation. The callback borrows each full log only for its synchronous invocation.',
+        parameters: [{ name: 'sessionIds', description: 'Sessions to resolve in first-occurrence order.' }, { name: 'project', description: 'synchronous fold that clones every retained value.' }, { name: 'signal', description: 'optional cancellation shared by listing and reads.' }],
+        returns: 'one fulfilled or rejected result per unique Session id.',
       },
       {
         signature: 'async readSession(sessionId: SessionId): Promise<SessionLogSnapshot>',
@@ -2905,6 +2923,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Heuristically price one model-visible message (instance face of the pure `estimateMessage` export from `estimate.ts`).',
         parameters: [{ name: 'message', description: 'message to price without mutation.' }],
         returns: 'content and role-framing tokens under the fixed service heuristic.',
+      },
+      {
+        signature: 'summarizeUsage( events: readonly SessionEvent[], fromInclusive: number, toExclusive: number, ): UsagePeriodSummary',
+        description: 'Fold non-inherited durable events into one time-range usage summary.',
+        parameters: [{ name: 'events', description: 'one Session\'s non-inherited events in log order.' }, { name: 'fromInclusive', description: 'interval start in Unix epoch milliseconds.' }, { name: 'toExclusive', description: 'interval end in Unix epoch milliseconds.' }],
+        returns: 'token, Turn, request, and estimated-cost totals.',
       },
     ],
   },
@@ -4974,7 +4998,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmAdapter',
-    declaration: 'export abstract class LlmAdapter {\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
+    declaration: 'export abstract class LlmAdapter {\n    providerInfo(provider: string): LlmProviderInfo;\n    providerRetryPolicy(_provider: string): ResolvedRetryPolicy | undefined;\n    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;\n    tokenPricing(_provider: string, _model: string, _occurredAt: number): LlmTokenPricing | undefined;\n    listModels(_provider: string): Promise<readonly LlmModelInfo[]>;\n    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;\n    abstract stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
   {
     name: 'LlmAttemptId',
@@ -5038,7 +5062,23 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmRuntime',
-    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    fileRequestText(ref: FileAttachmentRef): string;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions) /* …truncated — full shape in source */',
+    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    tokenPricing(provider: string, model: string, occurredAt: number): LlmTokenPricing | undefined;\n    fileRequestText(ref: FileAttachmentRef): string;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config:  /* …truncated — full shape in source */',
+  },
+  {
+    name: 'LlmTokenPricing',
+    declaration: 'export interface LlmTokenPricing {\n    readonly uncachedInput: LlmTokenUnitPriceRange;\n    readonly cacheRead: LlmTokenUnitPriceRange;\n    readonly cacheWrite?: LlmTokenUnitPriceRange;\n    readonly output: LlmTokenUnitPriceRange;\n}',
+  },
+  {
+    name: 'LlmTokenUnitPriceRange',
+    declaration: 'export interface LlmTokenUnitPriceRange {\n    readonly minimumNanoUsd: number;\n    readonly maximumNanoUsd: number;\n}',
+  },
+  {
+    name: 'LogicalProjectionResult',
+    declaration: 'export type LogicalProjectionResult<Value> = {\n    sessionId: SessionId;\n    status: \'fulfilled\';\n    value: Value;\n} | {\n    sessionId: SessionId;\n    status: \'rejected\';\n    reason: unknown;\n};',
+  },
+  {
+    name: 'LogicalSessionSource',
+    declaration: 'export interface LogicalSessionSource {\n    readonly header: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffset;\n    readonly events: readonly SessionEvent[];\n}',
   },
   {
     name: 'LspHover',
@@ -6153,6 +6193,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionUpdateQueueValue {\n    readonly accepted: true;\n}',
   },
   {
+    name: 'SessionUsageSummaryRequest',
+    declaration: 'export interface SessionUsageSummaryRequest {\n    readonly fromInclusive: number;\n    readonly toExclusive: number;\n}',
+  },
+  {
+    name: 'SessionUsageSummaryValue',
+    declaration: 'export interface SessionUsageSummaryValue {\n    readonly uncachedInputTokens: number;\n    readonly outputTokens: number;\n    readonly cacheReadTokens: number;\n    readonly cacheWriteTokens: number;\n    readonly turns: number;\n    readonly minimumNanoUsd: number;\n    readonly maximumNanoUsd: number;\n    readonly pricedRequests: number;\n    readonly unpricedRequests: number;\n    readonly failedSessions: number;\n}',
+  },
+  {
     name: 'SessionWireEvent',
     declaration: 'export interface SessionWireEvent {\n    readonly type: string;\n    readonly seq: number;\n    readonly time: number;\n    readonly data: JsonValue;\n    readonly ignorable?: true;\n    readonly sourceEventSeqs?: JsonValue;\n    readonly surfaceOp?: JsonValue;\n}',
   },
@@ -6697,6 +6745,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface TokenUsage {\n    inputTokens: number;\n    outputTokens: number;\n    totalTokens?: number;\n    cacheReadTokens?: number;\n    cacheWriteTokens?: number;\n    reasoningTokens?: number;\n}',
   },
   {
+    name: 'TokenUsageProjection',
+    declaration: 'export interface TokenUsageProjection {\n    uncachedInputTokens: number;\n    outputTokens: number;\n    cacheReadTokens: number;\n    cacheWriteTokens: number;\n}',
+  },
+  {
     name: 'ToolCallKind',
     declaration: 'export type ToolCallKind = \'read\' | \'edit\' | \'delete\' | \'move\' | \'search\' | \'execute\' | \'fetch\' | \'other\';',
   },
@@ -6923,6 +6975,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'UpdateTeamTaskRequest',
     declaration: 'export interface UpdateTeamTaskRequest {\n    readonly taskId: TeamTaskId;\n    readonly expectedRevision: number;\n    readonly action: TeamTaskAction;\n    readonly subject?: string;\n    readonly description?: string;\n    readonly blockedBy?: readonly TeamTaskId[];\n    readonly writeScopes?: readonly string[];\n    readonly owner?: string;\n}',
+  },
+  {
+    name: 'UsageCostProjection',
+    declaration: 'export interface UsageCostProjection {\n    readonly minimumNanoUsd: number;\n    readonly maximumNanoUsd: number;\n    readonly pricedRequests: number;\n    readonly unpricedRequests: number;\n    readonly latest?: UsageCostRequest | undefined;\n}',
+  },
+  {
+    name: 'UsageCostRequest',
+    declaration: 'export interface UsageCostRequest {\n    readonly provider: string;\n    readonly model: string;\n    readonly occurredAt: number;\n    readonly usage: TokenUsageProjection;\n    readonly minimumNanoUsd?: number | undefined;\n    readonly maximumNanoUsd?: number | undefined;\n}',
+  },
+  {
+    name: 'UsagePeriodSummary',
+    declaration: 'export interface UsagePeriodSummary extends UsageCostProjection, TokenUsageProjection {\n    readonly turns: number;\n}',
   },
   {
     name: 'UserMessage',

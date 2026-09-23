@@ -15,6 +15,7 @@ import type {
   LlmDiscoveredModel,
   LlmFailure,
   LlmImageRequestPricing,
+  LlmTokenPricing,
   LlmModelContext,
   LlmModelDiscoveryRequest,
   LlmModelInfo,
@@ -229,6 +230,19 @@ export abstract class LlmAdapter {
    * @returns route-owned image pricing, or `undefined` when the route declares none.
    */
   imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined {
+    return undefined
+  }
+
+  /**
+   * Resolve provider-published token billing rates for one exact route.
+   * Implementations return a range when request-time discount classification
+   * depends on provider policy the harness cannot determine locally.
+   * @param _provider - a route passed to `registerAdapter()` for this instance.
+   * @param _model - exact model id passed to {@link GenerateOptions.model}.
+   * @param _occurredAt - request occurrence time in Unix epoch milliseconds.
+   * @returns route-owned token prices, or `undefined` when unavailable.
+   */
+  tokenPricing(_provider: string, _model: string, _occurredAt: number): LlmTokenPricing | undefined {
     return undefined
   }
 
@@ -669,6 +683,17 @@ export class LlmRuntime extends TypertRemoteService {
    */
   imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined {
     return this.adapters.get(provider)?.adapter.imageRequestPricing(provider, model)
+  }
+
+  /**
+   * Resolve token billing rates from the adapter that owns an exact route.
+   * @param provider - registered provider route.
+   * @param model - exact provider model id.
+   * @param occurredAt - request occurrence time in Unix epoch milliseconds.
+   * @returns provider-owned token prices, or `undefined` when unavailable.
+   */
+  tokenPricing(provider: string, model: string, occurredAt: number): LlmTokenPricing | undefined {
+    return this.adapters.get(provider)?.adapter.tokenPricing(provider, model, occurredAt)
   }
 
   /**

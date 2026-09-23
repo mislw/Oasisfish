@@ -75,6 +75,10 @@ export interface StdioConfig {
   maxInstructionBytes?: number
   /** Raw MCP tool names that must pass the Harness approval flow before dispatch. */
   approvalRequiredTools?: string[]
+  /** Non-empty allowlist of raw MCP tool names published to the Harness. */
+  includeTools?: string[]
+  /** Raw MCP tool names withheld from the Harness after allowlist selection. */
+  excludeTools?: string[]
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -101,6 +105,10 @@ export interface StreamableHttpConfig {
   maxInstructionBytes?: number
   /** Raw MCP tool names that must pass the Harness approval flow before dispatch. */
   approvalRequiredTools?: string[]
+  /** Non-empty allowlist of raw MCP tool names published to the Harness. */
+  includeTools?: string[]
+  /** Raw MCP tool names withheld from the Harness after allowlist selection. */
+  excludeTools?: string[]
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
 }
@@ -133,6 +141,8 @@ export const Config = z.union([
     failOnStartupError: z.boolean().default(false),
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     approvalRequiredTools: z.array(z.string().required()).default([]),
+    includeTools: z.array(z.string().required()),
+    excludeTools: z.array(z.string().required()).default([]),
     reconnect: Reconnect,
   }),
   z.object({
@@ -144,6 +154,8 @@ export const Config = z.union([
     failOnStartupError: z.boolean().default(false),
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),
     approvalRequiredTools: z.array(z.string().required()).default([]),
+    includeTools: z.array(z.string().required()),
+    excludeTools: z.array(z.string().required()).default([]),
     reconnect: Reconnect,
   }),
 ]) as unknown as z<ConfigInput, Config>

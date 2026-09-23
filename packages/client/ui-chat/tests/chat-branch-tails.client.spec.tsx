@@ -1066,6 +1066,7 @@ describe('small branch tails', () => {
       <StatsPills
         t={t}
         useChat={bindSnapshotSelector(source)}
+        loadDailyUsage={() => new Promise(() => {})}
         useProjection={(key: string) => key === 'tokenUsage'
           ? { uncachedInputTokens: 0, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 }
           : undefined}

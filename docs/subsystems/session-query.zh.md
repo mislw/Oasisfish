@@ -411,6 +411,16 @@ abstract searchEvents( request: SessionEventSearchRequest, exec?: SessionSearchE
 listSessions(signal?: AbortSignal): Promise<SessionRecord[]>
 
 /**
+ * Project unique logical Sessions from one bounded-concurrency corpus observation.
+ * The callback borrows each full log only for its synchronous invocation.
+ * @param sessionIds - Sessions to resolve in first-occurrence order.
+ * @param project - synchronous fold that clones every retained value.
+ * @param signal - optional cancellation shared by listing and reads.
+ * @returns one fulfilled or rejected result per unique Session id.
+ */
+projectSessions<Value>( sessionIds: readonly SessionId[], project: (source: LogicalSessionSource) => Value, signal?: AbortSignal, ): Promise<LogicalProjectionResult<Value>[]>
+
+/**
  * Read and replay-validate one complete logical session log without making it live.
  * @param sessionId - live or persisted session id to read.
  * @returns cloned header and complete raw event log from one observation.

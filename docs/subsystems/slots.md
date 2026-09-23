@@ -161,6 +161,7 @@ root
 │     ├─ conversation.input.overlay
 │     ├─ conversation.input.dock
 │     ├─ conversation.composer.dock
+│     ├─ conversation.status
 │     ├─ conversation.input.left
 │     ├─ conversation.input.right
 │     ├─ conversation.hero.brand.mark

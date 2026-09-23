@@ -21,6 +21,7 @@ const usePanelInfo: GlobalStandardProps['usePanelInfo'] = selector => selector({
 
 afterEach(() => {
   cleanup()
+  localStorage.clear()
   document.getElementById('root')?.remove()
 })
 
@@ -236,6 +237,20 @@ describe('DeepSeekOnboardingDialog', () => {
     expect(h.openSection).not.toHaveBeenCalled()
     expect(h.set).not.toHaveBeenCalled()
     expect(h.mutate).not.toHaveBeenCalled()
+  })
+
+  it('remembers configure-later dismissal across remounts', async () => {
+    const first = harness()
+    const firstView = render(<DeepSeekOnboardingDialog {...first.props} />)
+    await screen.findByRole('dialog')
+    fireEvent.click(screen.getByRole('button', { name: en.onboardingLater }))
+    firstView.unmount()
+
+    const second = harness()
+    render(<DeepSeekOnboardingDialog {...second.props} />)
+    await act(async () => { await second.controller.load() })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => { expect(second.complete).toHaveBeenCalledOnce() })
   })
 
   it('does not block the product when DeepSeek setup is unavailable', async () => {

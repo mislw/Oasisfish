@@ -38,6 +38,7 @@ import {
   CLIENT_BUILD_PROFILE_SELECTOR,
   clientBuildProcessEnvironment,
   repositoryClientBuildEnvironment,
+  resolveClientBuildEnvironment,
 } from './client-build-environment.ts'
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -64,7 +65,9 @@ export function devWebBuildEnvironment(
   root: string,
   environment: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  return clientBuildProcessEnvironment(environment, repositoryClientBuildEnvironment(root, environment))
+  const repositoryEnvironment = repositoryClientBuildEnvironment(root, environment)
+  const profile = environment[CLIENT_BUILD_PROFILE_SELECTOR] ?? 'oasisfish'
+  return clientBuildProcessEnvironment(environment, resolveClientBuildEnvironment(repositoryEnvironment, profile))
 }
 
 /**

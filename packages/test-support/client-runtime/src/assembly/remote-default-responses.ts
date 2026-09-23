@@ -22,6 +22,19 @@ export const remoteDefaultResponses: RemoteTable = {
       groups: [],
       failures: [],
     }),
+    // ui-chat daily usage pill on first mount.
+    'session/usageSummary': ok({
+      uncachedInputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      turns: 0,
+      minimumNanoUsd: 0,
+      maximumNanoUsd: 0,
+      pricedRequests: 0,
+      unpricedRequests: 0,
+      failedSessions: 0,
+    }),
     // ui-agent-preset hero chip and header label on first mount.
     'agentPresets/list': ok({ presets: [], authorable: false }),
     // cordis-client-runner `ClientCordisInspectRegistry.sync` at apply and on `connection/reset`.

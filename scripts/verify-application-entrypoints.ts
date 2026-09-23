@@ -32,6 +32,9 @@ const MANIFEST_BIN_ALLOWLIST = new Map<string, ManifestBin>([
 /** Every JavaScript executable in an application or packaging workspace has one explicit role. */
 const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
   ['apps/cli/src/bin.ts', 'supported dsh application launcher'],
+  ['apps/desktop/resources/bundled-skills/oasis-wiki/scripts/search-oasis-wiki.mjs', 'bundled Skill search helper'],
+  ['apps/desktop/resources/bundled-skills/oasis-wiki/scripts/ugcaskq-cli.js', 'bundled Skill editor client'],
+  ['apps/desktop/resources/bundled-skills/oasis-wiki/scripts/ugcaskq-proxy-server.js', 'bundled Skill editor proxy'],
   ['packages/context/time-context/tests/fixtures/driver.ts', 'test-only subprocess driver'],
   ['packages/experimental/webworker-packer/bin.js', 'build-only wrapper'],
   ['packages/experimental/webworker-packer/src/bin.ts', 'build-only implementation'],
@@ -74,6 +77,7 @@ const SOURCE_EXCLUDES = [
   '**/lib/**',
   '**/dist/**',
   '**/coverage/**',
+  '**/build-resources/**',
 ]
 
 /** Convert a host path from glob output to the repository's slash form. */

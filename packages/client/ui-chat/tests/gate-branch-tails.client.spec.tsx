@@ -48,6 +48,7 @@ describe('render branch tails', () => {
       <StatsPills
         t={t}
         useChat={bindSnapshotSelector(source)}
+        loadDailyUsage={() => new Promise(() => {})}
         useProjection={() => undefined}
       />,
     )

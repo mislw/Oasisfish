@@ -122,6 +122,34 @@ describe('web e2e: whole-session stats survive history paging', () => {
     // the sessionStats projection, not the window fold.
     expect(await page.getByText('m1', { exact: true }).count()).toBe(0)
     await expect.poll(() => page.getByText(FULL_COUNTS, { exact: false }).count(), { timeout: 10_000 }).toBe(1)
+    const layout = await page.locator('[data-conversation-content]').evaluate((content) => {
+      const scroll = content.querySelector('[data-conversation-scroll]')
+      const composer = content.querySelector('[data-composer-seat]')
+      const status = content.querySelector('[data-conversation-status]')
+      if (scroll === null || composer === null || status === null) return null
+      const contentRect = content.getBoundingClientRect()
+      const scrollRect = scroll.getBoundingClientRect()
+      const composerRect = composer.getBoundingClientRect()
+      const statusRect = status.getBoundingClientRect()
+      return {
+        contentBottom: contentRect.bottom,
+        scrollBottom: scrollRect.bottom,
+        composerBottom: composerRect.bottom,
+        statusTop: statusRect.top,
+        statusBottom: statusRect.bottom,
+      }
+    })
+    expect(layout).not.toBeNull()
+    expect(layout!.statusTop).toBeCloseTo(layout!.scrollBottom, 0)
+    expect(layout!.statusTop).toBeGreaterThanOrEqual(layout!.composerBottom - 1)
+    expect(layout!.statusBottom).toBeCloseTo(layout!.contentBottom, 0)
+    await page.setViewportSize({ width: 720, height: 720 })
+    const narrowOverflow = await page.locator('[data-conversation-status]').evaluate(status => ({
+      clientWidth: status.clientWidth,
+      scrollWidth: status.scrollWidth,
+    }))
+    expect(narrowOverflow.scrollWidth).toBeLessThanOrEqual(narrowOverflow.clientWidth)
+    await page.setViewportSize({ width: 1440, height: 900 })
     const strip = page.getByText(FULL_COUNTS, { exact: false }).locator('..')
     const stripBeforePaging = await strip.textContent()
 

@@ -778,6 +778,14 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote('list') async list(_request: SessionListRequest, signal: AbortSignal): Promise<SessionListValue>
 
 /**
+ * Aggregate non-inherited request usage across every visible Session.
+ * @param request - browser-local interval expressed as absolute epoch bounds.
+ * @param signal - cancellation for corpus listing and persisted reads.
+ * @returns token, Turn, request, cost-range, and isolated-read-failure totals.
+ */
+@Remote('usageSummary') async usageSummary( request: SessionUsageSummaryRequest, signal: AbortSignal, ): Promise<SessionUsageSummaryValue>
+
+/**
  * Search visible Session content without resuming an Agent.
  * @param request - literal message-content query.
  * @param signal - cancellation for list and search reads.
