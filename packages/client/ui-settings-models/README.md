@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users choose the default model for new Sessions, configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, with provider rows and one editor card at a time. The page joins the Host model catalog, provider directory, settings document, and credential descriptions into one shared snapshot. It also walks first-run users through two ordered dialogs — a versioned internal-testing notice and the conditional official-DeepSeek credential step.
+`dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users choose the default model for Sessions without an explicit Session-local selection, configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, with provider rows and one editor card at a time. The page joins the Host model catalog, provider directory, settings document, and credential descriptions into one shared snapshot. It also walks first-run users through two ordered dialogs — a versioned internal-testing notice and the conditional official-DeepSeek credential step.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 Open the Models page from the Settings navigation to see every configured provider as a row. A whole-section provider whose key is not configured anywhere renders as its open setup card instead, but only in the first-run posture and only until the user closes that card. Each card kind owns its own open state, so closing one never discards a draft in another.
 
-The Session default editor above the provider rows reads `ModelCatalog.default` and offers only the providers, models, and reasoning efforts in the same Host catalog. **Use model default** clears the explicit reasoning effort. Save validates the route through the Host and updates the editor from the normalized response; a rejected save keeps the draft and displays the Host diagnostic. The provider that owns the current default cannot be deleted until the user saves another default.
+The Session default editor above the provider rows reads `ModelCatalog.default` for Sessions without an explicit Session-local selection and offers only the providers, models, and reasoning efforts in the same Host catalog. **Use model default** clears the explicit reasoning effort. Save validates the route through the Host and updates the editor from the normalized response; a rejected save keeps the draft and displays the Host diagnostic. The provider that owns the current default cannot be deleted until the user saves another default.
 
 A provider with a stored catalog error remains visible with its diagnostic and edit/delete actions. Add actions are offered only for registered settings namespaces, so an unavailable namespace cannot leave a button that opens no editor. A rejected save leaves the editor open and displays the Host diagnostic.
 

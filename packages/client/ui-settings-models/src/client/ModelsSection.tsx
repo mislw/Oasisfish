@@ -241,13 +241,18 @@ function renderProviderEditor({ target, ...props }: ProviderEditorRenderProps): 
  * @param operations - the page's Host operations.
  * @param controller - the page store to refresh.
  * @param target - the provider's settings address and optional managed credential.
+ * @param defaultProviderProtected - localized refusal when the latest catalog uses the provider as its default.
  * @returns the failure message, or undefined once the write and reload landed.
  */
 export async function removeProviderProfile(
   operations: ModelsOperations,
   controller: ModelsSettingsStore,
-  target: { settingsNs: string; settingsPath: readonly string[]; credentialRef?: string },
+  target: { provider: string; settingsNs: string; settingsPath: readonly string[]; credentialRef?: string },
+  defaultProviderProtected: string,
 ): Promise<string | undefined> {
+  if (controller.store.getSnapshot().catalog?.default.provider === target.provider) {
+    return defaultProviderProtected
+  }
   if (target.credentialRef !== undefined) {
     const credential = await operations.removeCredential(target.credentialRef)
     if (credential !== undefined) return credential
@@ -383,7 +388,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     if (deleteTarget === undefined || deleting) return
     setDeleting(true)
     setDeleteFailure(undefined)
-    void removeProviderProfile(operations, controller, deleteTarget)
+    void removeProviderProfile(operations, controller, deleteTarget, t('defaultProviderProtected'))
       .then((failure) => {
         if (failure !== undefined) {
           setDeleteFailure(failure)

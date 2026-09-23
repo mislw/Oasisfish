@@ -32,6 +32,7 @@ const CONFIGURED_EXPECTED = join(SNAPSHOT_DIR, 'configured.expected.md')
 const DECLARED_EXPECTED = join(SNAPSHOT_DIR, 'declared.expected.md')
 const DECLARED_EDIT_EXPECTED = join(SNAPSHOT_DIR, 'declared-edit.expected.md')
 const MODEL_PICKER_EXPECTED = join(SNAPSHOT_DIR, 'model-picker.expected.md')
+const DEFAULT_EDITOR_EXPECTED = join(SNAPSHOT_DIR, 'default-editor.expected.md')
 const NATIVE_DELETE_EXPECTED = join(SNAPSHOT_DIR, 'native-delete.expected.md')
 const DELETE_EXPECTED = join(SNAPSHOT_DIR, 'delete.expected.md')
 const MODE = webSnapshotMode()
@@ -69,6 +70,44 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     }
   })
 
+  it('loads and saves the default model through the shipped Web composition', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-models-default'))
+    await page.getByRole('button', { name: '设置', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: '设置' })
+    await dialog.waitFor({ timeout: 10_000 })
+    await dialog.getByRole('button', { name: '模型' }).click()
+
+    const provider = dialog.locator('label').filter({ hasText: '默认提供方' }).locator('select')
+    const model = dialog.locator('label').filter({ hasText: '默认模型' }).locator('select')
+    const effort = dialog.locator('label').filter({ hasText: '推理强度' }).locator('select')
+    await provider.waitFor({ timeout: 10_000 })
+    expect(await provider.inputValue()).toBe('deepseek-official')
+    expect(await model.inputValue()).toBe('deepseek-v4-flash')
+    expect(await effort.inputValue()).toBe('')
+
+    await model.selectOption('deepseek-v4-flash-vision-exp')
+    await dialog.getByRole('button', { name: '保存默认模型', exact: true }).click()
+    await dialog.getByText('默认模型已保存。', { exact: true }).waitFor({ timeout: 10_000 })
+    await expect.poll(
+      async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
+      { timeout: 10_000 },
+    ).toMatch(/agent-default-model:[\s\S]*model: deepseek-v4-flash-vision-exp/)
+    await compareOrRefreshGolden(
+      DEFAULT_EDITOR_EXPECTED,
+      await captureStableAria(page, '[role="dialog"]', scaffold.workspaceCwd),
+      MODE,
+    )
+
+    await model.selectOption('deepseek-v4-flash')
+    await dialog.getByRole('button', { name: '保存默认模型', exact: true }).click()
+    await expect.poll(
+      async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
+      { timeout: 10_000 },
+    ).toMatch(/agent-default-model:[\s\S]*model: deepseek-v4-flash(?:\r?\n|$)/)
+    await page.keyboard.press('Escape')
+    expect(tripwire.pageErrors).toEqual([])
+  }, 60_000)
+
   it('opens the add card over the dormant directory vocabulary', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-models-empty'))
     await page.getByRole('button', { name: '设置', exact: true }).click()
@@ -83,7 +122,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     // The button enables once the dormant catalog lands in the join.
     await expect.poll(async () => add.isEnabled(), { timeout: 10_000 }).toBe(true)
     await add.click()
-    const pick = dialog.getByLabel('提供方')
+    const pick = dialog.getByLabel('提供方', { exact: true })
     await pick.waitFor({ timeout: 10_000 })
     await expect.poll(async () => pick.locator('option').count(), { timeout: 10_000 }).toBeGreaterThan(30)
     const options = await pick.locator('option').allTextContents()
@@ -119,7 +158,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-models-native-auth'))
     const dialog = page.getByRole('dialog', { name: '设置' })
     await dialog.getByRole('button', { name: '保存', exact: true }).click()
-    const row = dialog.getByText('minimax-cn', { exact: true }).first()
+    const row = dialog.getByRole('listitem').filter({ hasText: 'minimax-cn' }).first()
     await row.waitFor({ timeout: 10_000 })
     await dialog.getByText('已保存 minimax-cn。', { exact: true }).waitFor({ timeout: 10_000 })
     expect(await dialog.getByRole('img', { name: 'API 密钥已配置' }).count()).toBe(0)
@@ -242,13 +281,14 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     const declare = dialog.getByRole('button', { name: '添加自定义提供方' })
     await expect.poll(async () => declare.isEnabled(), { timeout: 10_000 }).toBe(true)
     await declare.click()
-    await dialog.getByLabel('Provider ID').fill('acme-gateway')
+    const customEditor = dialog.getByLabel('Provider ID').locator('..').locator('..')
+    await customEditor.getByLabel('Provider ID').fill('acme-gateway')
     await dialog.getByLabel('显示名称').fill('Acme Gateway')
     await dialog.getByLabel('API 地址').fill('https://gateway.acme.example/v1')
     // No reasoning effort on a provider card at all: effort is a per-model
     // capability, the models under one provider disagree about it, and a
     // switch in the composer already records provider+model+effort together.
-    expect(await dialog.getByLabel('推理强度').count()).toBe(0)
+    expect(await customEditor.getByLabel('推理强度').count()).toBe(0)
     await dialog.getByRole('button', { name: '添加模型' }).click()
     await dialog.getByLabel('模型 ID 1').fill('acme-large')
     await dialog.getByRole('button', { name: '模型选项 1' }).click()
@@ -256,7 +296,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     await dialog.getByRole('group', { name: '输入类型 1' }).getByRole('checkbox', { name: '图片' }).check()
     await dialog.getByRole('button', { name: '创建提供方', exact: true }).click()
 
-    const row = dialog.getByText('Acme Gateway', { exact: true }).first()
+    const row = dialog.getByRole('listitem').filter({ hasText: 'Acme Gateway' }).first()
     await row.waitFor({ timeout: 10_000 })
     const document = await readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8')
     expect(document).toContain('acme-gateway:')
@@ -303,7 +343,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
     // it under the new name: an unserviceable profile would have been refused
     // at the write instead, and a rename that did not re-register would leave
     // the old label on the row.
-    await dialog.getByText('Acme 网关', { exact: true }).first().waitFor({ timeout: 10_000 })
+    await dialog.getByRole('listitem').filter({ hasText: 'Acme 网关' }).first().waitFor({ timeout: 10_000 })
     // The status line names the route as the refreshed directory reports it;
     // the target captured when the card opened still carries the old name.
     await dialog.getByText('已保存 Acme 网关 (acme-gateway)。', { exact: true }).waitFor({ timeout: 10_000 })
@@ -436,7 +476,7 @@ describe('web e2e: Models settings page configures a dormant provider', () => {
   it.skipIf(MODE === 'record')('keeps the fixture inventory closed', async () => {
     await assertFixtureInventory(SNAPSHOT_DIR, [
       'configured.expected.md', 'declared-edit.expected.md', 'declared.expected.md',
-      'delete.expected.md', 'empty.expected.md', 'model-picker.expected.md',
+      'default-editor.expected.md', 'delete.expected.md', 'empty.expected.md', 'model-picker.expected.md',
       'native-delete.expected.md', 'catalog-inputs.expected.md',
     ])
   })

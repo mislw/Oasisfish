@@ -412,6 +412,25 @@ describe('ModelsSection', () => {
     expect(remove.title).toBe(en.defaultProviderProtected)
   })
 
+  it('refuses deletion when a pushed catalog makes the open target the default', async () => {
+    const { controller, mutate, unset } = await mountSection()
+    fireEvent.click(screen.getByRole('button', { name: openaiCopy(en.removeProvider) }))
+    const dialog = screen.getByRole('dialog', { name: openaiCopy(en.deleteTitle) })
+
+    act(() => {
+      controller.store.update((state) => {
+        if (state.catalog === null) throw new Error('expected a loaded model catalog')
+        state.catalog = { ...state.catalog, default: { provider: 'openai', model: 'gpt-4o' } }
+      })
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: openaiCopy(en.deleteConfirm) }))
+
+    expect(await within(dialog).findByText(en.defaultProviderProtected)).toBeTruthy()
+    expect(unset).not.toHaveBeenCalled()
+    expect(mutate).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: openaiCopy(en.deleteTitle) })).toBe(dialog)
+  })
+
   it('hides both add actions when their settings namespaces are absent', async () => {
     const scripted = scriptedFace()
     scripted.face.settings.describe.mockResolvedValue(remoteOk({ writable: true, hasDocument: false, namespaces: [] }))
@@ -1595,7 +1614,8 @@ describe('ModelsSection', () => {
     await removeProviderProfile(
       operationsWith(face),
       controller,
-      { settingsNs: 'llm-plain', settingsPath: ['ghost-profile'] },
+      { provider: 'ghost', settingsNs: 'llm-plain', settingsPath: ['ghost-profile'] },
+      en.defaultProviderProtected,
     )
     expect(mutate.mock.calls[0]).toEqual([
       'llm-plain',
@@ -1612,7 +1632,8 @@ describe('ModelsSection', () => {
     const failure = await removeProviderProfile(
       operationsWith(face),
       controller,
-      { settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+      { provider: 'openai', settingsNs: 'llm-pi-ai', settingsPath: ['providers', 'openai'] },
+      en.defaultProviderProtected,
     )
     expect(failure).toBe('read-only')
     expect(controller.store.getSnapshot().rows).toBe(before)
@@ -1665,9 +1686,11 @@ describe('ModelsSection', () => {
       controller,
       {
         settingsNs: 'llm-pi-ai',
+        provider: 'openai',
         settingsPath: ['providers', 'openai'],
         credentialRef: 'OPENAI_API_KEY',
       },
+      en.defaultProviderProtected,
     )
     expect(failure).toBe('credential is read-only')
     expect(mutate).not.toHaveBeenCalled()

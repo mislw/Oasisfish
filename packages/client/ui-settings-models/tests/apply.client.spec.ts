@@ -40,6 +40,15 @@ async function bench(isLoopback = true, mock = RemoteMock.create().load(remoteDe
       discoverModels: vi.fn(() => Promise.resolve({ ok: true, value: [] })),
       ...services,
     },
+    session: {
+      modelCatalog: vi.fn(() => Promise.resolve(ok({
+        default: { provider: 'deepseek-official', model: 'deepseek-chat' },
+        routableProviders: [],
+        groups: [],
+        failures: [],
+      }))),
+      setDefaultModel: vi.fn(),
+    },
     settings: mock.remote.settings,
   })
   // The fixed Host facts the settings provider reads its persistence from.
@@ -69,7 +78,7 @@ describe('ui-settings-models apply', () => {
   it('declares the services it uses', () => {
     expect(inject).toEqual([
       'slots', 'locale', 'remote', 'remote.credentials', 'remote.llm', 'remote.settings',
-      'settingsScope', 'settingsSchema',
+      'remote.session', 'settingsScope', 'settingsSchema',
     ])
   })
 

@@ -310,6 +310,7 @@ export interface SessionSelectModelValue {
 export interface SessionSetDefaultModelRequest {
   readonly provider: string
   readonly model: string
+  /** Omit to clear a previously explicit effort and use the selected model's default. */
   readonly reasoningEffort?: string
 }
 

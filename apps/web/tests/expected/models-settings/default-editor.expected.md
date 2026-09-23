@@ -28,22 +28,16 @@
     - text: 默认提供方
     - combobox "默认提供方":
       - option "DeepSeek" [selected]
-      - option "minimax-cn"
     - text: 默认模型
     - combobox "默认模型":
-      - option "DeepSeek-V4-Flash" [selected]
-      - option "DeepSeek-V4-Flash-Vision-Exp"
+      - option "DeepSeek-V4-Flash"
+      - option "DeepSeek-V4-Flash-Vision-Exp" [selected]
     - text: 推理强度
     - combobox "推理强度":
       - option "使用模型默认值" [selected]
+    - status: 默认模型已保存。
     - button "保存默认模型"
-  - status: 已保存 minimax-cn。
-  - list:
-    - listitem:
-      - text: minimax-cn
-      - img "API 密钥已配置"
-      - button "编辑 minimax-cn": 编辑
-      - button "删除 minimax-cn": 删除
+  - list
   - button "添加提供方":
     - img
     - text: 添加提供方

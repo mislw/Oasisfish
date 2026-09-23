@@ -22,6 +22,22 @@
     - text: 关闭
   - heading "模型" [level=2]
   - paragraph: 填入各提供方的 API 密钥即可使用其模型。
+  - region "会话默认模型":
+    - heading "会话默认模型" [level=3]
+    - paragraph: 未显式选择会话模型的会话使用此默认值。
+    - text: 默认提供方
+    - combobox "默认提供方":
+      - option "DeepSeek" [selected]
+      - option "minimax-cn"
+      - option "Acme Gateway"
+    - text: 默认模型
+    - combobox "默认模型":
+      - option "DeepSeek-V4-Flash" [selected]
+      - option "DeepSeek-V4-Flash-Vision-Exp"
+    - text: 推理强度
+    - combobox "推理强度":
+      - option "使用模型默认值" [selected]
+    - button "保存默认模型"
   - list:
     - listitem:
       - text: minimax-cn
