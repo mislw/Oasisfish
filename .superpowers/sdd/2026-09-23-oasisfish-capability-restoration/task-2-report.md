@@ -118,3 +118,34 @@ Addressed all seven review findings without changing shipped product composition
 - Confirmed the snapshot composition uses bare package names, disables both platform-selected shell tools, and supplies a shell-neutral persona so its pinned prompt and schema remain platform-independent.
 - Confirmed Loader fixtures use private temporary roots, no shared ports, deterministic provider output, and quiescent Cordis disposal.
 - Confirmed the outgoing paths contain no shipped bundle/profile composition, `vendor/`, `lib/`, or coverage output.
+
+## Review Round 2
+
+### Status
+
+Replaced the uncapped `FileHandle.readFile()` call with positional reads into a `maxFileBytes + 1` byte probe on the same identity-checked handle. Initially oversized and concurrently growing files now consume only the configured probe and return the stable `CORPUS_LIMIT` file-limit diagnostic. Accepted files retain post-read path, reparse-point, identity, size, UTF-8, and actual-byte accounting checks.
+
+### RED/GREEN Evidence
+
+- `pnpm exec vitest run packages/skill/skill-search-local/tests/corpus-boundaries.spec.ts -t "bounds reads|bounds a file"`: RED, two tests failed because the implementation called uncapped `readFile()` instead of the observable bounded positional read.
+- The same command after the bounded-read change: GREEN, two tests passed.
+- The concurrent-growth case uses explicit start and release promises: the test grows the file fixture only after the read is in flight, then proves the single requested range is exactly 1,025 bytes and the result is the file-limit error.
+
+### Final Verification
+
+- `pnpm exec vitest run packages/skill/skill-search-local/tests/corpus.spec.ts packages/skill/skill-search-local/tests/corpus-boundaries.spec.ts`: 2 files passed, 16 tests passed.
+- `pnpm exec vitest run packages/skill/skill-search/tests packages/skill/skill-search-local/tests packages/skill/tool-skill-search/tests --coverage --coverage.include='packages/skill/skill-search/src/**/*.ts' --coverage.include='packages/skill/skill-search-local/src/**/*.ts' --coverage.include='packages/skill/tool-skill-search/src/**/*.ts'`: 14 files passed, 176 tests passed; statements, branches, functions, and lines are each 100%.
+- `pnpm exec tsc -b packages/skill/skill-search/tsconfig.json packages/skill/skill-search-local/tsconfig.json packages/skill/tool-skill-search/tsconfig.json --pretty false`: passed.
+- `pnpm exec tsx scripts/run-oxlint.ts packages/skill/skill-search packages/skill/skill-search-local packages/skill/tool-skill-search`: passed.
+- `pnpm run verify-translation-pairing packages/skill/skill-search-local/README.md`: one named pair consistent.
+
+### Self-Review
+
+- Confirmed every read uses the handle already matched to the checked path identity and cannot request bytes past `maxFileBytes + 1`.
+- Confirmed overflow wins deterministically before post-read metadata races, while accepted content still requires matching handle/path identity, containment, and exact actual-byte size.
+- Confirmed the growth regression synchronizes on an active read instead of using sleeps or scheduler-dependent ordering.
+- Confirmed the diff contains only the local corpus implementation, its focused tests, the paired package contract, its pairing record, and this report.
+
+### Concern
+
+None for review round 2.

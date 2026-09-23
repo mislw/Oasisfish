@@ -6,7 +6,6 @@ const fs = vi.hoisted(() => ({
   lstat: vi.fn(),
   open: vi.fn(),
   readdir: vi.fn(),
-  readFile: vi.fn(),
   realpath: vi.fn(),
 }))
 
@@ -48,6 +47,15 @@ function entry(name: string, kind: 'directory' | 'file' | 'other') {
   }
 }
 
+function readFrom(content: () => Buffer) {
+  return vi.fn(async (buffer: Buffer, offset: number, length: number, position: number) => {
+    const source = content()
+    const bytesRead = Math.min(length, Math.max(0, source.byteLength - position))
+    source.copy(buffer, offset, position, position + bytesRead)
+    return { buffer, bytesRead }
+  })
+}
+
 beforeEach(() => {
   fs.lstat.mockReset().mockResolvedValue({
     dev: 1,
@@ -59,11 +67,11 @@ beforeEach(() => {
   })
   fs.open.mockReset().mockResolvedValue({
     close: () => Promise.resolve(),
+    read: readFrom(() => Buffer.from('text')),
     readFile: () => Promise.resolve(Buffer.from('text')),
     stat: () => Promise.resolve({ dev: 1, ino: 1, isFile: () => true, size: 4, mtimeMs: 1 }),
   })
   fs.readdir.mockReset()
-  fs.readFile.mockReset().mockResolvedValue(Buffer.from('text'))
   fs.realpath.mockReset().mockImplementation(async (path: string) => path)
 })
 
@@ -88,17 +96,58 @@ describe('discoverCorpus filesystem boundaries', () => {
     await expect(discoverCorpus(corpus(), new AbortController().signal)).rejects.toMatchObject({ code: 'SOURCE_UNREADABLE' })
   })
 
-  it('enforces file bounds against the bytes read from the opened handle', async () => {
-    fs.readdir.mockResolvedValueOnce([entry('growing.md', 'file')])
-    fs.readFile.mockResolvedValue(Buffer.alloc(1025))
+  it('bounds reads of an initially oversized file and returns the file limit error', async () => {
+    const content = Buffer.alloc(2048)
+    const read = readFrom(() => content)
+    const readFile = vi.fn(async () => content)
+    fs.readdir.mockResolvedValueOnce([entry('oversized.md', 'file')])
     fs.open.mockResolvedValue({
       close: () => Promise.resolve(),
-      readFile: () => Promise.resolve(Buffer.alloc(1025)),
-      stat: () => Promise.resolve({ dev: 1, ino: 1, isFile: () => true, size: 1025, mtimeMs: 1 }),
+      read,
+      readFile,
+      stat: () => Promise.resolve({ dev: 1, ino: 1, isFile: () => true, size: content.byteLength, mtimeMs: 1 }),
     })
 
     await expect(discoverCorpus(corpus(), new AbortController().signal))
-      .rejects.toMatchObject({ code: 'CORPUS_LIMIT' })
+      .rejects.toMatchObject({ code: 'CORPUS_LIMIT', message: 'A Skill corpus file exceeds maxFileBytes.' })
+    expect(readFile).not.toHaveBeenCalled()
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(read.mock.calls[0]?.slice(1)).toEqual([0, 1025, 0])
+  })
+
+  it('bounds a file that grows during its read and returns the stable file limit error', async () => {
+    const started = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    let content = Buffer.alloc(512)
+    const boundedRead = readFrom(() => content)
+    const read = vi.fn(async (buffer: Buffer, offset: number, length: number, position: number) => {
+      started.resolve(undefined)
+      await release.promise
+      return boundedRead(buffer, offset, length, position)
+    })
+    const readFile = vi.fn(async () => {
+      started.resolve(undefined)
+      await release.promise
+      return content
+    })
+    fs.readdir.mockResolvedValueOnce([entry('growing.md', 'file')])
+    fs.open.mockResolvedValue({
+      close: () => Promise.resolve(),
+      read,
+      readFile,
+      stat: () => Promise.resolve({ dev: 1, ino: 1, isFile: () => true, size: content.byteLength, mtimeMs: 1 }),
+    })
+
+    const discovery = discoverCorpus(corpus(), new AbortController().signal)
+    await started.promise
+    content = Buffer.alloc(2048)
+    release.resolve(undefined)
+
+    await expect(discovery)
+      .rejects.toMatchObject({ code: 'CORPUS_LIMIT', message: 'A Skill corpus file exceeds maxFileBytes.' })
+    expect(readFile).not.toHaveBeenCalled()
+    expect(read).toHaveBeenCalledTimes(1)
+    expect(read.mock.calls[0]?.slice(1)).toEqual([0, 1025, 0])
   })
 
   it('rejects a file entry that stops being a regular file before open', async () => {
@@ -127,6 +176,7 @@ describe('discoverCorpus filesystem boundaries', () => {
     fs.readdir.mockResolvedValueOnce([entry('swapped.md', 'file')])
     fs.open.mockResolvedValue({
       close: () => Promise.resolve(),
+      read: readFrom(() => Buffer.from('text')),
       readFile: () => Promise.resolve(Buffer.from('text')),
       stat: () => Promise.resolve({ dev: 1, ino: 2, isFile: () => true, size: 4, mtimeMs: 1 }),
     })
@@ -154,6 +204,7 @@ describe('discoverCorpus filesystem boundaries', () => {
     })
     fs.open.mockResolvedValue({
       close: () => Promise.resolve(),
+      read: readFrom(() => Buffer.from('text')),
       readFile: () => Promise.resolve(Buffer.from('text')),
       stat: () => Promise.resolve({ dev: 1, ino: 2, isFile: () => true, size: 4, mtimeMs: 1 }),
     })

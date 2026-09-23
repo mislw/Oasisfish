@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { lstat, open, readdir, realpath } from 'node:fs/promises'
+import type { FileHandle } from 'node:fs/promises'
 import { SkillSearchError } from '@deepseek-ai/dsh-skill-search'
 import type { ResolvedSkillCorpus } from '@deepseek-ai/dsh-skill-search'
 
@@ -44,6 +45,18 @@ function sameFile(left: { dev: number; ino: number }, right: { dev: number; ino:
   return left.dev === right.dev && left.ino === right.ino
 }
 
+async function readBounded(handle: FileHandle, maxBytes: number, signal: AbortSignal): Promise<Buffer> {
+  const probe = Buffer.allocUnsafe(maxBytes + 1)
+  let length = 0
+  while (length < probe.length) {
+    requireActive(signal)
+    const { bytesRead } = await handle.read(probe, length, probe.length - length, length)
+    if (bytesRead === 0) break
+    length += bytesRead
+  }
+  return probe.subarray(0, length)
+}
+
 async function readPlainFile(
   base: string,
   path: string,
@@ -62,8 +75,7 @@ async function readPlainFile(
     if (!openedBefore.isFile() || !sameFile(pathBefore, openedBefore)) {
       throw sourceError('A Skill corpus file changed while it was opened.')
     }
-    requireActive(signal)
-    const bytes = await handle.readFile()
+    const bytes = await readBounded(handle, maxFileBytes, signal)
     if (bytes.byteLength > maxFileBytes) {
       throw new SkillSearchError('CORPUS_LIMIT', 'A Skill corpus file exceeds maxFileBytes.')
     }

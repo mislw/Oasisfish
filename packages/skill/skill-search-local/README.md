@@ -61,7 +61,7 @@ The store initializes schema version 1 transactionally only when a version-zero 
 
 Refresh compares document metadata and SHA-256 values, embeds changed chunks only, and commits sources, lexical rows, vectors, removals, and model identity in one transaction. Discovery, chunking, embedding, cancellation, or write failure leaves the preceding complete revision available. A changed embedding identity rebuilds the cached vectors.
 
-Source text, lexical tokens, vectors, queries, and SQLite rows remain local. Discovery rejects roots that escape the Skill resource directory and rejects directory reparse points. Each source file is read through one handle; the provider checks file identity and containment before and after the read, then applies file and corpus limits to the bytes actually read. Diagnostics omit query and source text.
+Source text, lexical tokens, vectors, queries, and SQLite rows remain local. Discovery rejects roots that escape the Skill resource directory and rejects directory reparse points. Each source file is read through one identity-checked handle with a `maxFileBytes + 1` byte probe. The provider rejects an overflowing probe with `CORPUS_LIMIT`; accepted files receive post-read identity and containment checks, and corpus accounting uses the bytes actually read. Diagnostics omit query and source text.
 
 -----
 
