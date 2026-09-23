@@ -2,9 +2,9 @@
 
 [English](skills.md) | 中文
 
-[skill（技能）能力族](../../packages/skill) 包含 Service Definition（[dsh-skill](../../packages/skill/skill)，`ctx.skills`）、本地 Service Provider（[dsh-skill-filesystem](../../packages/skill/skill-filesystem)）、可选的随包提供方（[dsh-skill-badge](../../packages/skill/skill-badge) 与 [dsh-skill-office](../../packages/skill/skill-office)）和 Consumer（[dsh-tool-skill](../../packages/skill/tool-skill)）。注册表在其宿主层与各 scope 层之间合并各提供方的目录；提供方贡献本地或随包 skill；Consumer 拥有初始目录和替换目录，以及面向模型的 `skill` 工具。skill 是可选的指令而非会话事件，因此其词汇定义在此处而非 [core.md](core.zh.md)。
+[skill（技能）能力族](../../packages/skill) 包含指令发现和可选语料检索。`dsh-skill` 拥有 `ctx.skills`；文件系统与随包提供方贡献定义；`dsh-tool-skill` 发布目录与加载工具。`dsh-skill-search` 单独拥有 `ctx.skillSearch`；`dsh-skill-search-local` 等搜索提供方检索已声明的参考资料，`dsh-tool-skill-search` 把这些结果公开给模型。skill 与搜索结果是可选输入而非会话事件，因此其词汇定义在此处而非 [core.md](core.zh.md)。
 
-源码：[`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)、[`packages/skill/skill-filesystem/src/index.ts`](../../packages/skill/skill-filesystem/src/index.ts)、[`packages/skill/skill-badge/src/index.ts`](../../packages/skill/skill-badge/src/index.ts)、[`packages/skill/skill-office/src/index.ts`](../../packages/skill/skill-office/src/index.ts) 与 [`packages/skill/tool-skill/src/index.ts`](../../packages/skill/tool-skill/src/index.ts)。
+源码：[`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)、[`packages/skill/skill-filesystem/src/index.ts`](../../packages/skill/skill-filesystem/src/index.ts)、[`packages/skill/skill-badge/src/index.ts`](../../packages/skill/skill-badge/src/index.ts)、[`packages/skill/skill-office/src/index.ts`](../../packages/skill/skill-office/src/index.ts)、[`packages/skill/tool-skill/src/index.ts`](../../packages/skill/tool-skill/src/index.ts)、[`packages/skill/skill-search/src/index.ts`](../../packages/skill/skill-search/src/index.ts)、[`packages/skill/skill-search-local/src/index.ts`](../../packages/skill/skill-search-local/src/index.ts) 与 [`packages/skill/tool-skill-search/src/index.ts`](../../packages/skill/tool-skill-search/src/index.ts)。
 
 ## 提供方注册表
 
@@ -236,6 +236,131 @@ interface Config {
 
 `SkillListRequest` 通过 `sessionId` 指定一个 Session；`SkillListValue` 返回允许用户调用的条目，其中包含名称、描述、可选使用提示与模型调用可用性。`SessionSkillCatalog` 在不激活 Agent 的前提下读取 Session cwd 与记录的 preset。live Agent 可以提供其作用域 registry，冷 Session 则使用 preset 的 standing scope。
 
+<a id="skill-corpus-retrieval"></a>
+## Skill 语料检索
+
+`ctx.skillSearch` 只搜索部署方为已加载且允许模型调用的 Skill 声明的资源。每项声明选择相对根目录、接受的扩展名、来源大小上限与 chunk 上限，也可以限定胜出的 `ctx.skills` 提供方。服务从已解析 Skill 与声明派生不透明语料身份，再选择第一个 `supports()` 接受该资源基底的可见作用域提供方。
+
+提供方名称与语料身份都是带品牌的字符串，因此调用方不能混用无关标识。`registerProvider(name, provider)` 通过贡献它的 Cordis effect 借用提供方；处置该 fiber 会注销提供方。搜索携带 cwd、观察作用域与取消，而且即使提供方不响应信号，取消也会与提供方工作竞争。
+
+```ts type-equiv
+/** Deployment-owned declaration of searchable Skill resources. */
+interface SkillCorpusSpec {
+  /** Skill name resolved through `ctx.skills`. */
+  readonly skill: string
+  /** Optional winning Skill provider required by this declaration. */
+  readonly provider?: string
+  /** Relative resource roots included in this corpus. */
+  readonly roots: string[]
+  /** Accepted lower-case file extensions including the leading dot. */
+  readonly extensions: string[]
+  /** Maximum bytes accepted from one file. */
+  readonly maxFileBytes: number
+  /** Maximum aggregate source bytes accepted by the corpus. */
+  readonly maxCorpusBytes: number
+  /** Maximum chunks retained for the corpus. */
+  readonly maxChunks: number
+}
+```
+
+```ts type-equiv
+/** A declared corpus after the Skill registry resolves its winning definition. */
+interface ResolvedSkillCorpus {
+  /** Stable digest input used by providers as part of persistent identity. */
+  readonly id: SkillCorpusId
+  /** Loaded, model-invocable Skill definition. */
+  readonly skill: SkillDefinition
+  /** Provider-specific resource base from the loaded Skill. */
+  readonly resourceBase: SkillResourceBase
+  /** Validated deployment declaration. */
+  readonly spec: SkillCorpusSpec
+}
+```
+
+`SkillSearchRequest` 指定一个 Skill 和查询。提供方返回一个包含排序摘录的完整结果；每个命中项保留相对路径、标题链、从 1 开始的来源范围与分数。服务在把完整结果返回给消费方前，会按请求数量且最多 10 条进行限制。
+
+```ts type-equiv
+/** Model- or host-initiated search request. */
+interface SkillSearchRequest {
+  /** Skill whose declared corpus should be searched. */
+  readonly name: string
+  /** Natural-language or exact-symbol query. */
+  readonly query: string
+  /** Maximum returned passages. */
+  readonly limit?: number
+}
+```
+
+```ts type-equiv
+/** Caller context used for scope-sensitive and abortable search. */
+interface SkillSearchOptions {
+  readonly cwd?: string
+  readonly scope?: ScopeKey
+  readonly signal?: AbortSignal
+}
+```
+
+```ts type-equiv
+/** One source passage returned by a Skill search provider. */
+interface SkillSearchHit {
+  readonly skill: string
+  readonly rank: number
+  readonly score: number
+  readonly path: string
+  readonly headings: readonly string[]
+  readonly startLine: number
+  readonly endLine: number
+  readonly excerpt: string
+}
+```
+
+```ts type-equiv
+/** Complete provider-neutral Skill search result. */
+interface SkillSearchResult {
+  readonly skill: string
+  readonly query: string
+  readonly hits: readonly SkillSearchHit[]
+}
+```
+
+```ts type-equiv
+/** Concrete search backend for one or more resolved corpus resource kinds. */
+interface SkillSearchProvider {
+  /**
+   * Return whether this provider can search the resolved corpus.
+   * @param corpus - Loaded Skill plus deployment declaration.
+   */
+  readonly supports: (corpus: ResolvedSkillCorpus) => boolean
+  /**
+   * Search one resolved corpus.
+   * @param corpus - Loaded Skill plus deployment declaration.
+   * @param request - Caller query and optional result limit.
+   * @param signal - Cancellation shared with Skill resolution.
+   * @returns ranked source passages.
+   */
+  readonly search: (
+    corpus: ResolvedSkillCorpus,
+    request: SkillSearchRequest,
+    signal: AbortSignal,
+  ) => Promise<SkillSearchResult>
+}
+```
+
+`SkillSearchError` 扩展 harness 错误类型，因此工具会在结构化失败元数据中保留其稳定 code。code 区分 Skill 解析与策略失败、未声明或不支持的资源、语料与来源失败、模型不可用和取消。诊断不包含查询或源文本。
+
+```ts type-equiv
+/** Stable failure categories exposed by the Skill search capability. */
+type SkillSearchErrorCode =
+  | 'UNKNOWN_SKILL'
+  | 'NOT_MODEL_INVOCABLE'
+  | 'CORPUS_UNDECLARED'
+  | 'UNSUPPORTED_RESOURCE_BASE'
+  | 'CORPUS_LIMIT'
+  | 'SOURCE_UNREADABLE'
+  | 'MODEL_UNAVAILABLE'
+  | 'ABORTED'
+```
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -326,6 +451,32 @@ async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition
 ```
 
 Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)
+
+<a id="ctxskillsearch--skillsearchregistry"></a>
+
+### `ctx.skillSearch` — `SkillSearchRegistry`
+
+Layered registry that resolves Skills before delegating declared corpora to providers.
+
+```ts cordis-catalog
+/**
+ * Register a provider in the calling context's scope layer.
+ * @param name - Branded provider name reserved within the calling scope layer.
+ * @param provider - Borrowed same-process provider implementation.
+ * @returns exact Cordis effect disposer.
+ */
+registerProvider(name: SkillSearchProviderName, provider: SkillSearchProvider): () => void
+
+/**
+ * Resolve a model-invocable Skill and search its explicit corpus.
+ * @param request - Skill name, query, and optional result limit.
+ * @param options - cwd, scope, and cancellation inherited from the caller.
+ * @returns provider-ranked source passages.
+ */
+async search(request: SkillSearchRequest, options: SkillSearchOptions = {}): Promise<SkillSearchResult>
+```
+
+Source: [`packages/skill/skill-search/src/index.ts`](../../packages/skill/skill-search/src/index.ts)
 
 <a id="skills-events"></a>
 

@@ -2,9 +2,9 @@
 
 English | [中文](skills.zh.md)
 
-The [skill capability family](../../packages/skill) includes the Service Definition ([dsh-skill](../../packages/skill/skill), `ctx.skills`), the local Service Provider ([dsh-skill-filesystem](../../packages/skill/skill-filesystem)), optional packaged providers ([dsh-skill-badge](../../packages/skill/skill-badge) and [dsh-skill-office](../../packages/skill/skill-office)), and the Consumer ([dsh-tool-skill](../../packages/skill/tool-skill)). The registry merges provider catalogs across its host and per-scope layers; providers contribute local or packaged skills; the Consumer owns the initial and replacement catalogs plus the model-facing `skill` tool. Skills are optional instructions, not session events, so their vocabulary lives here rather than in [core.md](core.md).
+The [skill capability family](../../packages/skill) includes instruction discovery and optional corpus retrieval. `dsh-skill` owns `ctx.skills`; filesystem and packaged providers contribute definitions; `dsh-tool-skill` publishes the catalog and loader. `dsh-skill-search` separately owns `ctx.skillSearch`; search providers such as `dsh-skill-search-local` retrieve declared references, and `dsh-tool-skill-search` exposes those results to models. Skills and search results are optional inputs, not session events, so their vocabulary lives here rather than in [core.md](core.md).
 
-Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts), [`packages/skill/skill-filesystem/src/index.ts`](../../packages/skill/skill-filesystem/src/index.ts), [`packages/skill/skill-badge/src/index.ts`](../../packages/skill/skill-badge/src/index.ts), [`packages/skill/skill-office/src/index.ts`](../../packages/skill/skill-office/src/index.ts), and [`packages/skill/tool-skill/src/index.ts`](../../packages/skill/tool-skill/src/index.ts).
+Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts), [`packages/skill/skill-filesystem/src/index.ts`](../../packages/skill/skill-filesystem/src/index.ts), [`packages/skill/skill-badge/src/index.ts`](../../packages/skill/skill-badge/src/index.ts), [`packages/skill/skill-office/src/index.ts`](../../packages/skill/skill-office/src/index.ts), [`packages/skill/tool-skill/src/index.ts`](../../packages/skill/tool-skill/src/index.ts), [`packages/skill/skill-search/src/index.ts`](../../packages/skill/skill-search/src/index.ts), [`packages/skill/skill-search-local/src/index.ts`](../../packages/skill/skill-search-local/src/index.ts), and [`packages/skill/tool-skill-search/src/index.ts`](../../packages/skill/tool-skill-search/src/index.ts).
 
 ## Provider registry
 
@@ -236,6 +236,131 @@ The model-facing `skill({ name })` tool validates the kebab-case name, finds the
 
 `SkillListRequest` addresses one Session by `sessionId`; `SkillListValue` returns the user-invocable entries with name, description, optional usage guidance, and model-invocation availability. `SessionSkillCatalog` reads the Session cwd and recorded preset without activating an Agent. A live Agent may supply its scoped registry, while a cold Session uses the preset's standing scope.
 
+<a id="skill-corpus-retrieval"></a>
+## Skill corpus retrieval
+
+`ctx.skillSearch` searches only deployment-declared resources for a loaded, model-invocable Skill. Each declaration selects relative roots, accepted extensions, source-size ceilings, and a chunk ceiling, and may require the winning `ctx.skills` provider. The service derives an opaque corpus identity from the resolved Skill and declaration, then selects the first visible scoped provider whose `supports()` method accepts the resource base.
+
+Provider names and corpus identities are branded strings so callers cannot interchange unrelated identifiers. `registerProvider(name, provider)` borrows the provider through the contributing Cordis effect; disposing that fiber unregisters the provider. Searches carry cwd, viewing scope, and cancellation, and cancellation races provider work even when the provider does not settle on its signal.
+
+```ts type-equiv
+/** Deployment-owned declaration of searchable Skill resources. */
+interface SkillCorpusSpec {
+  /** Skill name resolved through `ctx.skills`. */
+  readonly skill: string
+  /** Optional winning Skill provider required by this declaration. */
+  readonly provider?: string
+  /** Relative resource roots included in this corpus. */
+  readonly roots: string[]
+  /** Accepted lower-case file extensions including the leading dot. */
+  readonly extensions: string[]
+  /** Maximum bytes accepted from one file. */
+  readonly maxFileBytes: number
+  /** Maximum aggregate source bytes accepted by the corpus. */
+  readonly maxCorpusBytes: number
+  /** Maximum chunks retained for the corpus. */
+  readonly maxChunks: number
+}
+```
+
+```ts type-equiv
+/** A declared corpus after the Skill registry resolves its winning definition. */
+interface ResolvedSkillCorpus {
+  /** Stable digest input used by providers as part of persistent identity. */
+  readonly id: SkillCorpusId
+  /** Loaded, model-invocable Skill definition. */
+  readonly skill: SkillDefinition
+  /** Provider-specific resource base from the loaded Skill. */
+  readonly resourceBase: SkillResourceBase
+  /** Validated deployment declaration. */
+  readonly spec: SkillCorpusSpec
+}
+```
+
+`SkillSearchRequest` names one Skill and query. A provider returns one complete result with ranked excerpts; each hit retains a relative path, heading trail, one-based source range, and score. The service caps complete results at the requested count and at 10 before returning them to a consumer.
+
+```ts type-equiv
+/** Model- or host-initiated search request. */
+interface SkillSearchRequest {
+  /** Skill whose declared corpus should be searched. */
+  readonly name: string
+  /** Natural-language or exact-symbol query. */
+  readonly query: string
+  /** Maximum returned passages. */
+  readonly limit?: number
+}
+```
+
+```ts type-equiv
+/** Caller context used for scope-sensitive and abortable search. */
+interface SkillSearchOptions {
+  readonly cwd?: string
+  readonly scope?: ScopeKey
+  readonly signal?: AbortSignal
+}
+```
+
+```ts type-equiv
+/** One source passage returned by a Skill search provider. */
+interface SkillSearchHit {
+  readonly skill: string
+  readonly rank: number
+  readonly score: number
+  readonly path: string
+  readonly headings: readonly string[]
+  readonly startLine: number
+  readonly endLine: number
+  readonly excerpt: string
+}
+```
+
+```ts type-equiv
+/** Complete provider-neutral Skill search result. */
+interface SkillSearchResult {
+  readonly skill: string
+  readonly query: string
+  readonly hits: readonly SkillSearchHit[]
+}
+```
+
+```ts type-equiv
+/** Concrete search backend for one or more resolved corpus resource kinds. */
+interface SkillSearchProvider {
+  /**
+   * Return whether this provider can search the resolved corpus.
+   * @param corpus - Loaded Skill plus deployment declaration.
+   */
+  readonly supports: (corpus: ResolvedSkillCorpus) => boolean
+  /**
+   * Search one resolved corpus.
+   * @param corpus - Loaded Skill plus deployment declaration.
+   * @param request - Caller query and optional result limit.
+   * @param signal - Cancellation shared with Skill resolution.
+   * @returns ranked source passages.
+   */
+  readonly search: (
+    corpus: ResolvedSkillCorpus,
+    request: SkillSearchRequest,
+    signal: AbortSignal,
+  ) => Promise<SkillSearchResult>
+}
+```
+
+`SkillSearchError` extends the harness error type so tools preserve its stable code in structured failure metadata. Codes distinguish Skill resolution and policy failures, undeclared or unsupported resources, corpus and source failures, an unavailable model, and cancellation. Diagnostics exclude query and source text.
+
+```ts type-equiv
+/** Stable failure categories exposed by the Skill search capability. */
+type SkillSearchErrorCode =
+  | 'UNKNOWN_SKILL'
+  | 'NOT_MODEL_INVOCABLE'
+  | 'CORPUS_UNDECLARED'
+  | 'UNSUPPORTED_RESOURCE_BASE'
+  | 'CORPUS_LIMIT'
+  | 'SOURCE_UNREADABLE'
+  | 'MODEL_UNAVAILABLE'
+  | 'ABORTED'
+```
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -326,6 +451,32 @@ async get(name: string, options: SkillViewOptions = {}): Promise<SkillDefinition
 ```
 
 Source: [`packages/skill/skill/src/index.ts`](../../packages/skill/skill/src/index.ts)
+
+<a id="ctxskillsearch--skillsearchregistry"></a>
+
+### `ctx.skillSearch` — `SkillSearchRegistry`
+
+Layered registry that resolves Skills before delegating declared corpora to providers.
+
+```ts cordis-catalog
+/**
+ * Register a provider in the calling context's scope layer.
+ * @param name - Branded provider name reserved within the calling scope layer.
+ * @param provider - Borrowed same-process provider implementation.
+ * @returns exact Cordis effect disposer.
+ */
+registerProvider(name: SkillSearchProviderName, provider: SkillSearchProvider): () => void
+
+/**
+ * Resolve a model-invocable Skill and search its explicit corpus.
+ * @param request - Skill name, query, and optional result limit.
+ * @param options - cwd, scope, and cancellation inherited from the caller.
+ * @returns provider-ranked source passages.
+ */
+async search(request: SkillSearchRequest, options: SkillSearchOptions = {}): Promise<SkillSearchResult>
+```
+
+Source: [`packages/skill/skill-search/src/index.ts`](../../packages/skill/skill-search/src/index.ts)
 
 <a id="skills-events"></a>
 

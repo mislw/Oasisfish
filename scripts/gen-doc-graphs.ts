@@ -453,7 +453,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'tools',
     title: 'Tool registry and guarded execution pipeline',
     mode: 'core',
-    consumers: ['agent-loop', 'tool-ask-user', 'tool-bash', 'tool-cordis', 'tool-fs', 'tool-terminal', 'tool-skill', 'tool-subagent', 'tool-todo', 'tool-web'],
+    consumers: ['agent-loop', 'tool-ask-user', 'tool-bash', 'tool-cordis', 'tool-fs', 'tool-terminal', 'tool-skill', 'tool-skill-search', 'tool-subagent', 'tool-todo', 'tool-web'],
     note: 'Registers capabilities, owns PTC mode transport, and routes calls through pre-policy, monotonic guards, around dispatch, post-policy, and final-result observation.',
   },
   {
@@ -507,8 +507,17 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Skill provider registry',
     mode: 'seam',
     implementations: ['skill-badge', 'skill-filesystem', 'skill-office'],
-    consumers: ['tool-skill'],
+    consumers: ['skill-search', 'tool-skill'],
     note: 'Merges provider skill catalogs; tool-skill renders the session-prefix catalog and loads complete skill bodies.',
+  },
+  {
+    key: 'skillSearch',
+    pkg: 'skill-search',
+    title: 'Skill corpus search seam',
+    mode: 'seam',
+    implementations: ['skill-search-local'],
+    consumers: ['tool-skill-search'],
+    note: 'Resolves model-invocable Skills and explicit corpus declarations before routing one search to the first visible supporting provider.',
   },
   {
     key: 'agents',

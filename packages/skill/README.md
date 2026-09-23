@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The skill family lets agents and users discover and load reusable task instructions only when needed. Use `skill/` to combine catalogs and expose one instruction set per name; choose `skill-filesystem` for project, custom, or user-directory discovery, `skill-badge` for the optional official badge, and `skill-office` for Word, PowerPoint, and Excel workflows. Add `tool-skill` when models should receive a sorted, durable session catalog, load full instructions through the `skill` tool, or accept direct `/name` invocation. Different sources produce the same model-visible format, and model access requires at least one source.
+The skill family lets agents and users discover, load, and search reusable task instructions only when needed. Use `skill/` to combine catalogs; choose filesystem or packaged providers for instruction bodies, then add `tool-skill` for model loading. For references too large to keep in a Skill body, `skill-search` declares provider-neutral corpora, `skill-search-local` indexes directory resources locally, and `tool-skill-search` exposes cited retrieval. Discovery and retrieval remain separate capabilities, so deployments can enable either or both.
 
 ## Table of Contents
 
@@ -29,6 +29,9 @@ The skill family lets agents and users discover and load reusable task instructi
 | [`skill-badge/`](skill-badge/README.md) | Bundles the official "powered by dsh" badge skill, disabled by default | registers on `ctx.skills` |
 | [`skill-office/`](skill-office/README.md) | Bundles Word, PowerPoint, and Excel workflows with structural file checks | registers on `ctx.skills` |
 | [`tool-skill/`](tool-skill/README.md) | Publishes the session skill catalog and the model-facing `skill` loader tool | registers on `ctx.tools` |
+| [`skill-search/`](skill-search/README.md) | Declares searchable Skill corpora and routes scoped searches to provider-neutral backends | `ctx.skillSearch` |
+| [`skill-search-local/`](skill-search-local/README.md) | Indexes declared directory resources with local SQLite, lexical search, and embeddings | registers on `ctx.skillSearch` |
+| [`tool-skill-search/`](tool-skill-search/README.md) | Publishes the model-facing `skill_search` tool and cited search results | registers on `ctx.tools` |
 
 -----
 

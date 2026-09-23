@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-skill 家族让 agent 和用户仅在需要时发现并加载可复用的任务指令。使用 `skill/` 合并目录并为每个名称提供一组指令；需要从项目、自定义或用户目录发现 skill 时选择 `skill-filesystem`，需要可选的官方徽章时选择 `skill-badge`，需要 Word、PowerPoint 和 Excel 工作流时选择 `skill-office`。需要让模型获得排序且持久的会话目录、通过 `skill` 工具加载完整指令，或接受 `/name` 直接调用时，请添加 `tool-skill`。不同来源生成相同的模型可见格式，启用模型访问前必须配置至少一个来源。
+skill 家族让 agent 和用户仅在需要时发现、加载并搜索可复用的任务指令。使用 `skill/` 合并目录；选择文件系统或随包提供方供应指令正文，再添加 `tool-skill` 供模型加载。对于不适合放在 Skill 正文中的大型参考资料，`skill-search` 声明提供方中立的语料，`skill-search-local` 在本地索引目录资源，`tool-skill-search` 公开带引用的检索。发现与检索是分离的能力，因此部署方可以启用其中任一项或同时启用。
 
 ## 目录
 
@@ -29,6 +29,9 @@ skill 家族让 agent 和用户仅在需要时发现并加载可复用的任务�
 | [`skill-badge/`](skill-badge/README.zh.md) | 随包附带官方「powered by dsh」徽章 skill，默认禁用 | 注册到 `ctx.skills` |
 | [`skill-office/`](skill-office/README.zh.md) | 随包提供 Word、PowerPoint 和 Excel 工作流及文件结构检查 | 注册到 `ctx.skills` |
 | [`tool-skill/`](tool-skill/README.zh.md) | 发布会话 skill 目录与面向模型的 `skill` 加载工具 | 注册到 `ctx.tools` |
+| [`skill-search/`](skill-search/README.zh.md) | 声明可搜索 Skill 语料，并把作用域搜索路由到提供方中立后端 | `ctx.skillSearch` |
+| [`skill-search-local/`](skill-search-local/README.zh.md) | 使用本地 SQLite、词法搜索和向量索引已声明的目录资源 | 注册到 `ctx.skillSearch` |
+| [`tool-skill-search/`](tool-skill-search/README.zh.md) | 发布面向模型的 `skill_search` 工具和带引用的搜索结果 | 注册到 `ctx.tools` |
 
 -----
 

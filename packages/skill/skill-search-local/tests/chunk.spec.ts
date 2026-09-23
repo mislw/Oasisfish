@@ -1,0 +1,153 @@
+import { describe, expect, it } from 'vitest'
+import { chunkDocument } from '../src/chunk.ts'
+import type { DiscoveredDocument } from '../src/corpus.ts'
+
+function document(text: string, path = 'references/respawn.md'): DiscoveredDocument {
+  return {
+    path,
+    absolutePath: `C:\\fixture\\${path.replaceAll('/', '\\')}`,
+    bytes: Buffer.byteLength(text),
+    mtimeMs: 1,
+    sha256: 'a'.repeat(64),
+    text,
+  }
+}
+
+describe('chunkDocument', () => {
+  it('tracks Markdown heading hierarchy and one-based source lines', () => {
+    const chunks = chunkDocument(document([
+      '# 角色系统',
+      '',
+      '角色进入战场。',
+      '',
+      '## 复活',
+      '',
+      '角色可以在复活点重新进入战斗。',
+      '',
+    ].join('\n')), { targetCodePoints: 800, maxCodePoints: 1200, overlapCodePoints: 120 })
+
+    expect(chunks).toEqual([
+      expect.objectContaining({
+        path: 'references/respawn.md',
+        headings: ['角色系统'],
+        startLine: 3,
+        endLine: 3,
+        text: '角色进入战场。',
+      }),
+      expect.objectContaining({
+        path: 'references/respawn.md',
+        headings: ['角色系统', '复活'],
+        startLine: 7,
+        endLine: 7,
+        text: '角色可以在复活点重新进入战斗。',
+      }),
+    ])
+    expect(new Set(chunks.map(chunk => chunk.id)).size).toBe(2)
+  })
+
+  it('carries bounded prose overlap only between chunks with the same headings', () => {
+    const chunks = chunkDocument(document([
+      '# 复活',
+      '',
+      '第一段文字',
+      '',
+      '第二段文字',
+      '',
+    ].join('\n')), { targetCodePoints: 8, maxCodePoints: 20, overlapCodePoints: 5 })
+
+    expect(chunks.map(chunk => chunk.text)).toEqual([
+      '第一段文字',
+      '第一段文字\n\n第二段文字',
+    ])
+    expect(chunks[1]).toMatchObject({ startLine: 3, endLine: 5, headings: ['复活'] })
+  })
+
+  it('splits an oversized fenced block on original line boundaries', () => {
+    const chunks = chunkDocument(document([
+      '# API 示例',
+      '',
+      '```lua',
+      'local first = "aaaaaaaaaaaa"',
+      'local second = "bbbbbbbbbbbb"',
+      '```',
+      '',
+    ].join('\n')), { targetCodePoints: 24, maxCodePoints: 32, overlapCodePoints: 4 })
+
+    expect(chunks.length).toBeGreaterThan(1)
+    expect(chunks.every(chunk => Array.from(chunk.text).length <= 32)).toBe(true)
+    expect(chunks.every(chunk => chunk.headings.join(' > ') === 'API 示例')).toBe(true)
+    expect(chunks.map(chunk => chunk.text).join('\n')).toBe([
+      '```lua',
+      'local first = "aaaaaaaaaaaa"',
+      'local second = "bbbbbbbbbbbb"',
+      '```',
+    ].join('\n'))
+    expect(chunks[0]).toMatchObject({ startLine: 3 })
+    expect(chunks.at(-1)).toMatchObject({ endLine: 6 })
+  })
+
+  it('splits one oversized source line without changing its code points', () => {
+    const line = `local payload = "${'界'.repeat(40)}"`
+    const chunks = chunkDocument(document(`# 数据\n\n${line}\n`), {
+      targetCodePoints: 24,
+      maxCodePoints: 32,
+      overlapCodePoints: 4,
+    })
+
+    expect(chunks.length).toBeGreaterThan(1)
+    expect(chunks.every(chunk => chunk.startLine === 3 && chunk.endLine === 3)).toBe(true)
+    expect(chunks.every(chunk => Array.from(chunk.text).length <= 32)).toBe(true)
+    expect(chunks.map(chunk => chunk.text).join('')).toBe(line)
+  })
+
+  it.each([
+    [{ targetCodePoints: 0, maxCodePoints: 1, overlapCodePoints: 0 }, 'target/max'],
+    [{ targetCodePoints: 2, maxCodePoints: 1, overlapCodePoints: 0 }, 'target/max'],
+    [{ targetCodePoints: 2, maxCodePoints: 2, overlapCodePoints: -1 }, 'overlap'],
+    [{ targetCodePoints: 2, maxCodePoints: 2, overlapCodePoints: 2 }, 'overlap'],
+  ])('rejects invalid chunk controls %o', (options, message) => {
+    expect(() => chunkDocument(document('text'), options)).toThrow(message)
+  })
+
+  it('chunks plain text paragraphs and merges adjacent blocks within the target', () => {
+    const chunks = chunkDocument(document('first\nline\n\nsecond\n\n', 'references/notes.txt'), {
+      targetCodePoints: 40,
+      maxCodePoints: 50,
+      overlapCodePoints: 5,
+    })
+
+    expect(chunks).toEqual([expect.objectContaining({
+      headings: [],
+      startLine: 1,
+      endLine: 4,
+      text: 'first\nline\n\nsecond',
+    })])
+  })
+
+  it('omits non-text heading children and never overlaps code blocks', () => {
+    const chunks = chunkDocument(document([
+      '# ![icon](icon.png)',
+      '',
+      '```txt',
+      'first code block',
+      '```',
+      '',
+      '```txt',
+      'second code block',
+      '```',
+    ].join('\n')), { targetCodePoints: 10, maxCodePoints: 24, overlapCodePoints: 4 })
+
+    expect(chunks.every(chunk => chunk.headings.length === 0)).toBe(true)
+    expect(chunks.map(chunk => chunk.text).join('\n')).not.toContain('\n\n```txt')
+  })
+
+  it('starts a full-size next block without an empty overlap prefix', () => {
+    const chunks = chunkDocument(document(`# H\n\nshort\n\n${'x'.repeat(10)}\n`), {
+      targetCodePoints: 6,
+      maxCodePoints: 10,
+      overlapCodePoints: 2,
+    })
+
+    expect(chunks.map(chunk => chunk.text)).toEqual(['short', 'xxxxxxxxxx'])
+  })
+})

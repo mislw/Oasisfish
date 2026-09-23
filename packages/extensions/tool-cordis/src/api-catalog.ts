@@ -2453,6 +2453,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'skillSearch',
+    summary: 'Layered registry that resolves Skills before delegating declared corpora to providers.',
+    description: 'Layered registry that resolves Skills before delegating declared corpora to providers.',
+    methods: [
+      {
+        signature: 'registerProvider(name: SkillSearchProviderName, provider: SkillSearchProvider): () => void',
+        description: 'Register a provider in the calling context\'s scope layer.',
+        parameters: [{ name: 'name', description: 'Branded provider name reserved within the calling scope layer.' }, { name: 'provider', description: 'Borrowed same-process provider implementation.' }],
+        returns: 'exact Cordis effect disposer.',
+      },
+      {
+        signature: 'async search(request: SkillSearchRequest, options: SkillSearchOptions = {}): Promise<SkillSearchResult>',
+        description: 'Resolve a model-invocable Skill and search its explicit corpus.',
+        parameters: [{ name: 'request', description: 'Skill name, query, and optional result limit.' }, { name: 'options', description: 'cwd, scope, and cancellation inherited from the caller.' }],
+        returns: 'provider-ranked source passages.',
+      },
+    ],
+  },
+  {
     key: 'spillStore',
     summary: 'Abstract spill storage service.',
     description: 'Abstract spill storage service. Subclass, implement saveText, and load the subclass as a plugin — it registers as `ctx.spillStore` (one implementation per context; loading a second throws, cordis\' standard duplicate-service behavior).\n\nSemantics every implementation must honor:\n\n- saveText persists the FULL `content` verbatim and returns an opaque locator, exact byte length, and model-facing retrieval guidance.\n- Storage is scoped by the request\'s SaveTextSpill.owner session; the backend chooses a private (not world-readable) location and a collision-free name derived from — never equal to — the caller\'s `suggestedName`.\n- `saveText` REJECTS on a real storage failure (permissions, ENOSPC, backend unavailable); the caller decides how to degrade (the spill policy treats a rejection as best-effort and keeps the inline result).',
@@ -5611,6 +5630,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ResolvedRetryPolicy = ResolvedNormalRetryPolicy | ResolvedAlwaysRetryPolicy;',
   },
   {
+    name: 'ResolvedSkillCorpus',
+    declaration: 'export interface ResolvedSkillCorpus {\n    readonly id: SkillCorpusId;\n    readonly skill: SkillDefinition;\n    readonly resourceBase: SkillResourceBase;\n    readonly spec: SkillCorpusSpec;\n}',
+  },
+  {
     name: 'ResolvedSubagentStartRequest',
     declaration: 'export interface ResolvedSubagentStartRequest extends SubagentStartRequest {\n    readonly descriptor: SubagentDescriptorData;\n}',
   },
@@ -6311,6 +6334,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillCatalogSnapshot {\n    readonly skills: SkillSummary[];\n    readonly complete: boolean;\n}',
   },
   {
+    name: 'SkillCorpusId',
+    declaration: 'export type SkillCorpusId = Branded<\'SkillCorpusId\'>;',
+  },
+  {
+    name: 'SkillCorpusSpec',
+    declaration: 'export interface SkillCorpusSpec {\n    readonly skill: string;\n    readonly provider?: string;\n    readonly roots: string[];\n    readonly extensions: string[];\n    readonly maxFileBytes: number;\n    readonly maxCorpusBytes: number;\n    readonly maxChunks: number;\n}',
+  },
+  {
     name: 'SkillDefinition',
     declaration: 'export interface SkillDefinition extends SkillSummary {\n    readonly content: string;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
   },
@@ -6353,6 +6384,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillResourceBase',
     declaration: 'export type SkillResourceBase = {\n    readonly kind: \'directory\';\n    readonly path: string;\n} | {\n    readonly kind: \'url\';\n    readonly url: string;\n} | {\n    readonly kind: \'opaque\';\n    readonly description: string;\n};',
+  },
+  {
+    name: 'SkillSearchHit',
+    declaration: 'export interface SkillSearchHit {\n    readonly skill: string;\n    readonly rank: number;\n    readonly score: number;\n    readonly path: string;\n    readonly headings: readonly string[];\n    readonly startLine: number;\n    readonly endLine: number;\n    readonly excerpt: string;\n}',
+  },
+  {
+    name: 'SkillSearchOptions',
+    declaration: 'export interface SkillSearchOptions {\n    readonly cwd?: string;\n    readonly scope?: ScopeKey;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'SkillSearchProvider',
+    declaration: 'export interface SkillSearchProvider {\n    readonly supports: (corpus: ResolvedSkillCorpus) => boolean;\n    readonly search: (corpus: ResolvedSkillCorpus, request: SkillSearchRequest, signal: AbortSignal) => Promise<SkillSearchResult>;\n}',
+  },
+  {
+    name: 'SkillSearchProviderName',
+    declaration: 'export type SkillSearchProviderName = Branded<\'SkillSearchProviderName\'>;',
+  },
+  {
+    name: 'SkillSearchRequest',
+    declaration: 'export interface SkillSearchRequest {\n    readonly name: string;\n    readonly query: string;\n    readonly limit?: number;\n}',
+  },
+  {
+    name: 'SkillSearchResult',
+    declaration: 'export interface SkillSearchResult {\n    readonly skill: string;\n    readonly query: string;\n    readonly hits: readonly SkillSearchHit[];\n}',
   },
   {
     name: 'SkillSource',
