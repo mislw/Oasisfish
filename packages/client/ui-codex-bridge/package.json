@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-codex-bridge",
   "description": "Interactive Codex Bridge settings preview for connection, policy, workspace admission, and delegated-run states",
-  "version": "1.20260919.1",
+  "version": "1.20260923.1",
   "publishConfig": {
     "access": "public"
   },

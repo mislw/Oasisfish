@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-llm-deepseek",
   "description": "DeepSeek adapter with Chat Completions and Messages protocols",
-  "version": "1.20260919.1",
+  "version": "1.20260923.1",
   "publishConfig": {
     "access": "public"
   },
