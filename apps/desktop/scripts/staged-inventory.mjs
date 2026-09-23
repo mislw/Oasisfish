@@ -3,10 +3,9 @@ import { createReadStream, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { inspectRegularTree } from './regular-tree.mjs'
 
-const OWNED_ROOTS = Object.freeze([
-  'bundled-skills/oasis-wiki',
-  'bundled-skills/ai-image-prompts',
-  'models/bge-small-zh-v1.5',
+const OWNED_STAGED_ROOTS = Object.freeze([
+  'bundled-skills',
+  'models',
 ])
 
 function approvedInventory() {
@@ -33,7 +32,7 @@ function approvedInventory() {
 export const RETRIEVAL_APPROVED_FILES = Object.freeze(approvedInventory())
 
 function approvedDirectories() {
-  const directories = new Set(OWNED_ROOTS)
+  const directories = new Set(OWNED_STAGED_ROOTS)
   for (const file of RETRIEVAL_APPROVED_FILES) {
     const segments = file.path.split('/')
     segments.pop()
@@ -55,7 +54,7 @@ async function sha256(path) {
 export async function verifyStagedRetrievalResources(root) {
   const actualFiles = new Map()
   const actualDirectories = new Set()
-  for (const ownedRoot of OWNED_ROOTS) {
+  for (const ownedRoot of OWNED_STAGED_ROOTS) {
     let tree
     try {
       tree = await inspectRegularTree(join(root, ownedRoot))

@@ -54,6 +54,16 @@ describe('Desktop retrieval resource inventory', () => {
     ['extra', async (root: string) => {
       await writeFile(join(root, 'bundled-skills', 'ai-image-prompts', 'references', 'extra.md'), 'extra\n')
     }],
+    ['rogue skill sibling', async (root: string) => {
+      const path = join(root, 'bundled-skills', 'rogue')
+      await mkdir(path)
+      await writeFile(join(path, 'SKILL.md'), 'undeclared\n')
+    }],
+    ['rogue model sibling', async (root: string) => {
+      const path = join(root, 'models', 'rogue')
+      await mkdir(path)
+      await writeFile(join(path, 'config.json'), '{}\n')
+    }],
     ['directory-substituted', async (root: string) => {
       const path = join(root, 'bundled-skills', 'ai-image-prompts', 'LICENSE')
       await rm(path)
@@ -74,6 +84,18 @@ describe('Desktop retrieval resource inventory', () => {
     await writeFile(outside, await readFile(path))
     await rm(path)
     await symlink(outside, path, 'file')
+
+    await expect(verifyStagedRetrievalResources(root)).rejects.toThrow('filesystem link')
+  })
+
+  it('rejects linked siblings under an owned staged root', async () => {
+    const { verifyStagedRetrievalResources } = await import('../scripts/staged-inventory.mjs')
+    const root = await stagedResources()
+    const outside = join(root, 'outside-rogue-skill')
+    const path = join(root, 'bundled-skills', 'rogue')
+    await mkdir(outside)
+    await writeFile(join(outside, 'SKILL.md'), 'undeclared\n')
+    await symlink(outside, path, process.platform === 'win32' ? 'junction' : 'dir')
 
     await expect(verifyStagedRetrievalResources(root)).rejects.toThrow('filesystem link')
   })

@@ -102,7 +102,7 @@ export interface SnapshotManifest {
   profile: SnapshotProfile
   /** Composition id whose sole pin owns its profile patches. */
   composition?: string
-  /** Additional repository-owned profile patches applied before the scenario patch. */
+  /** Additional repository-owned profile patches applied only by the headless runner before the scenario patch. */
   profilePatches?: string[]
   /** Whether the session is live-recordable or deliberately authored. */
   recording?: SnapshotRecording
@@ -198,7 +198,8 @@ function profilePatches(value: unknown): string[] {
   const invalid = !Array.isArray(value)
     || value.length === 0
     || value.some(item => typeof item !== 'string'
-      || isAbsolute(item)
+      || item.startsWith('/')
+      || /^[A-Za-z]:/u.test(item)
       || item.includes('\\')
       || item.includes('\0')
       || !item.endsWith('.yml')
@@ -248,6 +249,7 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
     if (typeof root.profile !== 'string' || !PROFILES.has(root.profile as SnapshotProfile)) {
       throw new Error('manifest.profile must be headless, sdk, acp, or web')
     }
+    const profile = root.profile as SnapshotProfile
 
     const composition = root.composition === undefined
       ? undefined
@@ -255,6 +257,9 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
     const parsedProfilePatches = root.profilePatches === undefined
       ? undefined
       : profilePatches(root.profilePatches)
+    if (profile !== 'headless' && parsedProfilePatches !== undefined) {
+      throw new Error('manifest.profilePatches is only valid for the headless profile')
+    }
     let recording: SnapshotRecording | undefined
     if (root.recording !== undefined) {
       if (typeof root.recording !== 'string' || !RECORDINGS.has(root.recording as SnapshotRecording)) {
@@ -434,7 +439,7 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
     return {
       version: 1,
       ...(scenario === undefined ? {} : { scenario }),
-      profile: root.profile as SnapshotProfile,
+      profile,
       ...(composition === undefined ? {} : { composition }),
       ...(parsedProfilePatches === undefined ? {} : { profilePatches: parsedProfilePatches }),
       ...(recording === undefined ? {} : { recording }),

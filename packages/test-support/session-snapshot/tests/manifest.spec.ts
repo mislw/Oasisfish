@@ -161,15 +161,43 @@ describe('snapshot manifest', () => {
     })
   })
 
+  it.each(['sdk', 'acp', 'web'])('rejects profile patches for the %s runner', (profile) => {
+    expect(() => parseSnapshotManifest([
+      'version: 1',
+      `profile: ${profile}`,
+      'profilePatches: [apps/desktop-host/oasisfish.cordis.patch.yml]',
+      '',
+    ].join('\n'))).toThrow('manifest.profilePatches is only valid for the headless profile')
+  })
+
+  it.each([
+    ['/tmp/patch.yml', 'POSIX absolute'],
+    ['C:/patch.yml', 'Windows drive absolute'],
+    ['C:patch.yml', 'Windows drive relative'],
+    ['//server/share/patch.yml', 'Windows UNC'],
+    ['//?/C:/patch.yml', 'Windows device'],
+    ['apps\\patch.yml', 'backslash separator'],
+    ['../patch.yml', 'leading traversal'],
+    ['apps/../patch.yml', 'nested traversal'],
+    ['./patch.yml', 'dot segment'],
+    ['apps//patch.yml', 'empty segment'],
+    ['', 'empty path'],
+    ['.', 'dot path'],
+  ])('rejects %s profile patch paths (%s)', (path) => {
+    expect(() => parseSnapshotManifest([
+      'version: 1',
+      'profile: headless',
+      `profilePatches: [${JSON.stringify(path)}]`,
+      '',
+    ].join('\n'))).toThrow('manifest.profilePatches must contain unique repository-relative POSIX .yml paths')
+  })
+
   it.each([
     ['', 'manifest must be a mapping'],
     ['version: 2\nprofile: acp\n', 'manifest.version must equal 1'],
     ['version: 1\nprofile: private\n', 'manifest.profile must be headless, sdk, acp, or web'],
     ['version: 1\nprofile: acp\nextra: true\n', 'manifest has unknown field(s): extra'],
     ['version: 1\nprofile: acp\ncomposition: Not_Safe\n', 'manifest.composition must be a lower-kebab-case name'],
-    ['version: 1\nprofile: headless\nprofilePatches: [/tmp/patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
-    ['version: 1\nprofile: headless\nprofilePatches: [../patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
-    ['version: 1\nprofile: headless\nprofilePatches: [apps\\patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
     ['version: 1\nprofile: headless\nprofilePatches: [apps/patch.yml, apps/patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
     ['version: 1\nprofile: acp\nrecording: maybe\n', 'manifest.recording must be live or authored'],
     ['version: 1\nprofile: acp\nheader: {}\n', 'manifest.header.class must be a lower-kebab-case name'],

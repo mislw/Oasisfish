@@ -106,3 +106,43 @@ The top-level `oasisfish-desktop-skill-search` Session snapshot applies the real
 ### Concern
 
 The default source-mode headless snapshot lane fails both the existing `skill-search` scenario and the new Oasisfish scenario because `agent-loop` and `tools` resolve distinct scheduler symbols, producing `Cannot read properties of undefined (reading 'prepare')`. A full Host build does not change that result. The shipped built-artifact lane used by CI passes the new scenario; this round does not widen into the pre-existing source-launch resolution defect.
+
+## Review Round 2
+
+### Status
+
+The staged retrieval verifier now walks the complete capability-owned `bundled-skills` and `models` roots. The approved 204-file inventory remains exact, while undeclared sibling files, directories, filesystem links, missing files, modified files, and non-regular replacements anywhere under those roots fail staging.
+
+`profilePatches` is now a headless-only manifest field because only the headless snapshot runner consumes it. Its path validation uses explicit repository-relative POSIX rules instead of host `node:path` absolute-path semantics, so POSIX absolute, Windows drive, UNC, device, backslash, traversal, empty, and dot paths are rejected consistently on every host.
+
+### RED/GREEN Evidence
+
+- RED: `pnpm exec vitest run apps/desktop/tests/staged-inventory.spec.ts packages/test-support/session-snapshot/tests/manifest.spec.ts` reported 7 failed and 62 passed. The failures covered rogue Skill and model siblings, a linked rogue sibling, SDK/ACP/Web manifests that silently accepted `profilePatches`, and a Windows drive-relative patch path.
+- GREEN: the same command reported 2 files passed and 69 tests passed after the verifier started at the owned staged roots and the manifest parser enforced the headless-only portable path rules.
+- Full focused GREEN: `pnpm exec vitest run apps/desktop/tests/primary-runtime-preparation.spec.ts apps/desktop/tests/staged-inventory.spec.ts packages/test-support/session-snapshot/tests/manifest.spec.ts apps/desktop/tests/packaged-skill-search.spec.ts` reported 4 files passed and 88 tests passed.
+- Built snapshot refresh: `$env:DSH_EXAMPLE_MODE='lib'; $env:DSH_SNAPSHOT='refresh'; pnpm exec vitest run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t 'oasisfish-desktop-skill-search'` reported 1 passed and 124 skipped with no fixture drift.
+- Built snapshot replay: `$env:DSH_EXAMPLE_MODE='lib'; pnpm exec vitest run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t 'oasisfish-desktop-skill-search'` reported 1 passed and 124 skipped.
+
+### Verification
+
+- `pnpm exec tsc -b packages/test-support/session-snapshot/tsconfig.json apps/desktop/tsconfig.json`: passed.
+- `pnpm exec tsx scripts/run-oxlint.ts apps/desktop/scripts/staged-inventory.mjs apps/desktop/tests/staged-inventory.spec.ts packages/test-support/session-snapshot/src/manifest.ts packages/test-support/session-snapshot/tests/manifest.spec.ts`: passed.
+- `pnpm run verify-cordis-config`: 211 configuration files passed.
+- `pnpm --filter @deepseek-ai/dsh-desktop run build`: passed.
+- `pnpm run build:lib:host`: passed.
+- `pnpm run verify-translation-pairing packages/test-support/session-snapshot/README.md`: the named pair is consistent.
+- `pnpm run verify-doc-budgets`: passed.
+- `git diff --check`: repeated after this report update and before commit.
+
+### Self-Review
+
+- Confirmed the verifier owns only `bundled-skills` and `models`; unrelated runtime roots such as `primary-runtime` and `office-skills` remain outside this inventory.
+- Confirmed each approved file and directory derives from the inventory while the complete owned-root walk exposes rogue siblings before digest comparison.
+- Confirmed a missing owned root becomes approved-file omissions, and a filesystem link anywhere beneath an owned root fails before traversal follows it.
+- Confirmed headless manifests retain the existing patch order: repository-owned profile patches first, then the scenario patch.
+- Confirmed SDK, ACP, and Web manifests reject `profilePatches` during parsing rather than carrying ignored configuration into their runners.
+- Confirmed normalized repository-relative POSIX `.yml` paths remain accepted while all requested absolute, platform-specific, traversal, empty, and dot forms are rejected by table tests.
+
+### Concern
+
+The pre-existing default source-mode scheduler-symbol failure described in Review Round 1 remains outside this round. The rebuilt artifact lane used by CI refreshes and replays the Oasisfish scenario successfully.
