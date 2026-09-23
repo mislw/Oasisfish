@@ -2466,7 +2466,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'async search(request: SkillSearchRequest, options: SkillSearchOptions = {}): Promise<SkillSearchResult>',
         description: 'Resolve a model-invocable Skill and search its explicit corpus.',
-        parameters: [{ name: 'request', description: 'Skill name, query, and optional result limit.' }, { name: 'options', description: 'cwd, scope, and cancellation inherited from the caller.' }],
+        parameters: [{ name: 'request', description: 'Skill name, query, and optional safe-integer result limit from 1 through 10.' }, { name: 'options', description: 'cwd, scope, and cancellation inherited from the caller.' }],
         returns: 'provider-ranked source passages.',
       },
     ],

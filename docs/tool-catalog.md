@@ -1569,7 +1569,7 @@ Source: [`packages/skill/tool-skill/src/index.ts`](../packages/skill/tool-skill/
 
 ### `skill_search`
 
-Search the declared local knowledge corpus for a loaded Skill. Use this for factual or API questions after loading the Skill, then cite the returned relative path and line range.
+Search the declared Skill corpus for a loaded Skill. Use this for factual or API questions after loading the Skill, then cite the returned relative path and line range.
 
 ```json
 {

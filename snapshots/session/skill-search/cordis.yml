@@ -1,0 +1,31 @@
+# Live counterpart for the authored skill_search snapshot composition.
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
+  disabled: true
+
+- id: system-prompt
+  config:
+    personaPrefix: |
+      You are a coding assistant powered by the {{model}} model. Your working directory is {{cwd}}.
+
+      Verify your work by running the code or tests. Keep answers brief and factual.
+
+- insert:
+    - id: skill-search
+      name: '@deepseek-ai/dsh-skill-search'
+      config:
+        corpora:
+          - skill: fixture-skill
+            roots: [references]
+            extensions: [.md]
+            maxFileBytes: 4096
+            maxCorpusBytes: 16384
+            maxChunks: 100
+
+    - id: skill-search-fixture
+      name: './skill-search-fixture.mjs'
+
+    - id: tool-skill-search
+      name: '@deepseek-ai/dsh-tool-skill-search'

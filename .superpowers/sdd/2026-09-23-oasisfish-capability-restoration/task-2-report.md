@@ -77,3 +77,44 @@ No product composition or vendored source changed.
 ## Concern
 
 This task publishes the local retrieval capability but does not compose it into a shipped profile or stage a model directory. Task 3 must supply the immutable model resources and product composition; until then, deployment must provide `modelRoot` and its verified manifest explicitly.
+
+## Review Round 1
+
+### Status
+
+Addressed all seven review findings without changing shipped product composition or vendored source. Disposal now aborts and awaits active searches before independently attempting both resource teardowns, corpus discovery reads each source through one identity-checked handle and applies limits to the bytes read, version-zero SQLite adoption is empty-only and transactional, overlap retains the true first source line, direct registry calls validate safe-integer limits from 1 through 10, model-facing copy is provider-neutral, and both real-Loader and recorded-session coverage exercise the assembled tool.
+
+### RED/GREEN Evidence
+
+- The initial focused review run recorded eight expected failures across provider lifecycle, file replacement and byte growth, version-zero schema adoption, overlap line mapping, direct limits, and model-facing copy; the same six files then passed 84 tests after the fixes.
+- `pnpm exec vitest run packages/skill/skill-search-local/tests/provider.spec.ts -t 'attempts both resource teardowns when they throw synchronously'`: RED, 1 failed; the eager teardown call surfaced only `store close threw` and never aggregated the model failure.
+- The same synchronous-teardown command after deferring each call with `Promise.resolve().then(...)`: GREEN, 1 passed.
+- The first three-package coverage run passed 169 tests but correctly failed the per-file gate with 17 uncovered locations in the new rejection paths.
+- After adding deterministic boundary cases and removing unreachable overlap guards, the final coverage command passed 14 files and 175 tests at 100% statements, branches, functions, and lines.
+
+### Final Verification
+
+- `pnpm exec vitest run packages/skill/skill-search/tests packages/skill/skill-search-local/tests packages/skill/tool-skill-search/tests --coverage --coverage.include='packages/skill/skill-search/src/**/*.ts' --coverage.include='packages/skill/skill-search-local/src/**/*.ts' --coverage.include='packages/skill/tool-skill-search/src/**/*.ts'`: 14 files passed, 175 tests passed; 100% statements, branches, functions, and lines.
+- `pnpm exec tsc -b packages/skill/skill-search/tsconfig.json packages/skill/skill-search-local/tsconfig.json packages/skill/tool-skill-search/tsconfig.json --pretty false`: passed.
+- `pnpm exec tsx scripts/run-oxlint.ts packages/skill/skill-search packages/skill/skill-search-local packages/skill/tool-skill-search packages/extensions/tool-cordis/src/api-catalog.ts scripts/gen-cordis-catalog.ts scripts/gen-tool-catalog.ts`: passed.
+- `pnpm run build`: passed, including host/client TypeScript, runtime bundles, and the Web production build.
+- `DSH_EXAMPLE_MODE=lib pnpm exec vitest run packages/skill/tool-skill-search/tests/loader.spec.ts`: 1 test passed through the real Loader composition and built package exports.
+- `DSH_SNAPSHOT=refresh DSH_EXAMPLE_MODE=lib pnpm exec vitest run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t 'skill-search'`: 1 scenario passed and refreshed the authored prompt/schema sidecars.
+- `DSH_EXAMPLE_MODE=lib pnpm exec vitest run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t 'skill-search'`: 1 scenario passed on replay after the refresh.
+- `pnpm run doc-typecheck:contracts-ready`: 86 documentation blocks compiled.
+- `pnpm run verify-translation-pairing packages/skill/skill-search/README.md packages/skill/skill-search-local/README.md packages/skill/tool-skill-search/README.md docs/tool-catalog.md docs/subsystems/skills.md`: five named pairs consistent.
+- `pnpm run test:docs`: 19 gates passed; only the unchanged `docs/event-producer-consumer.md` pair failed.
+- `pnpm run doc-sync`: 37 gates passed; task-owned catalog, JSDoc, subsystem, README, link, site, and pairing checks passed.
+- `git diff --cached --check`: passed; the 43 staged paths contain no shipped bundle/profile composition, `vendor/`, `lib/`, or coverage output.
+
+### Scoped Failures
+
+- `pnpm run doc-sync` cannot run its `doc-typecheck` wrapper on this Windows host because `npm` is unavailable; the direct pnpm-backed `doc-typecheck:contracts-ready` command passed.
+- The repository-wide translation check still reports the unchanged `docs/event-producer-consumer.md` pairing drift.
+- The repository-wide persistence checks still report the unchanged stale persistence catalog and `docs/persistence-schema.json`.
+
+### Self-Review
+
+- Confirmed the snapshot composition uses bare package names, disables both platform-selected shell tools, and supplies a shell-neutral persona so its pinned prompt and schema remain platform-independent.
+- Confirmed Loader fixtures use private temporary roots, no shared ports, deterministic provider output, and quiescent Cordis disposal.
+- Confirmed the outgoing paths contain no shipped bundle/profile composition, `vendor/`, `lib/`, or coverage output.

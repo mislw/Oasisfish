@@ -1,4 +1,4 @@
-/** Model-facing local Skill corpus search tool. @module @deepseek-ai/dsh-tool-skill-search */
+/** Model-facing declared Skill corpus search tool. @module @deepseek-ai/dsh-tool-skill-search */
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-skill-search'
@@ -53,7 +53,7 @@ function renderResult(value: {
 export function apply(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'skill_search',
-    description: 'Search the declared local knowledge corpus for a loaded Skill. Use this for factual or API questions after loading the Skill, then cite the returned relative path and line range.',
+    description: 'Search the declared Skill corpus for a loaded Skill. Use this for factual or API questions after loading the Skill, then cite the returned relative path and line range.',
     parameters: {
       name: { type: 'string', required: true, description: 'Exact loaded Skill name.' },
       query: { type: 'string', required: true, description: 'Natural-language question, API name, or exact symbol to find.' },

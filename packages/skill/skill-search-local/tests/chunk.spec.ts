@@ -62,6 +62,34 @@ describe('chunkDocument', () => {
     expect(chunks[1]).toMatchObject({ startLine: 3, endLine: 5, headings: ['复活'] })
   })
 
+  it('reports the first source line copied by multiline overlap', () => {
+    const chunks = chunkDocument(document('first line\nsecond line\n\nthird block\n', 'references/notes.txt'), {
+      targetCodePoints: 23,
+      maxCodePoints: 40,
+      overlapCodePoints: 22,
+    })
+
+    expect(chunks.map(chunk => chunk.text)).toEqual([
+      'first line\nsecond line',
+      'first line\nsecond line\n\nthird block',
+    ])
+    expect(chunks[1]).toMatchObject({ startLine: 1, endLine: 4 })
+  })
+
+  it('drops a separator at the start of a bounded overlap tail', () => {
+    const chunks = chunkDocument(document('first\nsecond\n\nthird\n', 'references/notes.txt'), {
+      targetCodePoints: 10,
+      maxCodePoints: 20,
+      overlapCodePoints: 7,
+    })
+
+    expect(chunks.map(chunk => chunk.text)).toEqual([
+      'first\nsecond',
+      'second\n\nthird',
+    ])
+    expect(chunks[1]).toMatchObject({ startLine: 2, endLine: 4 })
+  })
+
   it('splits an oversized fenced block on original line boundaries', () => {
     const chunks = chunkDocument(document([
       '# API 示例',

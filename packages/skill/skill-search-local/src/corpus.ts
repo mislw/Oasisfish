@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { lstat, readdir, readFile, realpath } from 'node:fs/promises'
+import { lstat, open, readdir, realpath } from 'node:fs/promises'
 import { SkillSearchError } from '@deepseek-ai/dsh-skill-search'
 import type { ResolvedSkillCorpus } from '@deepseek-ai/dsh-skill-search'
 
@@ -40,11 +40,57 @@ async function requirePlainPath(path: string): Promise<void> {
   if (metadata.isSymbolicLink()) throw sourceError('Skill corpus paths cannot contain symbolic links or reparse points.')
 }
 
+function sameFile(left: { dev: number; ino: number }, right: { dev: number; ino: number }): boolean {
+  return left.dev === right.dev && left.ino === right.ino
+}
+
+async function readPlainFile(
+  base: string,
+  path: string,
+  maxFileBytes: number,
+  signal: AbortSignal,
+): Promise<{ bytes: Buffer; mtimeMs: number; resolvedPath: string }> {
+  const pathBefore = await lstat(path)
+  if (pathBefore.isSymbolicLink() || !pathBefore.isFile()) {
+    throw sourceError('Skill corpus files must remain regular files without symbolic links or reparse points.')
+  }
+  const resolvedBefore = await realpath(path)
+  if (!isWithin(base, resolvedBefore)) throw sourceError('A Skill corpus file resolves outside its resource base.')
+  const handle = await open(path, 'r')
+  try {
+    const openedBefore = await handle.stat()
+    if (!openedBefore.isFile() || !sameFile(pathBefore, openedBefore)) {
+      throw sourceError('A Skill corpus file changed while it was opened.')
+    }
+    requireActive(signal)
+    const bytes = await handle.readFile()
+    if (bytes.byteLength > maxFileBytes) {
+      throw new SkillSearchError('CORPUS_LIMIT', 'A Skill corpus file exceeds maxFileBytes.')
+    }
+    requireActive(signal)
+    const openedAfter = await handle.stat()
+    const pathAfter = await lstat(path)
+    const resolvedAfter = await realpath(path)
+    if (!openedAfter.isFile()
+      || pathAfter.isSymbolicLink()
+      || !pathAfter.isFile()
+      || !sameFile(openedBefore, openedAfter)
+      || !sameFile(openedAfter, pathAfter)
+      || openedAfter.size !== bytes.byteLength
+      || !isWithin(base, resolvedAfter)) {
+      throw sourceError('A Skill corpus file changed while it was read.')
+    }
+    return { bytes, mtimeMs: openedAfter.mtimeMs, resolvedPath: resolvedAfter }
+  } finally {
+    await handle.close()
+  }
+}
+
 /**
  * Discover and decode the files included by one directory-backed corpus.
  * @param corpus - Resolved Skill and explicit corpus declaration.
  * @param signal - Cancellation checked between filesystem operations.
- * @returns accepted documents sorted by relative path.
+ * @returns accepted documents read through identity-checked handles and sorted by relative path.
  */
 export async function discoverCorpus(
   corpus: ResolvedSkillCorpus,
@@ -87,18 +133,11 @@ export async function discoverCorpus(
       const extensionIndex = entry.name.lastIndexOf('.')
       const extension = extensionIndex < 0 ? '' : entry.name.slice(extensionIndex).toLocaleLowerCase('und')
       if (!acceptedExtensions.has(extension)) continue
-      const resolvedFile = await realpath(path)
-      if (!isWithin(base, resolvedFile)) throw sourceError('A Skill corpus file resolves outside its resource base.')
-      const metadata = await lstat(resolvedFile)
-      if (metadata.size > corpus.spec.maxFileBytes) {
-        throw new SkillSearchError('CORPUS_LIMIT', 'A Skill corpus file exceeds maxFileBytes.')
-      }
-      totalBytes += metadata.size
+      const { bytes, mtimeMs, resolvedPath } = await readPlainFile(base, path, corpus.spec.maxFileBytes, signal)
+      totalBytes += bytes.byteLength
       if (totalBytes > corpus.spec.maxCorpusBytes) {
         throw new SkillSearchError('CORPUS_LIMIT', 'The Skill corpus exceeds maxCorpusBytes.')
       }
-      requireActive(signal)
-      const bytes = await readFile(resolvedFile)
       let text: string
       try {
         text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
@@ -106,10 +145,10 @@ export async function discoverCorpus(
         throw sourceError('A Skill corpus file is not valid UTF-8.', error)
       }
       documents.push({
-        path: posixPath(relative(base, resolvedFile)),
-        absolutePath: resolvedFile,
+        path: posixPath(relative(base, resolvedPath)),
+        absolutePath: resolvedPath,
         bytes: bytes.byteLength,
-        mtimeMs: metadata.mtimeMs,
+        mtimeMs,
         sha256: createHash('sha256').update(bytes).digest('hex'),
         text,
       })

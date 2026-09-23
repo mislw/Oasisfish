@@ -62,7 +62,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Search behavior and failures
 
-`ctx.skillSearch.search()` resolves the winning Skill for the caller's cwd and scope, requires model invocation permission, selects the matching declaration, and calls the first visible provider that supports the resolved resource base. Results contain provider-ranked excerpts with relative paths, heading trails, and one-based line ranges; the service caps complete results at the requested count and at 10. Cancellation races provider work, so a provider that ignores the signal cannot delay the caller.
+`ctx.skillSearch.search()` rejects an explicit `limit` unless it is a safe integer from 1 through 10, then resolves the winning Skill for the caller's cwd and scope, requires model invocation permission, selects the matching declaration, and calls the first visible provider that supports the resolved resource base. Results contain provider-ranked excerpts with relative paths, heading trails, and one-based line ranges; the service caps complete results at the requested count or 10 when omitted. Cancellation races provider work, so a provider that ignores the signal cannot delay the caller.
 
 `SkillSearchError` preserves a stable `code` in tool failure metadata. The codes distinguish an unknown or non-model-invocable Skill, an undeclared corpus, an unsupported resource base, corpus limits, unreadable sources, an unavailable model, and cancellation. Diagnostics do not include the query or source text.
 

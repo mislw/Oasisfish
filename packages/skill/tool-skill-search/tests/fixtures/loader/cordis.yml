@@ -1,0 +1,26 @@
+# Test-only composition for the model-visible skill_search surface.
+- id: system-prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+
+- id: tools
+  name: '@deepseek-ai/dsh-tools'
+
+- id: skills
+  name: '@deepseek-ai/dsh-skill'
+
+- id: skill-search
+  name: '@deepseek-ai/dsh-skill-search'
+  config:
+    corpora:
+      - skill: fixture-skill
+        roots: [references]
+        extensions: [.md]
+        maxFileBytes: 4096
+        maxCorpusBytes: 16384
+        maxChunks: 100
+
+- id: skill-search-loader-fixture
+  name: './provider-fixture.mjs'
+
+- id: tool-skill-search
+  name: '@deepseek-ai/dsh-tool-skill-search'

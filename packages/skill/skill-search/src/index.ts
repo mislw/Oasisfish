@@ -166,6 +166,13 @@ function requireActive(signal: AbortSignal): void {
   if (signal.aborted) throw abortError(signal)
 }
 
+function validateRequest(request: SkillSearchRequest): void {
+  if (request.limit !== undefined
+    && (!Number.isSafeInteger(request.limit) || request.limit < 1 || request.limit > 10)) {
+    throw new Error('Skill search limit must be between 1 and 10')
+  }
+}
+
 async function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
   requireActive(signal)
   let onAbort!: () => void
@@ -251,13 +258,14 @@ export class SkillSearchRegistry extends Service {
 
   /**
    * Resolve a model-invocable Skill and search its explicit corpus.
-   * @param request - Skill name, query, and optional result limit.
+   * @param request - Skill name, query, and optional safe-integer result limit from 1 through 10.
    * @param options - cwd, scope, and cancellation inherited from the caller.
    * @returns provider-ranked source passages.
    */
   async search(request: SkillSearchRequest, options: SkillSearchOptions = {}): Promise<SkillSearchResult> {
     const signal = options.signal ?? new AbortController().signal
     requireActive(signal)
+    validateRequest(request)
     const skill = await this.ctx.skills.get(request.name, options)
     requireActive(signal)
     if (skill === undefined) throw new SkillSearchError('UNKNOWN_SKILL', `Skill "${request.name}" is unknown or unavailable.`)
@@ -289,7 +297,7 @@ export class SkillSearchRegistry extends Service {
     try {
       const result = await abortable(provider.search(corpus, request, signal), signal)
       requireActive(signal)
-      const maxHits = Math.min(request.limit ?? 10, 10)
+      const maxHits = request.limit ?? 10
       return result.hits.length <= maxHits ? result : { ...result, hits: result.hits.slice(0, maxHits) }
     } catch (error) {
       if (signal.aborted) throw abortError(signal)

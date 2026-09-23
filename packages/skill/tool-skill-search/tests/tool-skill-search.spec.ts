@@ -48,6 +48,7 @@ describe('tool-skill-search', () => {
   it('registers an exact schema, defaults to five results, and renders relative citations', async () => {
     const { ctx, receivedLimit } = await setup()
     const schema = ctx.tools.schemas().find(item => item.name === 'skill_search')
+    expect(schema?.description).toBe('Search the declared Skill corpus for a loaded Skill. Use this for factual or API questions after loading the Skill, then cite the returned relative path and line range.')
     expect(schema?.parameters).toEqual({
       type: 'object',
       properties: {

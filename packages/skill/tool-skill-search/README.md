@@ -1,5 +1,5 @@
 ---
-description: "The model-facing skill_search tool for agents querying declared Skill corpora and citing ranked local source passages."
+description: "The model-facing skill_search tool for agents querying declared Skill corpora and citing ranked source passages."
 kind: "package-reference"
 ---
 
@@ -89,7 +89,7 @@ Read these pages for the search service, local provider, and the Skill-loading w
 
 #### What the model sees
 
-The model sees the generated [`skill_search` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-skill-search). Its description tells the model to search a loaded Skill's declared local corpus for factual or API questions and cite relative paths and line ranges.
+The model sees the generated [`skill_search` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-skill-search). Its description tells the model to search a loaded Skill's declared corpus for factual or API questions and cite relative paths and line ranges.
 
 #### Token effect
 

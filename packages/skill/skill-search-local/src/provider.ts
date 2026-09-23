@@ -46,6 +46,7 @@ function modelFailure(error: unknown, signal: AbortSignal): never {
 /** Provider that refreshes and searches one persistent local index on demand. */
 export class LocalSkillSearchProvider implements SkillSearchProvider {
   private readonly lifecycle = new AbortController()
+  private readonly active = new Set<Promise<SkillSearchResult>>()
   private disposal: Promise<void> | undefined
 
   /**
@@ -71,6 +72,20 @@ export class LocalSkillSearchProvider implements SkillSearchProvider {
     signal: AbortSignal,
   ): Promise<SkillSearchResult> {
     if (this.disposal !== undefined) throw new Error('Local Skill search provider is disposed')
+    const operation = this.doSearch(corpus, request, signal)
+    this.active.add(operation)
+    void operation.then(
+      () => { this.active.delete(operation) },
+      () => { this.active.delete(operation) },
+    )
+    return await operation
+  }
+
+  private async doSearch(
+    corpus: ResolvedSkillCorpus,
+    request: SkillSearchRequest,
+    signal: AbortSignal,
+  ): Promise<SkillSearchResult> {
     if (corpus.resourceBase.kind !== 'directory') {
       throw new SkillSearchError('UNSUPPORTED_RESOURCE_BASE', 'The local search provider requires directory Skill resources.')
     }
@@ -121,12 +136,26 @@ export class LocalSkillSearchProvider implements SkillSearchProvider {
     }
   }
 
-  /** Close the model runtime and wait for SQLite work to reach quiescence. */
+  /** Abort active searches, await settlement, then attempt both owned resource teardowns. */
   dispose(): Promise<void> {
     if (this.disposal === undefined) {
       this.lifecycle.abort(new Error('Local Skill search provider disposed'))
-      this.disposal = this.store.close().then(async () => { await this.embedder.dispose() })
+      this.disposal = this.disposeResources()
     }
     return this.disposal
+  }
+
+  private async disposeResources(): Promise<void> {
+    await Promise.allSettled([...this.active])
+    const outcomes = await Promise.allSettled([
+      Promise.resolve().then(() => this.store.close()),
+      Promise.resolve().then(() => this.embedder.dispose()),
+    ])
+    const failures: unknown[] = []
+    for (const outcome of outcomes) {
+      if (outcome.status === 'rejected') failures.push(outcome.reason as unknown)
+    }
+    if (failures.length === 1) throw failures[0]
+    if (failures.length > 1) throw new AggregateError(failures, 'Local Skill search provider disposal failed')
   }
 }

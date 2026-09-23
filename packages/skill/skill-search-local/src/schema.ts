@@ -18,14 +18,24 @@ async function createDatabaseFile(path: string): Promise<void> {
 
 function configure(db: DatabaseSync, path: string): void {
   db.exec('PRAGMA foreign_keys = ON')
-  db.exec('PRAGMA journal_mode = WAL')
   const { user_version: version } = db.prepare('PRAGMA user_version').get() as { user_version: number }
   if (version !== 0 && version !== SKILL_SEARCH_SCHEMA_VERSION) {
     throw new Error(`Skill search database at "${path}" has schema version ${version}, incompatible with ${SKILL_SEARCH_SCHEMA_VERSION}.`)
   }
+  if (version === 0) {
+    const existing = db.prepare(`
+      SELECT type, name FROM sqlite_schema
+      WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name
+    `).all()
+    if (existing.length > 0) {
+      throw new Error(`Skill search database at "${path}" has a nonempty schema with user_version 0.`)
+    }
+  }
   db.exec('CREATE VIRTUAL TABLE temp.skill_search_fts_probe USING fts5(value)')
   db.exec('DROP TABLE temp.skill_search_fts_probe')
-  db.exec(`
+  if (version === 0) db.exec('BEGIN IMMEDIATE')
+  try {
+    db.exec(`
     CREATE TABLE IF NOT EXISTS corpora (
       corpus_key       TEXT PRIMARY KEY,
       model_id         TEXT NOT NULL,
@@ -33,8 +43,8 @@ function configure(db: DatabaseSync, path: string): void {
       model_dimensions INTEGER NOT NULL,
       revision         INTEGER NOT NULL
     ) STRICT
-  `)
-  db.exec(`
+    `)
+    db.exec(`
     CREATE TABLE IF NOT EXISTS documents (
       corpus_key TEXT NOT NULL REFERENCES corpora(corpus_key) ON DELETE CASCADE,
       path       TEXT NOT NULL,
@@ -43,8 +53,8 @@ function configure(db: DatabaseSync, path: string): void {
       sha256     TEXT NOT NULL,
       PRIMARY KEY (corpus_key, path)
     ) STRICT
-  `)
-  db.exec(`
+    `)
+    db.exec(`
     CREATE TABLE IF NOT EXISTS chunks (
       corpus_key    TEXT NOT NULL,
       id            TEXT NOT NULL,
@@ -57,8 +67,8 @@ function configure(db: DatabaseSync, path: string): void {
       PRIMARY KEY (corpus_key, id),
       FOREIGN KEY (corpus_key, document_path) REFERENCES documents(corpus_key, path) ON DELETE CASCADE
     ) STRICT
-  `)
-  db.exec(`
+    `)
+    db.exec(`
     CREATE TABLE IF NOT EXISTS vectors (
       corpus_key TEXT NOT NULL,
       chunk_id   TEXT NOT NULL,
@@ -67,20 +77,28 @@ function configure(db: DatabaseSync, path: string): void {
       PRIMARY KEY (corpus_key, chunk_id),
       FOREIGN KEY (corpus_key, chunk_id) REFERENCES chunks(corpus_key, id) ON DELETE CASCADE
     ) STRICT
-  `)
-  db.exec(`
+    `)
+    db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
       corpus_key UNINDEXED,
       chunk_id UNINDEXED,
       lexical,
       tokenize = 'unicode61'
     )
-  `)
-  if (version === 0) db.exec(`PRAGMA user_version = ${SKILL_SEARCH_SCHEMA_VERSION}`)
+    `)
+    if (version === 0) {
+      db.exec(`PRAGMA user_version = ${SKILL_SEARCH_SCHEMA_VERSION}`)
+      db.exec('COMMIT')
+    }
+  } catch (error) {
+    if (version === 0) db.exec('ROLLBACK')
+    throw error
+  }
+  db.exec('PRAGMA journal_mode = WAL')
 }
 
 /**
- * Open a local Skill search database and ensure its complete schema.
+ * Open a local Skill search database and transactionally initialize only an empty version-zero schema.
  * @param path - SQLite file path or `:memory:`.
  * @returns configured synchronous SQLite handle.
  */

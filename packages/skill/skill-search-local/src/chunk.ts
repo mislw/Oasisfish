@@ -31,6 +31,7 @@ interface SourceBlock {
   startLine: number
   endLine: number
   text: string
+  lineNumbers: number[]
   overlapEligible: boolean
 }
 
@@ -69,6 +70,7 @@ function markdownBlocks(document: DiscoveredDocument): SourceBlock[] {
       startLine,
       endLine,
       text,
+      lineNumbers: Array.from({ length: endLine - startLine + 1 }, (_, index) => startLine + index),
       overlapEligible: node.type !== 'code',
     })
   }
@@ -86,8 +88,16 @@ function textBlocks(document: DiscoveredDocument): SourceBlock[] {
       continue
     }
     if (start === undefined) continue
-    const text = lines.slice(start, index).join('\n').trim()
-    blocks.push({ headings: [], startLine: start + 1, endLine: index, text, overlapEligible: true })
+    const startIndex = start
+    const text = lines.slice(startIndex, index).join('\n').trim()
+    blocks.push({
+      headings: [],
+      startLine: startIndex + 1,
+      endLine: index,
+      text,
+      lineNumbers: Array.from({ length: index - startIndex }, (_, offset) => startIndex + offset + 1),
+      overlapEligible: true,
+    })
     start = undefined
   }
   return blocks
@@ -114,24 +124,28 @@ function splitOversizedBlock(block: SourceBlock, maxCodePoints: number): SourceB
   const lines = block.text.split('\n')
   const split: SourceBlock[] = []
   let pending: string[] = []
-  let pendingStart = block.startLine
+  let pendingLineNumbers: number[] = []
 
-  const flush = (endLine: number): void => {
+  const flush = (): void => {
     if (pending.length === 0) return
+    const startLine = pendingLineNumbers[0] as number
+    const endLine = pendingLineNumbers.at(-1) as number
     split.push({
       headings: [...block.headings],
-      startLine: pendingStart,
+      startLine,
       endLine,
       text: pending.join('\n'),
+      lineNumbers: [...pendingLineNumbers],
       overlapEligible: block.overlapEligible,
     })
     pending = []
+    pendingLineNumbers = []
   }
 
   lines.forEach((line, index) => {
-    const lineNumber = block.startLine + index
+    const lineNumber = block.lineNumbers[index] as number
     if (codePoints(line) > maxCodePoints) {
-      flush(lineNumber - 1)
+      flush()
       const points = Array.from(line)
       for (let offset = 0; offset < points.length; offset += maxCodePoints) {
         split.push({
@@ -139,21 +153,44 @@ function splitOversizedBlock(block: SourceBlock, maxCodePoints: number): SourceB
           startLine: lineNumber,
           endLine: lineNumber,
           text: points.slice(offset, offset + maxCodePoints).join(''),
+          lineNumbers: [lineNumber],
           overlapEligible: false,
         })
       }
-      pendingStart = lineNumber + 1
       return
     }
     const candidate = pending.length === 0 ? line : `${pending.join('\n')}\n${line}`
     if (pending.length > 0 && codePoints(candidate) > maxCodePoints) {
-      flush(lineNumber - 1)
-      pendingStart = lineNumber
+      flush()
     }
     pending.push(line)
+    pendingLineNumbers.push(lineNumber)
   })
-  flush(block.endLine)
+  flush()
   return split
+}
+
+function overlapTail(block: SourceBlock, length: number): SourceBlock | undefined {
+  if (length === 0) return undefined
+  const points = Array.from(block.text)
+  const start = Math.max(0, points.length - length)
+  const prefix = points.slice(0, start).join('')
+  let text = points.slice(start).join('')
+  let lineIndex = prefix.split('\n').length - 1
+  while (text.startsWith('\n')) {
+    text = text.slice(1)
+    lineIndex += 1
+  }
+  const lineNumbers = block.lineNumbers.slice(lineIndex)
+  const startLine = lineNumbers[0] as number
+  return {
+    headings: [...block.headings],
+    startLine,
+    endLine: block.endLine,
+    text,
+    lineNumbers,
+    overlapEligible: true,
+  }
 }
 
 /**
@@ -194,13 +231,14 @@ export function chunkDocument(document: DiscoveredDocument, options: ChunkOption
         if (previous.overlapEligible && block.overlapEligible && options.overlapCodePoints > 0) {
           const available = Math.max(0, options.maxCodePoints - codePoints(block.text) - 2)
           const overlapLength = Math.min(options.overlapCodePoints, available)
-          const overlap = overlapLength === 0 ? '' : Array.from(previous.text).slice(-overlapLength).join('')
-          if (overlap !== '') {
+          const overlap = overlapTail(previous, overlapLength)
+          if (overlap !== undefined) {
             pending = {
               headings: [...block.headings],
-              startLine: previous.endLine,
+              startLine: overlap.startLine,
               endLine: block.endLine,
-              text: `${overlap}\n\n${block.text}`,
+              text: `${overlap.text}\n\n${block.text}`,
+              lineNumbers: [...overlap.lineNumbers, block.startLine, ...block.lineNumbers],
               overlapEligible: true,
             }
             continue
@@ -208,10 +246,11 @@ export function chunkDocument(document: DiscoveredDocument, options: ChunkOption
         }
       }
       if (pending === undefined) {
-        pending = { ...block, headings: [...block.headings] }
+        pending = { ...block, headings: [...block.headings], lineNumbers: [...block.lineNumbers] }
       } else {
         pending.text = combined
         pending.endLine = block.endLine
+        pending.lineNumbers = [...pending.lineNumbers, block.startLine, ...block.lineNumbers]
       }
     }
   }

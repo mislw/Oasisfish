@@ -1,5 +1,5 @@
 ---
-description: "面向模型的 skill_search 工具，供 agent（智能体）查询已声明的 Skill（技能）语料并引用排序后的本地来源段落。"
+description: "面向模型的 skill_search 工具，供 agent（智能体）查询已声明的 Skill（技能）语料并引用排序后的来源段落。"
 kind: "package-reference"
 ---
 
@@ -89,7 +89,7 @@ agent（智能体）可以查询已加载 Skill 的声明语料，并获得带�
 
 #### 模型看到的内容
 
-模型会看到自动生成的 [`skill_search` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-skill-search)。其描述要求模型搜索已加载 Skill 的声明本地语料以回答事实或 API 问题，并引用相对路径和行范围。
+模型会看到自动生成的 [`skill_search` schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-skill-search)。其描述要求模型搜索已加载 Skill 的声明语料以回答事实或 API 问题，并引用相对路径和行范围。
 
 #### Token 影响
 

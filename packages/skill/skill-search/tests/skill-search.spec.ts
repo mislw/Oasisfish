@@ -111,6 +111,25 @@ describe('SkillSearchRegistry', () => {
     expect(result.hits.map(hit => hit.path)).toEqual(['references/1.md', 'references/2.md'])
   })
 
+  it('rejects invalid direct request limits before provider dispatch', async () => {
+    const ctx = await setup()
+    const search = vi.fn(async (corpus: ResolvedSkillCorpus, request: { query: string }) => ({
+      skill: corpus.skill.name,
+      query: request.query,
+      hits: [],
+    }))
+    ctx.skillSearch.registerProvider(SkillSearchProviderName('fixture'), {
+      supports: () => true,
+      search,
+    })
+
+    for (const limit of [-1, 0, 1.5, Number.NaN, 11]) {
+      await expect(ctx.skillSearch.search({ name: 'fixture-skill', query: '复活', limit }))
+        .rejects.toThrow('between 1 and 10')
+    }
+    expect(search).not.toHaveBeenCalled()
+  })
+
   it('resolves one declared directory corpus and dispatches to a supporting provider', async () => {
     const ctx = await setup()
     let received: ResolvedSkillCorpus | undefined

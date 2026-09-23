@@ -1,0 +1,9 @@
+version: 1
+scenario: skill-search
+profile: headless
+composition: skill-search
+recording: authored
+permission: danger-full-access
+header:
+  class: skill-search
+  pin: true

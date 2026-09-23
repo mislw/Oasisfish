@@ -469,7 +469,7 @@ registerProvider(name: SkillSearchProviderName, provider: SkillSearchProvider): 
 
 /**
  * Resolve a model-invocable Skill and search its explicit corpus.
- * @param request - Skill name, query, and optional result limit.
+ * @param request - Skill name, query, and optional safe-integer result limit from 1 through 10.
  * @param options - cwd, scope, and cancellation inherited from the caller.
  * @returns provider-ranked source passages.
  */

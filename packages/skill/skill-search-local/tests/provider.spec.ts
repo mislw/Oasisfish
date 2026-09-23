@@ -72,7 +72,7 @@ async function setup(customEmbedder?: SkillSearchEmbedder, maxChunks = 100, prov
   const provider = new LocalSkillSearchProvider(store, embedder, providerOptions)
   disposals.push(() => provider.dispose())
   ctx.skillSearch.registerProvider(SkillSearchProviderName('local'), provider)
-  return { ctx, provider, skillRoot, embeddedDocuments: () => embeddedDocuments }
+  return { ctx, provider, skillRoot, store, embeddedDocuments: () => embeddedDocuments }
 }
 
 describe('LocalSkillSearchProvider', () => {
@@ -166,6 +166,96 @@ describe('LocalSkillSearchProvider', () => {
 
     expect(abortedByDisposal).toBe(true)
     expect(modelDisposed).toBe(true)
+  })
+
+  it('aborts and awaits active query inference before disposing the model', async () => {
+    const fixture = new DeterministicFixtureEmbedder(2)
+    const started = Promise.withResolvers<undefined>()
+    const aborted = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    let blockQuery = false
+    const order: string[] = []
+    const embedder: SkillSearchEmbedder = {
+      identity: fixture.identity,
+      embedDocuments: (texts, signal) => fixture.embedDocuments(texts, signal),
+      async embedQuery(text, signal) {
+        if (!blockQuery) return await fixture.embedQuery(text, signal)
+        started.resolve(undefined)
+        signal.addEventListener('abort', () => {
+          order.push('query-aborted')
+          aborted.resolve(undefined)
+        }, { once: true })
+        await release.promise
+        order.push('query-settled')
+        signal.throwIfAborted()
+        return Float32Array.of(1, 0)
+      },
+      dispose: () => {
+        order.push('model-dispose')
+        return Promise.resolve()
+      },
+    }
+    const { ctx, provider, store } = await setup(embedder)
+    await ctx.skillSearch.search({ name: 'fixture-skill', query: '复活' })
+    blockQuery = true
+    const close = store.close.bind(store)
+    vi.spyOn(store, 'close').mockImplementation(async () => {
+      order.push('store-close')
+      await close()
+    })
+
+    const search = ctx.skillSearch.search({ name: 'fixture-skill', query: '复活' })
+    const searchOutcome = search.then(value => ({ value }), (error: unknown) => ({ error }))
+    await started.promise
+    const disposal = provider.dispose()
+    await aborted.promise
+
+    release.resolve(undefined)
+    await expect(searchOutcome).resolves.toMatchObject({ error: { code: 'ABORTED' } })
+    await disposal
+    expect(order).toEqual(['query-aborted', 'query-settled', 'store-close', 'model-dispose'])
+  })
+
+  it('disposes the model when closing the store fails', async () => {
+    const closeFailure = new Error('store close failed')
+    const close = vi.fn(() => Promise.reject(closeFailure))
+    const dispose = vi.fn(() => Promise.resolve())
+    const provider = new LocalSkillSearchProvider({ close } as never, {
+      identity: { id: 'fixture', revision: '1', dimensions: 2 },
+      embedDocuments: () => Promise.resolve([]),
+      embedQuery: () => Promise.resolve(Float32Array.of(1, 0)),
+      dispose,
+    }, options)
+
+    await expect(provider.dispose()).rejects.toBe(closeFailure)
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+
+  it('enforces a provider result cap below the service maximum', async () => {
+    const { ctx } = await setup(undefined, 100, { ...options, maxResultCount: 1 })
+
+    await expect(ctx.skillSearch.search({ name: 'fixture-skill', query: '复活', limit: 2 }))
+      .rejects.toThrow('between 1 and 1')
+  })
+
+  it('attempts both resource teardowns when they throw synchronously', async () => {
+    const closeFailure = new Error('store close threw')
+    const disposeFailure = new Error('model dispose threw')
+    const close = vi.fn(() => { throw closeFailure })
+    const dispose = vi.fn(() => { throw disposeFailure })
+    const provider = new LocalSkillSearchProvider({ close } as never, {
+      identity: { id: 'fixture', revision: '1', dimensions: 2 },
+      embedDocuments: () => Promise.resolve([]),
+      embedQuery: () => Promise.resolve(Float32Array.of(1, 0)),
+      dispose,
+    }, options)
+
+    await expect(provider.dispose()).rejects.toMatchObject({
+      errors: [closeFailure, disposeFailure],
+      message: 'Local Skill search provider disposal failed',
+    })
+    expect(close).toHaveBeenCalledOnce()
+    expect(dispose).toHaveBeenCalledOnce()
   })
 
   it('reports support accurately and rejects unsupported resources', async () => {
