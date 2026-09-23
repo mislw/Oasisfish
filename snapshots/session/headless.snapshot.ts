@@ -62,6 +62,7 @@ const editingCordisSkill = join(
   repoRoot,
   'packages/preset/agent-presets/presets/cordis/skills/editing-cordis-compositions/SKILL.md',
 )
+const oasisfishBundledSkills = join(repoRoot, 'apps/desktop/resources/bundled-skills')
 
 type SnapshotMode = 'replay' | 'record' | 'refresh'
 
@@ -460,6 +461,20 @@ async function seedWorkspace(scenario: HeadlessScenario, cwd: string): Promise<v
 }
 
 const workspaceSetups: Record<string, (cwd: string) => Promise<void>> = {
+  async 'oasisfish-desktop-skills'(cwd) {
+    const bundled = join(cwd, 'bundled-skills')
+    const files = [
+      join('oasis-wiki', 'SKILL.md'),
+      join('oasis-wiki', 'references', 'mcp-integration.md'),
+      join('ai-image-prompts', 'SKILL.md'),
+      join('ai-image-prompts', 'references', 'visual-recipes.md'),
+    ]
+    await Promise.all(files.map(async (relativePath) => {
+      const target = join(bundled, relativePath)
+      await mkdir(dirname(target), { recursive: true })
+      await copyFile(join(oasisfishBundledSkills, relativePath), target)
+    }))
+  },
   async 'office-skills'(cwd) {
     await cp(join(repoRoot, 'packages/skill/skill-office/assets'), join(cwd, 'office-skills'), { recursive: true })
   },
@@ -1028,13 +1043,20 @@ describe('headless recorded-session snapshots', () => {
       let fixtureFiles = sessionFixtureNames(await readdir(scenario.dir))
       const replaying = mode !== 'record'
       const compositionPatch = join(composition.dir, replaying ? 'cordis.snapshot.yml' : 'cordis.yml')
+      const profilePatchSources = (composition.manifest.profilePatches ?? [])
+        .map(path => join(repoRoot, ...path.split('/')))
       const patchSources = [
         join(baseComposition.dir, 'cordis.yml'),
+        ...profilePatchSources,
         ...composition === baseComposition && !replaying ? [] : [compositionPatch],
         join(baseComposition.dir, 'model.cordis.yml'),
       ]
+      const materializedPatchSources = new Set([
+        ...profilePatchSources,
+        ...patchSources.filter(source => source.endsWith('.snapshot.yml')),
+      ])
       const patchRoot = '.snapshot-patches'
-      const patches = patchSources.map((source, index) => source.endsWith('.snapshot.yml')
+      const patches = patchSources.map((source, index) => materializedPatchSources.has(source)
         ? join(patchRoot, `${String(index)}-${basename(source)}`)
         : source)
 
@@ -1090,7 +1112,7 @@ describe('headless recorded-session snapshots', () => {
             if (scenario.manifest.workspace?.parent === 'outside-temp') assertWorkspaceOutsideTemp(cwd)
             await mkdir(join(cwd, patchRoot), { recursive: true })
             patchSources.forEach((source, index) => {
-              if (source.endsWith('.snapshot.yml')) {
+              if (materializedPatchSources.has(source)) {
                 materializeProfilePatch(source, cwd, 'headless', join(cwd, patchRoot), index)
               }
             })

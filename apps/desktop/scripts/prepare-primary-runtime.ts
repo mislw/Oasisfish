@@ -12,12 +12,14 @@ import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
 import { workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../../desktop-host/src/primary-runtime.ts'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { inspectRegularTree } from './regular-tree.mjs'
 import { verifyStagedRetrievalResources } from './staged-inventory.mjs'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 import lock from './primary-runtime-lock.json' with { type: 'json' }
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const MODEL_RESOURCE_FILES = [
+  'LICENSE',
   'config.json',
   'onnx/model_quantized.onnx',
   'special_tokens_map.json',
@@ -34,6 +36,7 @@ const APPROVED_MODEL_MANIFEST = Object.freeze({
   license: 'MIT',
   transformersJsVersion: '4.2.0',
   files: Object.freeze([
+    Object.freeze({ path: 'LICENSE', sha256: '8e318bf1245d801ffe93917d1674a039ae947b206bdba0b73b271190c5ef1f58' }),
     Object.freeze({ path: 'config.json', sha256: 'd4193ead3a810fd694fa8a31d7fc72fbaebc0668b603e398734bf2f6538ff42f' }),
     Object.freeze({ path: 'onnx/model_quantized.onnx', sha256: '15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc' }),
     Object.freeze({ path: 'special_tokens_map.json', sha256: 'b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3' }),
@@ -76,7 +79,6 @@ export async function verifyModelResources(root: string): Promise<ModelResourceM
   try { deepStrictEqual(parsed, APPROVED_MODEL_MANIFEST) } catch (error) {
     throw new Error('local embedding model manifest does not match the approved snapshot', { cause: error })
   }
-  await regularModelFile(root, 'LICENSE')
   const manifest = parsed as ModelResourceManifest
   const hashes = new Map(manifest.files.map(file => [file.path, file.sha256]))
   for (const relativePath of MODEL_RESOURCE_FILES) {
@@ -92,7 +94,7 @@ export async function verifyModelResources(root: string): Promise<ModelResourceM
 export async function prepareModelAssets(source: string, destination: string): Promise<void> {
   await verifyModelResources(source)
   rmSync(destination, { recursive: true, force: true })
-  for (const relativePath of ['model-manifest.json', 'LICENSE', ...MODEL_RESOURCE_FILES]) {
+  for (const relativePath of ['model-manifest.json', ...MODEL_RESOURCE_FILES]) {
     const output = join(destination, relativePath)
     await mkdir(dirname(output), { recursive: true })
     await copyFile(join(source, relativePath), output)
@@ -169,8 +171,15 @@ export async function unpackPrimaryRuntimeWheel(archive: string, destination: st
  * @returns Resolves after replacing the external assets with the complete package tree.
  */
 export async function prepareSkillAssets(source: string, destination: string): Promise<void> {
+  await inspectRegularTree(source)
   rmSync(destination, { recursive: true, force: true })
-  await cp(source, destination, { recursive: true, dereference: true })
+  try {
+    await cp(source, destination, { recursive: true, dereference: false, verbatimSymlinks: true })
+    await inspectRegularTree(destination)
+  } catch (error) {
+    rmSync(destination, { recursive: true, force: true })
+    throw error
+  }
 }
 
 /**

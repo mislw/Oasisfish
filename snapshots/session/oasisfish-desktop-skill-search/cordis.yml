@@ -1,0 +1,20 @@
+# Live counterpart for the authored Oasisfish Desktop Skill search composition.
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
+  disabled: true
+
+- id: system-prompt
+  config:
+    personaPrefix: |
+      You are a coding assistant powered by the {{model}} model. Your working directory is {{cwd}}.
+
+      Verify your work by running the code or tests. Keep answers brief and factual.
+
+- id: skill-search-local
+  disabled: true
+
+- insert:
+    - id: skill-search-fixture
+      name: './skill-search-fixture.mjs'

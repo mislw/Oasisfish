@@ -1,0 +1,15 @@
+version: 1
+scenario: oasisfish-desktop-skill-search
+profile: headless
+composition: oasisfish-desktop-skill-search
+recording: authored
+permission: danger-full-access
+profilePatches:
+  - apps/desktop-host/oasisfish.cordis.patch.yml
+environment:
+  DSH_BUNDLED_SKILL_DIR: bundled-skills
+workspace:
+  setup: oasisfish-desktop-skills
+header:
+  class: oasisfish-desktop-skill-search
+  pin: true

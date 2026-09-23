@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { zipSync } from 'fflate'
@@ -138,6 +138,45 @@ it('copies complete Office resources outside the application archive and removes
   } finally { await rm(root, { recursive: true, force: true }) }
 })
 
+it('rejects linked files before copying Skill assets', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'desktop-linked-skill-file-'))
+  try {
+    const source = join(root, 'source')
+    const destination = join(root, 'destination')
+    const outside = join(root, 'outside.md')
+    await mkdir(join(source, 'fixture-skill', 'references'), { recursive: true })
+    await writeFile(join(source, 'fixture-skill', 'SKILL.md'), '# Fixture\n')
+    await writeFile(outside, 'external file contents\n')
+    await symlink(outside, join(source, 'fixture-skill', 'references', 'linked.md'), 'file')
+
+    await expect(prepareSkillAssets(source, destination)).rejects.toThrow('filesystem link')
+    await expect(readFile(join(destination, 'fixture-skill', 'references', 'linked.md')))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+it('rejects linked directories before copying Skill assets', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'desktop-linked-skill-directory-'))
+  try {
+    const source = join(root, 'source')
+    const destination = join(root, 'destination')
+    const outside = join(root, 'outside')
+    await mkdir(join(source, 'fixture-skill', 'references'), { recursive: true })
+    await mkdir(outside)
+    await writeFile(join(source, 'fixture-skill', 'SKILL.md'), '# Fixture\n')
+    await writeFile(join(outside, 'secret.md'), 'external directory contents\n')
+    await symlink(
+      outside,
+      join(source, 'fixture-skill', 'references', 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+
+    await expect(prepareSkillAssets(source, destination)).rejects.toThrow('filesystem link')
+    await expect(readFile(join(destination, 'fixture-skill', 'references', 'linked', 'secret.md')))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
 it('carries the current Oasis Wiki skill as a clean bundled Desktop resource', async () => {
   const root = join(import.meta.dirname, '..', 'resources', 'bundled-skills', 'oasis-wiki')
   expect((await readFile(join(root, 'VERSION'), 'utf8')).trim()).toBe('1.260909.2')
@@ -186,7 +225,8 @@ it('declares Skill retrieval plugins in every Loader resolver manifest', async (
 
 it('pins and verifies the released local embedding model without a download path', async () => {
   const root = join(import.meta.dirname, '..', 'resources', 'bundled-models', 'bge-small-zh-v1.5')
-  await expect(verifyModelResources(root)).resolves.toEqual(expect.objectContaining({
+  const verified = await verifyModelResources(root)
+  expect(verified).toMatchObject({
     schemaVersion: 1,
     modelId: 'Xenova/bge-small-zh-v1.5',
     upstreamModelId: 'BAAI/bge-small-zh-v1.5',
@@ -194,7 +234,11 @@ it('pins and verifies the released local embedding model without a download path
     dimensions: 512,
     license: 'MIT',
     transformersJsVersion: '4.2.0',
-  }))
+  })
+  expect(verified.files).toContainEqual({
+    path: 'LICENSE',
+    sha256: '8e318bf1245d801ffe93917d1674a039ae947b206bdba0b73b271190c5ef1f58',
+  })
 })
 
 it('rejects missing and modified local embedding model files before staging', async () => {
@@ -218,5 +262,10 @@ it('rejects missing and modified local embedding model files before staging', as
     await prepareModelAssets(source, modified)
     await writeFile(join(modified, 'config.json'), 'modified')
     await expect(verifyModelResources(modified)).rejects.toThrow('SHA-256 mismatch')
+
+    const replacedLicense = join(root, 'replaced-license')
+    await prepareModelAssets(source, replacedLicense)
+    await writeFile(join(replacedLicense, 'LICENSE'), 'replacement license\n')
+    await expect(verifyModelResources(replacedLicense)).rejects.toThrow('SHA-256 mismatch')
   } finally { await rm(root, { recursive: true, force: true }) }
 })

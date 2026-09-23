@@ -102,6 +102,8 @@ export interface SnapshotManifest {
   profile: SnapshotProfile
   /** Composition id whose sole pin owns its profile patches. */
   composition?: string
+  /** Additional repository-owned profile patches applied before the scenario patch. */
+  profilePatches?: string[]
   /** Whether the session is live-recordable or deliberately authored. */
   recording?: SnapshotRecording
   /** Request-header class and sidecar ownership. */
@@ -192,6 +194,22 @@ function positiveIndexes(value: unknown, label: string): number[] {
   return [...value as number[]]
 }
 
+function profilePatches(value: unknown): string[] {
+  const invalid = !Array.isArray(value)
+    || value.length === 0
+    || value.some(item => typeof item !== 'string'
+      || isAbsolute(item)
+      || item.includes('\\')
+      || item.includes('\0')
+      || !item.endsWith('.yml')
+      || item.split('/').some(segment => segment === '' || segment === '.' || segment === '..'))
+    || new Set(value).size !== value.length
+  if (invalid) {
+    throw new Error('manifest.profilePatches must contain unique repository-relative POSIX .yml paths')
+  }
+  return [...value as string[]]
+}
+
 /**
  * Parse one `snapshot.yml` without admitting JavaScript YAML tags or unknown fields.
  * @param source - complete manifest text.
@@ -213,6 +231,7 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
       'scenario',
       'profile',
       'composition',
+      'profilePatches',
       'recording',
       'header',
       'replay',
@@ -233,6 +252,9 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
     const composition = root.composition === undefined
       ? undefined
       : name(root.composition, 'manifest.composition')
+    const parsedProfilePatches = root.profilePatches === undefined
+      ? undefined
+      : profilePatches(root.profilePatches)
     let recording: SnapshotRecording | undefined
     if (root.recording !== undefined) {
       if (typeof root.recording !== 'string' || !RECORDINGS.has(root.recording as SnapshotRecording)) {
@@ -414,6 +436,7 @@ export function parseSnapshotManifest(source: string, path = 'snapshot.yml'): Sn
       ...(scenario === undefined ? {} : { scenario }),
       profile: root.profile as SnapshotProfile,
       ...(composition === undefined ? {} : { composition }),
+      ...(parsedProfilePatches === undefined ? {} : { profilePatches: parsedProfilePatches }),
       ...(recording === undefined ? {} : { recording }),
       ...(header === undefined ? {} : { header }),
       ...(replay === undefined ? {} : { replay }),

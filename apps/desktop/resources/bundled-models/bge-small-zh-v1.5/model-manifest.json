@@ -8,6 +8,10 @@
   "transformersJsVersion": "4.2.0",
   "files": [
     {
+      "path": "LICENSE",
+      "sha256": "8e318bf1245d801ffe93917d1674a039ae947b206bdba0b73b271190c5ef1f58"
+    },
+    {
       "path": "config.json",
       "sha256": "d4193ead3a810fd694fa8a31d7fc72fbaebc0668b603e398734bf2f6538ff42f"
     },

@@ -130,6 +130,8 @@ describe('snapshot manifest', () => {
     expect(parseSnapshotManifest([
       'version: 1',
       'profile: headless',
+      'profilePatches:',
+      '  - apps/desktop-host/oasisfish.cordis.patch.yml',
       'header:',
       '  class: default',
       'input:',
@@ -138,6 +140,7 @@ describe('snapshot manifest', () => {
     ].join('\n'))).toEqual({
       version: 1,
       profile: 'headless',
+      profilePatches: ['apps/desktop-host/oasisfish.cordis.patch.yml'],
       header: { class: 'default' },
       input: { task: 'Run once.' },
     })
@@ -164,6 +167,10 @@ describe('snapshot manifest', () => {
     ['version: 1\nprofile: private\n', 'manifest.profile must be headless, sdk, acp, or web'],
     ['version: 1\nprofile: acp\nextra: true\n', 'manifest has unknown field(s): extra'],
     ['version: 1\nprofile: acp\ncomposition: Not_Safe\n', 'manifest.composition must be a lower-kebab-case name'],
+    ['version: 1\nprofile: headless\nprofilePatches: [/tmp/patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
+    ['version: 1\nprofile: headless\nprofilePatches: [../patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
+    ['version: 1\nprofile: headless\nprofilePatches: [apps\\patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
+    ['version: 1\nprofile: headless\nprofilePatches: [apps/patch.yml, apps/patch.yml]\n', 'manifest.profilePatches must contain unique repository-relative POSIX .yml paths'],
     ['version: 1\nprofile: acp\nrecording: maybe\n', 'manifest.recording must be live or authored'],
     ['version: 1\nprofile: acp\nheader: {}\n', 'manifest.header.class must be a lower-kebab-case name'],
     ['version: 1\nprofile: acp\nheader:\n  class: base\n  pin: false\n', 'manifest.header.pin must equal true when present'],

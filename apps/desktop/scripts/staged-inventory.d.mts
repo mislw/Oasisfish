@@ -1,5 +1,11 @@
-/** Files that make Desktop Skill retrieval complete without runtime downloads. */
-export const RETRIEVAL_REQUIRED_FILES: readonly string[]
+/** One immutable file approved for Desktop Skill retrieval. */
+export interface RetrievalApprovedFile {
+  readonly path: string
+  readonly sha256: string
+}
 
-/** Reject a staged Desktop runtime that omits any immutable retrieval resource. */
+/** Exact immutable files approved for Desktop Skill retrieval. */
+export const RETRIEVAL_APPROVED_FILES: readonly RetrievalApprovedFile[]
+
+/** Reject staged Desktop retrieval roots that differ from the approved regular-file inventory. */
 export function verifyStagedRetrievalResources(root: string): Promise<void>

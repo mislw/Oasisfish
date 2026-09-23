@@ -62,3 +62,47 @@ Oasisfish Desktop now packages explicit local retrieval for `oasis-wiki` and `ai
 ## Concern
 
 None for Task 3.
+
+## Review Round 1
+
+### Status
+
+Desktop resource preparation now rejects filesystem links before copying Skill trees, copies without dereferencing links, removes partial destinations on failure, and verifies the copied tree again. The staged retrieval check now owns an exact 204-file path and SHA-256 inventory for the Oasis Wiki, image guidance, and local model; the model license is included in both the model manifest and the staged inventory.
+
+The top-level `oasisfish-desktop-skill-search` Session snapshot applies the real Desktop Host product patch before its scenario patch, seeds reviewed packaged Skill files, replaces only the production embedding provider and model with deterministic local embeddings, and persists the real `skill_search` call and result for `oasis-wiki`.
+
+### RED/GREEN Evidence
+
+- Resource RED: `pnpm exec vitest run apps/desktop/tests/primary-runtime-preparation.spec.ts apps/desktop/tests/staged-inventory.spec.ts` reported 12 failed and 15 passed before link rejection, license hashing, and exact inventory verification were implemented.
+- Resource GREEN: the same two files reported 27 passed after the fix.
+- Manifest RED: `pnpm exec vitest run packages/test-support/session-snapshot/tests/manifest.spec.ts` reported 5 failed and 40 passed while `profilePatches` was unknown.
+- Manifest GREEN: the same file reported 45 passed after repository-relative POSIX patch validation was added.
+- Snapshot RED: built replay reached the real product composition and differed from the copied fixture by listing both packaged Skills and returning `references/mcp-integration.md:34-51` instead of the old fixture passage.
+- Snapshot GREEN: built refresh and replay each reported 1 passed with 124 unrelated scenarios skipped.
+
+### Verification
+
+- `pnpm exec vitest run apps/desktop/tests/primary-runtime-preparation.spec.ts apps/desktop/tests/staged-inventory.spec.ts packages/test-support/session-snapshot/tests/manifest.spec.ts apps/desktop/tests/packaged-skill-search.spec.ts`: 4 files passed, 73 tests passed.
+- `DSH_EXAMPLE_MODE=lib pnpm exec vitest run --config vitest.snapshot.config.ts snapshots/session/headless.snapshot.ts -t "oasisfish-desktop-skill-search"`: 1 passed, 124 skipped.
+- `pnpm run verify-cordis-config`: 211 configuration files passed.
+- `pnpm exec tsc -b packages/test-support/session-snapshot/tsconfig.json apps/desktop/tsconfig.json`: passed.
+- Focused `scripts/run-oxlint.ts` over the changed TypeScript, JavaScript, and declaration files: passed.
+- `pnpm --filter @deepseek-ai/dsh-desktop run build`: passed.
+- `pnpm run build:lib:host`: passed.
+- Named translation pairing checks for `docs/testing.md` and `packages/test-support/session-snapshot/README.md`: passed.
+- `pnpm run verify-doc-budgets`: passed.
+- `pnpm run test:docs`: 19 gates passed; the unchanged `docs/event-producer-consumer.md` pair remains out of sync.
+- `pnpm run doc-sync`: 37 gates passed; remaining failures are the unavailable `npm` executable, the same unchanged translation pair, and unchanged stale persistence catalog/history artifacts.
+- `git diff --check`: passed before this report update and is repeated before commit.
+
+### Self-Review
+
+- Confirmed link tests use file symlinks plus Windows junctions or POSIX directory symlinks, allocate private temporary roots, and remove them after each case.
+- Confirmed the inventory rejects missing, modified, extra, directory-substituted, linked-file, and linked-parent-directory entries.
+- Confirmed generic profiles still declare no Oasis corpora and mount no local provider.
+- Confirmed the snapshot uses the real `apps/desktop-host/oasisfish.cordis.patch.yml`; scenario patches disable the production model-backed provider and preserve the product corpus declarations and model-facing tool.
+- Confirmed the deterministic provider database is isolated under the launch workspace and disposed to quiescence through a Cordis effect.
+
+### Concern
+
+The default source-mode headless snapshot lane fails both the existing `skill-search` scenario and the new Oasisfish scenario because `agent-loop` and `tools` resolve distinct scheduler symbols, producing `Cannot read properties of undefined (reading 'prepare')`. A full Host build does not change that result. The shipped built-artifact lane used by CI passes the new scenario; this round does not widen into the pre-existing source-launch resolution defect.

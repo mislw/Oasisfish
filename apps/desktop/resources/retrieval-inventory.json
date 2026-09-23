@@ -1,0 +1,821 @@
+{
+  "schemaVersion": 1,
+  "files": [
+    {
+      "path": "bundled-skills/ai-image-prompts/LICENSE",
+      "sha256": "b6439b5e2296aa1951ec1dd147d61928289aa1f4c231b3ecad2b454a861e9274"
+    },
+    {
+      "path": "bundled-skills/ai-image-prompts/references/visual-recipes.md",
+      "sha256": "77b21fa04e09547a535a422fadf7dddbe984c904789d1f04c6525f2f723492b6"
+    },
+    {
+      "path": "bundled-skills/ai-image-prompts/SKILL.md",
+      "sha256": "d9a9b4080d34171e6d3c97813d3affba505ad487c927b73c4f57d9a352634a65"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/AGENTS.md",
+      "sha256": "a3e7d67061d9ea3bd05b86ffe41e785e77a3124788d809efa7890f5e15aedeef"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/agents/openai.yaml",
+      "sha256": "4deb84f0cde466351e166a934da847251189070c2d24da461d004d2429a96dc6"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/assets/cowart-ui/component-decisions-template.json",
+      "sha256": "3071eb5319da1734d2272efae815022a380ce91b48e55cdf18b5328c5f0ecdef"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/assets/cowart-ui/extraction-plan-template.json",
+      "sha256": "5c169dbb5654513373c9ec21fcd81473369ddc2f17f7828c54b085d884a5a001"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/assets/cowart-ui/ui-spec-template.json",
+      "sha256": "dced768e94192def6a85606d4fcacce3fabc9c87cb20b02fc4ab5ba052838b3e"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/assets/cowart-ui/workbench-template/index.html",
+      "sha256": "bcf49c99eaeb887fe508c9c3dc03bde6e5104e22b52266300967657c2d55cbbe"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/assets/cowart-ui/workflow-console/index.html",
+      "sha256": "cce6be24672f3e8ea39e8d0f09a65b106b40edb129bdb7ebfc08e17553d53415"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/assets/game-ui/project-profile-template/profile.json",
+      "sha256": "6e222bd7f423da5aae8d185cf183b72f4766103e61f73de0889fe26f745b0448"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/answer-modes.md",
+      "sha256": "ec3815eb209d1caf8589f216fc204f677c55a2154ce8da40a52f01a691c4494a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/code-style.md",
+      "sha256": "9df1533a56e22b183f87542450582453619539215f9fb1b462800d017d92525a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/companion-versioning.md",
+      "sha256": "355645ae4baad69f0a449932be7ce84bfd81ec129c3989017ec7d3c39e1a182b"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui-workflow.md",
+      "sha256": "3f961937a5b0ae37e007163e0fb08ced01f58f605103899319ad904ca0221d20"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/component-extractor.md",
+      "sha256": "d6a417d640d0f0967e06cf1e200e663007d49ec18d52d256f1a0759f750cc354"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/delivery-contract.md",
+      "sha256": "789309867ae4507ba6114c6fd28489312de27316a5f9edd2ba0a73b3dfa30b78"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/delivery.md",
+      "sha256": "33a31b255979c4b8f3972ad06d1e08dadc528a9795daac7b2272aa4fc43ac990"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/layer-manifest.md",
+      "sha256": "288084daad9a952a69fba725fb6d4421804079f88c10c41cc064d90df22cec34"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/precision-reconstruction.md",
+      "sha256": "94a5e68d12365d4650c6fdaca53733b93ec35ff08ab621fae13d663b2f25639a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/psd-to-umg.md",
+      "sha256": "ce3864fc417e9c693ec3b1b36a9f45225f9ada3b7f4f9d1883168d74efe4ee34"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/transparent-asset-extraction.md",
+      "sha256": "943024f97ce2a540448f739adf538bcb578d58c632685d4df61d92c97f5e50f9"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/two-stage-workflow.md",
+      "sha256": "2779387ab7d976e3f36d3776bb4ef0ebee5b77db7aca28e911e78f76752223ea"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/cowart-ui/usage-guide.md",
+      "sha256": "f4ec4e650eb6763db419dc011a7ee037664575ce34797c6b19375299a2e40456"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/feature-development-flow.md",
+      "sha256": "e6022b02a9d67990e2261e5123e04ae7a45f1e78476d2a17ec6ef603925181c5"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui-design-system.md",
+      "sha256": "77c826b8e5bb15aa159429f7c669073d9c83365927f50101558a72cbfbcd55b2"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/output-templates.md",
+      "sha256": "93a75088af9aae227b2bd9ce22ae871f201411757eea28e523b9fc85a07e78e8"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/project-registry.json",
+      "sha256": "205ee3d84334690d11af10d8c22bf04a1613cbf4a57af3b933d578cb30f022b4"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/project-routing.md",
+      "sha256": "cf3f58ac81435f5018721448404719bc6dac2e82501efb584c6609d9bbfd608e"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/projects/redcliff.json",
+      "sha256": "001659cd0f94045012aebf2c186b154f1d98e9bc9441e4df2eaf99eebb3b8d9d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/schemas.md",
+      "sha256": "f39a1d0eae73fb635aa8a75df52063cb1ac2a7cd51d803362e5bf3bf993095fe"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/umg-hierarchy-patterns.md",
+      "sha256": "08ac5758315dab235393a80b6a28428c44b0c0675a46f51e7a867b0ef4b4256c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/validation-rules.md",
+      "sha256": "232340a132bc2551e25f3cc4257e81582a1cb498371ab59d3d4ffaecc5466144"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/game-ui/workflow.md",
+      "sha256": "38c2442a6b08c3705d6afba9f24860e906f1267f238e165b3e7f35d8d969f8ce"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/mcp-datatable.md",
+      "sha256": "51402eedcc94638d817d652f2a239b4319d75872a838641c19477399fe76a520"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/mcp-integration.md",
+      "sha256": "aebd406cada88919c30103f9cc4f76947f9892b40b8f527c67273dcd0ecb45d0"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/mcp-ui-widget.md",
+      "sha256": "c64a3f4f42ddbf5ba16f03c3f79b5e41616c4541178a7dde48ffe613ace57197"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/oasis-ui-agent-interaction.md",
+      "sha256": "fd52239af9e8f7f1d7059b63d650fba11a4195ec4c874b083e4c091aa44b040a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/pitfalls.md",
+      "sha256": "2e51f3deb2261e500e16dadc9b26f612052ca51e31ac6f11f459266be16552bc"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/predecessor-code-policy.md",
+      "sha256": "3b202b49260a57cfae7f8e91bcd5fdf0d0008d69f71d13b288aba769fb9f16e3"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/project-cache.md",
+      "sha256": "a8b50d3bc68cf6a5d1cffdfda0802d72e6094e91942be0d690ebd2d218d55a64"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/project-patterns.md",
+      "sha256": "858b9e8487d03283b3d02099e3c283bfdc112b22988e72cf0d35274ef97df71a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/project-planning-memory.md",
+      "sha256": "7085697e35b5d718063b1bc8053884f1fe1d69931e2812b4a1edafc794850ea6"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/recipes.md",
+      "sha256": "23948c201ab55015c0d9879a245d4e5e37be8fa81dfe884f6a5d9936a2446ff1"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/skill-evolution.md",
+      "sha256": "9d65808943d393d81039580174f753b371e7caef8048ca3af473489a2129a3a1"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/snippets.md",
+      "sha256": "e3b98776c0a7ed93cd3c6f9624b5e5a51a3e8e883023e31623b4a893d248f87a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/task-router.md",
+      "sha256": "f50ab9109e507a993cbc0eeffc2446f16de9559c67604e62a3f791e2a73f1dad"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/teaching-mode.md",
+      "sha256": "444e0e0689aeffa1918e9de9b79a3d218f0d9e765e46a951a7b4ab31113c0b53"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/AI工具.md",
+      "sha256": "7164f728ced7580d205318df521d30892baed08051d321b11cd91470e261bfc2"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/API参考索引.md",
+      "sha256": "e945578bf4c3c36453c56eb0901eb65710e29768107f93c3299aa83d225d335c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/README.md",
+      "sha256": "7655a63acae4f62ff647ef836e1ca05d396ef819b25a7428201ef42122644b53"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/代码示例库.md",
+      "sha256": "699dec6e58772d7b79e7ad9bc1367b61b9045cb98091570bd94b038b043502e0"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/商业化及功能模板_礼包.md",
+      "sha256": "e9a8376a5f38c500514812f0b837ca5349d7a24c83d546adfccc2b3b34e1ba29"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/商业化及功能模板.md",
+      "sha256": "f4825d66f0019069fd068aa35f52ba43c9b4e9a52c7a01f94d9852ba54565aa3"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/官方API参考手册.md",
+      "sha256": "0eee3c31cdf4f4696aaabc5f210e7c932b862f04685e801581b0cc8f1ed9a2ca"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/官方宣讲会回顾.md",
+      "sha256": "18b4eca188e7da8de04d720dc95f4fa6168b8868c0f236c136f34af368d344fb"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/常用实战教学.md",
+      "sha256": "31e4207ec6d9e71274a74fe88ca75cae7fe166c6ede91c568299326331dfe79d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/常见问题.md",
+      "sha256": "1ea982964b63bef8b176c4ef1980bdd96293f443ff66809d21d56765683a9539"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/开发者须知.md",
+      "sha256": "13361c2b9358735b8855fdf66e694044b86fe5f1c0edf3e18c71da447177df29"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/性能优化及异常处理_场景优化.md",
+      "sha256": "a738234304e888dbe3b3d8afb694e790b735f8e84be59a707e1669185234227d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/性能优化及异常处理_怪物性能优化.md",
+      "sha256": "650ebef610360580c54870943c27773f2dacefff1e62b2067bfafffd2ef04a04"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/性能优化及异常处理.md",
+      "sha256": "1a32809351a4f86418e90095b6cf7f1b6408cc8cef88837a651eab6a8d8a3d39"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新增内容_1.37版本.md",
+      "sha256": "90cdad28efc02f9d5a2f86c575d0954358f3d4517b6975443d738ccde15ddb31"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新手入门_实现HelloWord.md",
+      "sha256": "acde967e967d43840ddd301e58398393c88b6727b4f0edc3874bb78bc2545524"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新手入门_游戏场景_关卡编辑.md",
+      "sha256": "ed21d8d1714cccdcfed56c9631a2a1446215d900b08cf83d46446244b1bad503"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新手入门_游戏场景_场景编辑基础.md",
+      "sha256": "f34619a6ebab03bc545da7a981ac864c4c42f139bd8f4cbbcc40015d25918f95"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新手入门_游戏场景.md",
+      "sha256": "a9ddc1b36d26707601cbbd1deb8b756bc788fe99bbd15b59b869e90a9c295790"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新手入门_资源管理与编辑_资源编辑.md",
+      "sha256": "4c7ebdc7c6d5918261a7b58dde400d681999f0c9be90c10f27217c43638a0a1a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新手入门_资源管理与编辑.md",
+      "sha256": "d60be07f6c915b72698b5ec89ff73e25e50687985a168f7663459183f8353f45"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/新手入门.md",
+      "sha256": "e93e07d9aa16a9c47c6f9b1f17ea4b51c9025edd417618cb755e882eb5a0e5ce"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/术语表.md",
+      "sha256": "3e88720e8c0d4aa0ce8abe46a7a8f270c586fdc7b10cff7ddf21863ea30418aa"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/根目录.md",
+      "sha256": "e68887bc4bbea991c598367e9c7701332e106f1ecfecff932ada9800d2a21da0"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/版本日志.md",
+      "sha256": "f5f1169f98c68ff0a1e79811989bd2172c45b2da9d8c5253b80fbcb11d57057a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/玩法案例及模板_俯视角生存模版.md",
+      "sha256": "cb3d404075a08189c2ebf25b117d9c4234ced50abe8e557300add417b76a7f1e"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/玩法案例及模板_团竞模板_团竞2.0玩法.md",
+      "sha256": "08cc2d5057537ee3bc08f2c3b27c9682691e886ddd3f2f64ef1a779589894110"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/玩法案例及模板_团竞模板.md",
+      "sha256": "eb5b64039a761eb5031f772226697aa28154ab94caa43881e1e76dc8e80281c8"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/玩法案例及模板_多人PVE模板.md",
+      "sha256": "8c91d4cb928cb9d247857eadeb3b82feb60a679e8b4d176549c92a7b95050a0d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/玩法案例及模板.md",
+      "sha256": "a176594f60db0cdead9c324487954f0bacaec01001beb7f65fab03bfc539eb58"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲启元Wiki目录.txt",
+      "sha256": "8086eed9043a6f815d28f6906c215663d45e1fbd8847f846b95032bd7bba3fb1"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲编辑器基础内容_UGCAskQ MCP.md",
+      "sha256": "a4b65d4c775aca8c12286b5ee05c8a064b2e0e4724773c1cfeb41995d3a1c102"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲编辑器基础内容_上传和发布玩法.md",
+      "sha256": "53b6d0f3dba3ee2b9efda94f407ee38cdbad3ef1d289f6c60b043db1786e4f8c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲编辑器基础内容_匹配系统.md",
+      "sha256": "ddab5780e17190b3923ae8151ffdf234fe85b2d3fd30a72919d0e128ec68c814"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲编辑器基础内容_编辑器功能窗口.md",
+      "sha256": "4c13336a3c035601897522deee3732d10875eeb22d024ca1bd4ca061014cc071"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲编辑器基础内容_脚本编写.md",
+      "sha256": "4161513e32873f88d54265333c9e252382e40ba32c09523aaf432dbe5f6ff51c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲编辑器基础内容_调试游戏.md",
+      "sha256": "2656061ef3273424da877c6403abcb79946fb87584d851c98d4231cc36562833"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/绿洲编辑器基础内容.md",
+      "sha256": "c0a41b876195178c26327ca9a16b64209527bd2d099338b5230fb326d9a626ad"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/论坛经验帖_绿洲启妹.md",
+      "sha256": "923ee3847e9bf37fdbac1901ddbe36976acca80d3167d3c9f06a5a7df47187ee"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_属性与伤害.md",
+      "sha256": "3b91e704e522ddf5c0cfacf6befdcc921148b5e66c2b796a4d355d41e8a2c99f"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_怪物系统_AI编辑器1.0_怪物制作.md",
+      "sha256": "f3279e7c95c17f9b41ead55d5ffdf6f5e7a9be9993aa824cb507190b15097142"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_怪物系统_AI编辑器1.0_行为树节点使用手册_Composite.md",
+      "sha256": "4e842755ad484a9f6c6f6e406e6f875ed28324e26f2367675c2d192f4eb9b591"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_怪物系统_AI编辑器1.0_行为树节点使用手册_Decorator.md",
+      "sha256": "d3a8bc78a41700a01149690a7a665843449f647326b0c3a173411c6ce753a2f2"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_怪物系统_AI编辑器1.0_行为树节点使用手册_Service.md",
+      "sha256": "eab021606165f171811ba4d03be511350964f69ce961338d97d1ac87ca437548"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_怪物系统_AI编辑器1.0_行为树节点使用手册_Task.md",
+      "sha256": "fd155ffb9ff2901750e3f722cec4bbc761c4f66153828c572ec707524f5679d3"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_怪物系统_AI编辑器1.0.md",
+      "sha256": "efeb16326ec91734ba842539572293ebcee0823dc3ad1df729fc12b3fd455048"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_怪物系统.md",
+      "sha256": "9d47fee7ba90dcb6ef32d9afe69930b5d87560165f44b1c0f27546576db89223"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_技能系统_Buff编辑器1.0.md",
+      "sha256": "f0493cdf49bef6865e8e3606c2f704ddc9646d2ff7d95eef7e8e058ea09bc4cb"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_技能系统_Buff编辑器2.0.md",
+      "sha256": "cffecd3e6c837e60ecdddd6dc66c30d9a6d9512d2bc773323705c2cc9b372047"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_技能系统_技能编辑器1.0.md",
+      "sha256": "95037b7e80c680c576c31481a001e8a0f41473f93cc2082f81a30b93e00f334e"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_技能系统_技能编辑器2.0.md",
+      "sha256": "8b719a0154c48122077e7023b6dfc413a7d1b18363493e8e075291edcecd4c59"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_技能系统.md",
+      "sha256": "da47017d18b840a3edd6862201a5454f43a2ab1ce2b3ab2952ba868be5d94c86"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_物资系统_物资编辑器1.0.md",
+      "sha256": "0a4cce92041ac2f61bfca7cd3239e5aa2ac480088a40e188a341572afdaec9ed"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_物资系统_物资编辑器2.0.md",
+      "sha256": "1773fdbeb94cf87afd665e328eb3bcf7d45a23921a00205660b10040c2459f90"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_角色系统.md",
+      "sha256": "f3ab3f169f5588c3c386a42c39fa440ceccf5e9d68efc4902444099bcf4f5ecf"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统_载具系统.md",
+      "sha256": "d772db36eee68d8e0804c126001ee557dbb548e71f6fc0271e2557867580e112"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_GamePlay系统.md",
+      "sha256": "a87b9671fc26f9406804ee54122ae65cc0f24d13e2bf0b27f0fb9160ab39dca6"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_UI系统_和平控件查询.md",
+      "sha256": "8b947a79a4a340f90f30012eddc035e65c52a53090c3fc37dbb2f976ebc6d379"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_UI系统.md",
+      "sha256": "0c53aa5fdabc5d0f0a4db0f4db5628e4d924a8dfe488f81fd62969cd05b919f8"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_和平精英集成功能_旧版本功能.md",
+      "sha256": "26672111915dedd1fdf8f1ff51b76fc6769c09ccf540f306459fadbc36adeadb"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_和平精英集成功能_观战功能.md",
+      "sha256": "2c062de52c3cb066bb995c875281eef8354933a1a365078d7ff926e5f9694c32"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_和平精英集成功能.md",
+      "sha256": "edf20df844d4a8a473e585e91f6dc8f77fd830385022c5913ea6493e6d27c37c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_存档.md",
+      "sha256": "bd9d1c408cd5a6fcf1e654af70c025b5b74542dd4eb0f64ffdef457ec60e24a5"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_模式编辑器.md",
+      "sha256": "b8b927cdca30f5d54fa92d737a0820e72b5a0ce1fc00c4a357771a623a20abaf"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容_输入系统.md",
+      "sha256": "f653cdca44bc192505913c321a900bda6afe889602dec4bd01de5f452ded0cc2"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/进阶内容.md",
+      "sha256": "09b90fb282868745a0102fcfbf4d31d15352cd6e1903e730ae861c9226e5235d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/通用功能_交互物.md",
+      "sha256": "dd6b4ac41a545062a7164f0ea71c161967121d275bf52e2da16d1df55bda0ea7"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/references/wiki/通用功能.md",
+      "sha256": "d5d2ae9aa90dfce3fb2c085a13f77754803637d4e6c50bd2511e0ed58bfb9cca"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/check_companion_skill_versions.py",
+      "sha256": "f37a966cdbea60651be12240691ac12b6c3c88ce26e97a54d619703d16281f4b"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/check-skill-hygiene.ps1",
+      "sha256": "81a63d3188992df844054d4e97ed996c5c63bd2e050d6675567508de499bccfd"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/apply_component_decisions.py",
+      "sha256": "56a703eed04857f3b3988568e5370cecac9f8f6378936a925c7532afeb9185ac"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/approve_visual_review.py",
+      "sha256": "212c90ad4975dd326bbf93774d16ab8113f6a6ece7f21532f3f307c05e2cba9b"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/build_cowart_shape_plan.py",
+      "sha256": "96be6bc8c027a725590877d8e00bc8467ca3999efea3789e196e24314545a42b"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/build_extraction_plan.py",
+      "sha256": "83800028fb12cf23b5d98c7650433f8b69fe687c931395a074f73c699f5979ed"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/build_reconstruction_jobs.py",
+      "sha256": "8b0343e86477a480aea04ffdaf5d7d75cb5f106da8832382fc49098eeabea4d3"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/build_ui_tree.py",
+      "sha256": "36df5e930f11dad5eb2f41e4a45259c4e713359b19095fe2778952ff995bef61"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/canva_adapter.py",
+      "sha256": "8ffad8e9f2c94b6bfb16929311fb3601c850f593778201d7978e70728986d863"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/codex_upstream_image_executor.py",
+      "sha256": "8682b366c466d94a35882e63a0119754df7133301a7cfd695375665b5b877882"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/companion_handoff.py",
+      "sha256": "eef0dd2bc52ea58f019dade0d3054c6a747ba8203358e9eafb5e022ab16271cd"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/component_semantics.py",
+      "sha256": "cf97b58dcbd65169d3f059219fbdeec0c504fbed5729a1bfe20756bd67ec525c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/create_cowart_blank_snapshot.mjs",
+      "sha256": "a7af4d4935640428f7fdcf5eea2dd04f6523cf775697136cdf70a9646fee02b2"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/create_ui_workbench.py",
+      "sha256": "3e4bcbc668afc62a1fd3f285e83d4c70dfd17eb4514e41e1b839305dca16acc1"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/create_visual_review.py",
+      "sha256": "5572890b7ff61c6473d2a763f552dc4d9f42e363384d223d1548059be4738351"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/execute_reconstruction_jobs.py",
+      "sha256": "4948144569884275feb45487c64fcb9c6e94b7b90c29d9d963783b17970d8c85"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/image_reconstruction_executor.py",
+      "sha256": "6f5d63af18c1185736617df2ca165ea4c0c545d7ffe63aee2dd2351d4896154c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/launch_ui_workflow_console.py",
+      "sha256": "e798cc870853248e18e58e6e955478b17365f733cae434f8fb730b28df26730d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/normalize_canva_export.py",
+      "sha256": "ee3eb9a287d98dfd88508b2cc712125e72a27b0b6663777937776fd66ea37501"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/open_ui_workflow.py",
+      "sha256": "a5778dd7f58e9bda1075f4dc975101198327d0ad0a91cfef7b6c61e7d0942916"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/recompose_ui.py",
+      "sha256": "a921347f2fab8d31e02690988d1108cd8a554cbbb65292ac7305ce8e59814d42"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/record_cowart_handoff.py",
+      "sha256": "43da3b2800791fd1058d1ffa8bbd61f4cd4a873d92568c6add7631de63ed66a3"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/report_ui_workflow_progress.py",
+      "sha256": "ade216ac02e5d5594e5a72b7f885f7a019dd5e67881e9a6eae3f9f96ab71aece"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/serve_workbench.py",
+      "sha256": "bbf6fadadca65cd9905a75b38889f31a09fccdd91ca302ebc2336b66cd95f503"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/validate_extraction_plan.py",
+      "sha256": "71a835fd6fa0d5f2e4a88123b7a10f9f63c2bc94bced7e243baf144c325a5b1b"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/validate_manifest.py",
+      "sha256": "49e06467d1db723fbeb62833eff1f1e3bc69e31ff72c9cb438d92684693127fa"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/validate_reconstruction.py",
+      "sha256": "c0341f3492eae5c005be0c8a26c506044812eb986e1eb26cf2e0b279a503eb4a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/component-extractor/validate_ui_spec.py",
+      "sha256": "3c00ca4958626ad6681fd53bb9a13690630754239418f17555716bcd653f6bd0"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/delivery/build_delivery_plan.py",
+      "sha256": "3c787ce1c27bddfbba2f64868f31efb0032c05405477d5865b591c2209d2181a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/delivery/validate_delivery_plan.py",
+      "sha256": "1ed5f8e867ac713b019b7b20b616a527091cf947acb07a2d18162dd1ee3f8699"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/cowart-ui/requirements.txt",
+      "sha256": "5029b29c844503cba3858e8c65adf02d8adbc65308c1e4996b92c02f966b29a0"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/build_generation_package.py",
+      "sha256": "da95e346e312186d61c62d29edf938a5ca7cc2df712a80f789cbe2f077d1606a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/build_generation_prompt.py",
+      "sha256": "a98dcf651723987c255674e6a4fe4ea831d3ee42a0a6dcedb7693935545f8aa5"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/build_item_icon_catalog.py",
+      "sha256": "70d2aad4f6002cd536fe01632ab8303f9c2ce2d68a4bfccc9bf9928086482e3c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/create_style_review.py",
+      "sha256": "7dd1f4514b14d897efdf3df195c557dced35aceaaff2e26336f05a421d1624f9"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/detect_project.py",
+      "sha256": "f86cb85f545968de80e6ca61fce1d4687cd032e114f81d6743d75f90c37991ae"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/generate_with_codex_provider.py",
+      "sha256": "893d80db42f34fa71c4373c9bf30819f68ae55a5a41a9d92ce5dfdc75f9a1583"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/generation_pipeline.py",
+      "sha256": "99907cb367c5c46f3c4b0e79286254a96366473b1ac92b0dc754ab50b67d6459"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/import_project_previews.py",
+      "sha256": "4b8cc8d4fceefaa2596fc8d8a46d6e74cb5155c7cbfdd2d686267fd5fd517901"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/index_project_assets.py",
+      "sha256": "843d1c2adb4f1f4ba3aef9a24b56c648d7ef3df93f916a196ed308fe886c10ba"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/initialize_project_library.py",
+      "sha256": "acf4591a5962027177356c58aaab81d8880f7044fac3ef33c85762212279945c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/prepare_image_generation.py",
+      "sha256": "3bf0a696d9e7f0ff870f932664ee553d6bcafcc9c2b733a18f81b69ec9607a1d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/project_library.py",
+      "sha256": "5db5ec191ef9abc976a3a43de03d2296f587464e8ea5c9019b1841e4bef74676"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/record_generation_result.py",
+      "sha256": "fc1d8205176d0e7c34f0ccba9a46f1b0499df09fc792a8679f5ffcbf8942476b"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/resolve_project_references.py",
+      "sha256": "a6db239cb2dbd1611d8c1f796e9a8d781b76447561e7efa4655a271faa69fb50"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/validate_generation_package.py",
+      "sha256": "267b339fccac4fa8ec573c6b278ca7a5fd6fa7c04f430437b069a31f52c88a56"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/validate_library.py",
+      "sha256": "e6cd9f54be671ad863624e60e398fb2c1983a82db73b4292d90a1be21355dfef"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/game-ui/validate_project_library.py",
+      "sha256": "51bd1e9476fe16b84071171b9056bfde120b91f14090d4ff5e99571b33c94c19"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/index-oasis-project.ps1",
+      "sha256": "19f5f15f491fe626bf734ce1caf4ee7b961ff276c8ba2bb246dffb3d70dc773b"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/refresh_api_structs.py",
+      "sha256": "345f50f662739c916629636d7f05412764bcb4b8472cc5c000b62e28bf92493f"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/remember-oasis-feature.ps1",
+      "sha256": "ded361767ce756a68101f600d62c9336d4971d1764bf6b9026b40a90e01c4393"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/search-oasis-wiki.mjs",
+      "sha256": "416aa1e9bf0c77b7321fa1e7db64f0acde96467aae0a8a1e99f2f5f3e2babf02"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/search-oasis-wiki.ps1",
+      "sha256": "d531e8f2ad92af83148349986c5c4a0a7491c0e330a37299aa6977bc8e6b83c3"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/sync_official_forum.py",
+      "sha256": "6dc10a4ddee71d97978900842b8afedfff1169d2c7a6e417ef07778ba646dc2c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/sync_official_wiki.py",
+      "sha256": "d6a27c3c2089d25de4aa1106421fb28b7c290800f68187f88eb150e637c538cc"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/ugcaskq-cli.js",
+      "sha256": "93a4a72f9b104284fc8c8bd4b00935ec40a2585e42e17ed57fc023ec68e69475"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/scripts/ugcaskq-proxy-server.js",
+      "sha256": "22ac83a4e64444d9a40cf830e6733de8c13ff02bd29a4d31c5d147f208fb98ec"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/SKILL.md",
+      "sha256": "ef869641a6481a06e3fb2943932eab982fea320453181c28c37bf2e2e2ade21f"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/cowart-ui-category.test.mjs",
+      "sha256": "9abe045361f442bb69e49e15ad04a077cc0b08368ca703b39070f71b059cc0f7"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_codex_upstream_image_executor.py",
+      "sha256": "dc229f3c79a8d39e6b980006d7d5da20800bd96f7745cc99c4e3e33657dc8d8d"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_companion_handoff_inbox.py",
+      "sha256": "93f45ceb22865bb9e8e35c6192c99b32a4eca143f5d028cb267d0b5f4bec34a2"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_companion_skill_version_check.py",
+      "sha256": "cdf87f4601c49ccb5bf8ade65c86a84671a0de5101a4480e3c2d81ea2fba3aa2"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_companion_versioning.py",
+      "sha256": "6d9bdbb1e49ec876b5c3a6baaadad10b4efbd6ac9c290116d9a3f58ddd6551a4"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_cowart_ui_usage_guide.py",
+      "sha256": "f827d1c0a148f4ba8196026800899c60dfe25d5ec4de5b3d0c1d0a072a445a20"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_game_ui_generation.py",
+      "sha256": "0cfd93ab17456e92cca58c4b75689ba757d9cb7209157c48ce105944f33917c3"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_game_ui_project_library.py",
+      "sha256": "34ead5c066bf3a39d1355ea8eb35922b4726e41272834c0e418f5bfeb2ee47e7"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_layer_reconstruction.py",
+      "sha256": "304751ee1a71e760b061bc02228148e15c1c65d62e9aac9984e81446e8f1bd4a"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_mcp_ui_widget_brush_guidance.py",
+      "sha256": "ca0732cd29f96384bdc95c0113ebaa7a85c3c44e4580c6623ab0e0caabe518d7"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_mcp_ui_widget_hierarchy_guidance.py",
+      "sha256": "533d769d1819682653ddb55ecd7bd1e6d7865718230e7d2b0c5f2cc24ee06b9c"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_oasis_ui_agent_interaction.py",
+      "sha256": "77d7943f12376a6b7c38e9879b8b227c5c86a099e1763ef46d47aa1346fbd2ba"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_official_forum_sync.py",
+      "sha256": "0f19d81f1cf4b43a7485d6534e452306e49ecf190784aae504cecc4a65b31266"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_official_wiki_sync.py",
+      "sha256": "e41825282db8e7eb6619842ea11eea8e057dc41866f64307b0cef75c336689f4"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_open_ui_workflow_launcher.py",
+      "sha256": "afd4792af418558d33e9a8941866b28af945ef31f42c6722d8b84b0d9bda4836"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_precision_component_reconstruction.py",
+      "sha256": "e7b2ff0f2af3f70995063576408b05f07742f4cb87959d0ed81d5f78c5a69b22"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_project_artifact_and_privacy_policy.py",
+      "sha256": "5ed7f187fcd25f58b95ce1190392bda22c51c0854e5c0d11f64d3fd4ee40d981"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_project_planning_source_versioning.py",
+      "sha256": "73252adbc107d98239367d337616215ec5fd16ba6519ef57c63ec5a56a564691"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_ue_pie_debugging_policy.py",
+      "sha256": "949fc936539602cc1404e1f845ea6abbddfc5858459e326f228f731f5ac3cda9"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_ui_workbench_companion_handoff.py",
+      "sha256": "364f3edf5fc0e743f26665420c64ca14f9917c61844bd16a70637eda25cc8241"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/tests/test_workbench_parent_component_display.py",
+      "sha256": "d3fbc909054781ab0d7be664629249b5ffd2cb1c5140c165ababf3c90a608dad"
+    },
+    {
+      "path": "bundled-skills/oasis-wiki/VERSION",
+      "sha256": "4647c92128a560895745ecef1ccd0196b7191168328dbb611833f86512611e88"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/config.json",
+      "sha256": "d4193ead3a810fd694fa8a31d7fc72fbaebc0668b603e398734bf2f6538ff42f"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/LICENSE",
+      "sha256": "8e318bf1245d801ffe93917d1674a039ae947b206bdba0b73b271190c5ef1f58"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/model-manifest.json",
+      "sha256": "38c6f72d302848aa7236367e70cd051595da4eea4fa41fcaae4999254dcd1298"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/onnx/model_quantized.onnx",
+      "sha256": "15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/special_tokens_map.json",
+      "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/tokenizer_config.json",
+      "sha256": "e6f3b96db926a37d4039995fbf5ad17de158dfb8f6343d607e4dbaad18d75f5a"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/tokenizer.json",
+      "sha256": "48cea5d44424912a6fd1ea647bf4fe50b55ab8b1e5879c3275f80e339e8fae26"
+    },
+    {
+      "path": "models/bge-small-zh-v1.5/vocab.txt",
+      "sha256": "45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c"
+    }
+  ]
+}
