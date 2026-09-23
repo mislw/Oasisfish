@@ -24,7 +24,9 @@ Desktop 携带独立的 Python 与 Node.js 分发包、Node 内置的 npm，以�
 
 Desktop 默认注册 `office-docx`、`office-pptx` 和 `office-xlsx`。这些技能使用内置 Python 库创建文件和进行定点编辑，随后重新打开文件，并在交付前运行共享结构检查器。PowerPoint 的创建和编辑使用 python-pptx。技能资源复制到 ASAR 外的 `runtime/office-skills`，让 Python 可以读取检查器。可用的 `render_document` 工具可以补充视觉检查；缺少该工具不妨碍创作或交付。检查范围与限制见 [Office 技能包](../../packages/skill/skill-office/README.zh.md)。
 
-Desktop 还会把完整的 `oasis-wiki` 固化到 `runtime/bundled-skills/oasis-wiki`。Host 通过 `DSH_BUNDLED_SKILL_DIR` 注册这个应用自带的父目录，因此全新离线安装无需另外安装 Codex、WorkBuddy、DSH 或共享 Agent Skill，也能发现 Oasis UGC 知识库。仓库内的 `VERSION` 标记和 Desktop 准备测试会明确校验打包版本，并拒绝 Python 字节码与缓存目录。
+Desktop 还会把完整的 `oasis-wiki` 与 `ai-image-prompts` 固化到 `runtime/bundled-skills`。Host 通过 `DSH_BUNDLED_SKILL_DIR` 注册这个应用自带的父目录，因此全新离线安装无需另外安装 Codex、WorkBuddy、DSH 或共享 Agent Skill，也能发现 Oasis UGC 知识库和已授权的图片指导。Desktop 只把这两个 Skill 的 `references` 目录声明为检索语料；`skill_search` 无法访问其他内置资源。
+
+本地 Skill 检索使用 `runtime/models/bge-small-zh-v1.5` 下固定的 `Xenova/bge-small-zh-v1.5` ONNX 快照。准备阶段会在暂存前校验获准的上游修订、MIT 许可证、清单、文件类型和每个 SHA-256 摘要。Provider 不会下载模型。可重建的 SQLite 索引位于 `$DSH_HOME/cache/skill-search`，不进入签名资源；模型和语料身份兼容时，重启后会复用该索引。
 
 该产物随 Desktop 版本发布。`runtime.json` 记录 Desktop 版本、目标平台、组件与 Python 分发包版本，以及所选目标的锁定产物输入与组装格式的摘要。分发包名称按 PEP 503 归一化；名称归一化后重复，或 numpy/pandas 的组件版本与分发包版本冲突时，清单会被拒绝。匹配的安装会被复用；依赖或压缩包变化后，即使 Desktop 版本不变，也会在完整暂存副本完成后替换目录。不含摘要的旧清单会在下次安装时被替换。用户自行添加的 Python 包仅在产物身份一致时保留。目录替换失败时保留之前的安装；解释器仍在运行时，Windows 可能拒绝替换。
 

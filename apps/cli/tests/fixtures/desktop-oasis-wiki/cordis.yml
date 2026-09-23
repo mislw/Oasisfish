@@ -1,0 +1,9 @@
+- id: skill-filesystem
+  config:
+    watch: false
+
+- id: skill-search-local
+  disabled: true
+
+- id: session-telemetry-otel
+  disabled: true

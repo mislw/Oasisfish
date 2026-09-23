@@ -123,6 +123,7 @@ const pwshCoverageExclusions = spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProf
 const testIncludes = [
   'packages/*/*/tests/**/*.spec.{ts,tsx}',
   'apps/*/tests/**/*.spec.ts',
+  'apps/cli/tests/desktop-oasis-wiki.snapshot.ts',
   'scripts/**/*.spec.ts',
   'website/tests/**/*.spec.ts',
 ]

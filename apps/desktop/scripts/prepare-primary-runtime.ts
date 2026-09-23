@@ -1,9 +1,10 @@
 /** Prepare pinned, relocatable script interpreters without installing into the build host. */
 
 import { execFileSync } from 'node:child_process'
+import { deepStrictEqual } from 'node:assert'
 import { createHash } from 'node:crypto'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { cp } from 'node:fs/promises'
+import { createReadStream, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFile, cp, lstat, mkdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -11,10 +12,93 @@ import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
 import { workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../../desktop-host/src/primary-runtime.ts'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { verifyStagedRetrievalResources } from './staged-inventory.mjs'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 import lock from './primary-runtime-lock.json' with { type: 'json' }
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
+const MODEL_RESOURCE_FILES = [
+  'config.json',
+  'onnx/model_quantized.onnx',
+  'special_tokens_map.json',
+  'tokenizer_config.json',
+  'tokenizer.json',
+  'vocab.txt',
+] as const
+const APPROVED_MODEL_MANIFEST = Object.freeze({
+  schemaVersion: 1,
+  modelId: 'Xenova/bge-small-zh-v1.5',
+  upstreamModelId: 'BAAI/bge-small-zh-v1.5',
+  revision: '75c43b069aac4d136ba6bc1122f995fedcfd2781',
+  dimensions: 512,
+  license: 'MIT',
+  transformersJsVersion: '4.2.0',
+  files: Object.freeze([
+    Object.freeze({ path: 'config.json', sha256: 'd4193ead3a810fd694fa8a31d7fc72fbaebc0668b603e398734bf2f6538ff42f' }),
+    Object.freeze({ path: 'onnx/model_quantized.onnx', sha256: '15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc' }),
+    Object.freeze({ path: 'special_tokens_map.json', sha256: 'b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3' }),
+    Object.freeze({ path: 'tokenizer_config.json', sha256: 'e6f3b96db926a37d4039995fbf5ad17de158dfb8f6343d607e4dbaad18d75f5a' }),
+    Object.freeze({ path: 'tokenizer.json', sha256: '48cea5d44424912a6fd1ea647bf4fe50b55ab8b1e5879c3275f80e339e8fae26' }),
+    Object.freeze({ path: 'vocab.txt', sha256: '45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c' }),
+  ]),
+})
+
+/** Approved immutable embedding model metadata carried by Desktop resources. */
+export type ModelResourceManifest = typeof APPROVED_MODEL_MANIFEST
+
+async function regularModelFile(root: string, relativePath: string): Promise<string> {
+  let current = root
+  const rootMetadata = await lstat(current)
+  if (rootMetadata.isSymbolicLink()) throw new Error(`local embedding model contains a filesystem link: ${current}`)
+  if (!rootMetadata.isDirectory()) throw new Error(`local embedding model root is not a directory: ${current}`)
+  const segments = relativePath.split('/')
+  for (const [index, segment] of segments.entries()) {
+    current = join(current, segment)
+    const metadata = await lstat(current)
+    if (metadata.isSymbolicLink()) throw new Error(`local embedding model contains a filesystem link: ${current}`)
+    if (index === segments.length - 1 ? !metadata.isFile() : !metadata.isDirectory()) {
+      throw new Error(`local embedding model resource has the wrong file type: ${current}`)
+    }
+  }
+  return current
+}
+
+async function sha256(path: string): Promise<string> {
+  const hash = createHash('sha256')
+  for await (const chunk of createReadStream(path)) hash.update(chunk)
+  return hash.digest('hex')
+}
+
+/** Verify the pinned manifest, license, file types, and SHA-256 digests without network access. */
+export async function verifyModelResources(root: string): Promise<ModelResourceManifest> {
+  const manifestPath = await regularModelFile(root, 'model-manifest.json')
+  const parsed: unknown = JSON.parse(await readFile(manifestPath, 'utf8'))
+  try { deepStrictEqual(parsed, APPROVED_MODEL_MANIFEST) } catch (error) {
+    throw new Error('local embedding model manifest does not match the approved snapshot', { cause: error })
+  }
+  await regularModelFile(root, 'LICENSE')
+  const manifest = parsed as ModelResourceManifest
+  const hashes = new Map(manifest.files.map(file => [file.path, file.sha256]))
+  for (const relativePath of MODEL_RESOURCE_FILES) {
+    const path = await regularModelFile(root, relativePath)
+    const actual = await sha256(path)
+    const expected = hashes.get(relativePath)
+    if (actual !== expected) throw new Error(`SHA-256 mismatch for ${relativePath}: expected ${String(expected)}, received ${actual}`)
+  }
+  return manifest
+}
+
+/** Replace one staged model directory with only the approved verified resource files. */
+export async function prepareModelAssets(source: string, destination: string): Promise<void> {
+  await verifyModelResources(source)
+  rmSync(destination, { recursive: true, force: true })
+  for (const relativePath of ['model-manifest.json', 'LICENSE', ...MODEL_RESOURCE_FILES]) {
+    const output = join(destination, relativePath)
+    await mkdir(dirname(output), { recursive: true })
+    await copyFile(join(source, relativePath), output)
+  }
+  await verifyModelResources(destination)
+}
 
 /**
  * Download or reuse an archive only when its bytes match the release lock.
@@ -150,6 +234,9 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
   await prepareSkillAssets(join(dirname(hostRequire.resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets'),
     join(paths.runtime, 'office-skills'))
   await prepareSkillAssets(join(APP_ROOT, 'resources', 'bundled-skills'), join(paths.runtime, 'bundled-skills'))
+  await prepareModelAssets(join(APP_ROOT, 'resources', 'bundled-models', 'bge-small-zh-v1.5'),
+    join(paths.runtime, 'models', 'bge-small-zh-v1.5'))
+  await verifyStagedRetrievalResources(paths.runtime)
   if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }
 

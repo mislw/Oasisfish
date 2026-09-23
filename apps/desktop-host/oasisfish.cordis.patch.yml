@@ -1,2 +1,27 @@
 - id: ui-codex-bridge
   disabled: false
+
+- id: skill-search
+  config:
+    corpora:
+      - skill: oasis-wiki
+        provider: filesystem
+        roots: [references]
+        extensions: [.md, .txt]
+        maxFileBytes: 1048576
+        maxCorpusBytes: 16777216
+        maxChunks: 20000
+      - skill: ai-image-prompts
+        provider: filesystem
+        roots: [references]
+        extensions: [.md, .txt]
+        maxFileBytes: 1048576
+        maxCorpusBytes: 4194304
+        maxChunks: 4000
+
+- insert:
+    - id: skill-search-local
+      name: '@deepseek-ai/dsh-skill-search-local'
+      config:
+        databasePath: !!js "process.env.DSH_SKILL_SEARCH_CACHE_DIR ? `${process.env.DSH_SKILL_SEARCH_CACHE_DIR}/skill-search.sqlite` : (() => { throw new Error('Oasisfish Skill search cache directory is unavailable.') })()"
+        modelRoot: !!js "process.env.DSH_SKILL_SEARCH_MODEL_DIR ?? (() => { throw new Error('Oasisfish Skill search model directory is unavailable.') })()"

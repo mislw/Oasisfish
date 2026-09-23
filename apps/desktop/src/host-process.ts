@@ -2,6 +2,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { dirname, join } from 'node:path'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { desktopNodeEnvironment } from './node-environment.ts'
 
 interface ReadyEvent {
@@ -113,6 +114,7 @@ export class DesktopHostProcess {
     if (this.child !== undefined) return this.readyPromise
     const entry = join(this.runtimeDir, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
     const primaryRuntime = this.primaryRuntime ?? join(this.runtimeDir, '..', 'runtime', 'primary-runtime')
+    const resourceRoot = dirname(primaryRuntime)
     const child = spawn(this.node, [
       '--expose-internals',
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
@@ -126,7 +128,9 @@ export class DesktopHostProcess {
       cwd: this.projectDir,
       env: desktopNodeEnvironment(this.node, undefined, {
         ...this.environment,
-        DSH_BUNDLED_SKILL_DIR: join(dirname(primaryRuntime), 'bundled-skills'),
+        DSH_BUNDLED_SKILL_DIR: join(resourceRoot, 'bundled-skills'),
+        DSH_SKILL_SEARCH_MODEL_DIR: join(resourceRoot, 'models', 'bge-small-zh-v1.5'),
+        DSH_SKILL_SEARCH_CACHE_DIR: join(resolveDshHome(undefined, this.environment), 'cache', 'skill-search'),
       }),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     })

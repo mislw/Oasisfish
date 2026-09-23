@@ -112,14 +112,18 @@ describe('desktop host process', () => {
 
   it('passes external dependencies and runtime profile resolution to the Host', async () => {
     const runtime = projectWithHost(HTTP_HOST.replace('runtime: process.argv[2]',
-      'pnpm: process.argv[6], nodeBin: process.argv[7], primaryRuntime: process.argv[4], profileResolution: process.argv[5], bundledSkillDir: process.env.DSH_BUNDLED_SKILL_DIR, runtime: process.argv[2]'))
+      'pnpm: process.argv[6], nodeBin: process.argv[7], primaryRuntime: process.argv[4], profileResolution: process.argv[5], bundledSkillDir: process.env.DSH_BUNDLED_SKILL_DIR, skillSearchModelDir: process.env.DSH_SKILL_SEARCH_MODEL_DIR, skillSearchCacheDir: process.env.DSH_SKILL_SEARCH_CACHE_DIR, runtime: process.argv[2]'))
     const primaryRuntime = join(runtime, 'external-primary-runtime')
-    const host = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env,
+    const dshHome = join(runtime, 'home')
+    const host = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, { ...process.env, DSH_HOME: dshHome },
       undefined, primaryRuntime, 'runtime', { pnpm: join(runtime, 'pnpm.mjs'), nodeBin: join(runtime, 'bin') })
     hosts.push(host)
     const { url } = await host.start()
     expect(await (await fetch(url)).json()).toMatchObject({ primaryRuntime, profileResolution: 'runtime',
-      bundledSkillDir: join(runtime, 'bundled-skills'), pnpm: join(runtime, 'pnpm.mjs'), nodeBin: join(runtime, 'bin') })
+      bundledSkillDir: join(runtime, 'bundled-skills'),
+      skillSearchModelDir: join(runtime, 'models', 'bge-small-zh-v1.5'),
+      skillSearchCacheDir: join(dshHome, 'cache', 'skill-search'),
+      pnpm: join(runtime, 'pnpm.mjs'), nodeBin: join(runtime, 'bin') })
   })
 
   it('reports a fatal event after readiness once', async () => {

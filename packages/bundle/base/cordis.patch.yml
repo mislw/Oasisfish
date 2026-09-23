@@ -283,6 +283,13 @@
     - id: skill
       name: '@deepseek-ai/dsh-skill'
 
+    # Deployments declare reviewed resource roots explicitly; the shared base
+    # never scans every loaded Skill as a search corpus.
+    - id: skill-search
+      name: '@deepseek-ai/dsh-skill-search'
+      config:
+        corpora: []
+
     - id: skill-filesystem
       name: '@deepseek-ai/dsh-skill-filesystem'
 
@@ -292,6 +299,9 @@
 
     - id: tool-skill
       name: '@deepseek-ai/dsh-tool-skill'
+
+    - id: tool-skill-search
+      name: '@deepseek-ai/dsh-tool-skill-search'
 
     - id: commands
       name: '@deepseek-ai/dsh-commands'

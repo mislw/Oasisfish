@@ -1,0 +1,12 @@
+{
+  "name": "dsh-desktop-runtime-pkg",
+  "description": "Dependency-only resolver manifest for Oasisfish Desktop product plugins.",
+  "version": "1.20260923.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@deepseek-ai/dsh-skill-search": "workspace:^",
+    "@deepseek-ai/dsh-skill-search-local": "workspace:^",
+    "@deepseek-ai/dsh-tool-skill-search": "workspace:^"
+  }
+}

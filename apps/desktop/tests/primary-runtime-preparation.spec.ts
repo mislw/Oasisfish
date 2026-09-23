@@ -4,7 +4,15 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { zipSync } from 'fflate'
 import { expect, it } from 'vitest'
-import { downloadPrimaryRuntimeAsset, prepareSkillAssets, primaryRuntimePayloadDigest, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from '../scripts/prepare-primary-runtime.ts'
+import {
+  downloadPrimaryRuntimeAsset,
+  prepareModelAssets,
+  prepareSkillAssets,
+  primaryRuntimePayloadDigest,
+  smokePrimaryRuntime,
+  unpackPrimaryRuntimeWheel,
+  verifyModelResources,
+} from '../scripts/prepare-primary-runtime.ts'
 import lock from '../scripts/primary-runtime-lock.json' with { type: 'json' }
 
 const libraryWheel = Buffer.from('UEsDBAoAAAAAAASeLl0sYMPjDAAAAAwAAAAJAAAAc2FtcGxlLnB5c2FtcGxlID0gNDIKUEsBAh4DCgAAAAAABJ4uXSxgw+MMAAAADAAAAAkAAAAAAAAAAQAAAKSBAAAAAHNhbXBsZS5weVBLBQYAAAAAAQABADcAAAAzAAAAAAA=', 'base64')
@@ -136,4 +144,79 @@ it('carries the current Oasis Wiki skill as a clean bundled Desktop resource', a
   expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toContain('name: oasis-wiki')
   const entries = await readdir(root, { recursive: true })
   expect(entries.filter(entry => entry.includes('__pycache__') || entry.endsWith('.pyc'))).toEqual([])
+})
+
+it('carries the released image guidance as a licensed bundled Desktop Skill', async () => {
+  const root = join(import.meta.dirname, '..', 'resources', 'bundled-skills', 'ai-image-prompts')
+  expect(await readFile(join(root, 'SKILL.md'), 'utf8')).toContain('name: ai-image-prompts')
+  expect(await readFile(join(root, 'LICENSE'), 'utf8')).toContain('MIT License')
+  expect(await readFile(join(root, 'references', 'visual-recipes.md'), 'utf8')).toContain('## Game Item Icon')
+})
+
+it('declares Skill retrieval plugins in every Loader resolver manifest', async () => {
+  const manifest = async (...segments: string[]): Promise<Record<string, string>> => {
+    const parsed = JSON.parse(await readFile(join(import.meta.dirname, ...segments), 'utf8')) as {
+      dependencies?: Record<string, string>
+    }
+    return parsed.dependencies ?? {}
+  }
+  const base = await manifest('..', '..', '..', 'packages', 'bundle', 'base', 'package.json')
+  const cli = await manifest('..', '..', 'cli', 'package.json')
+  const host = await manifest('..', '..', 'desktop-host', 'package.json')
+  const runtime = await manifest('..', '..', 'desktop-runtime', 'package.json')
+  const desktop = await manifest('..', 'package.json')
+
+  expect(base).toMatchObject({
+    '@deepseek-ai/dsh-skill-search': 'workspace:^',
+    '@deepseek-ai/dsh-tool-skill-search': 'workspace:^',
+  })
+  expect(cli).toMatchObject({
+    '@deepseek-ai/dsh-skill-search': 'workspace:^',
+    '@deepseek-ai/dsh-skill-search-local': 'workspace:^',
+    '@deepseek-ai/dsh-tool-skill-search': 'workspace:^',
+  })
+  expect(host).toMatchObject({ '@deepseek-ai/dsh-skill-search-local': 'workspace:^' })
+  expect(runtime).toMatchObject({
+    '@deepseek-ai/dsh-skill-search': 'workspace:^',
+    '@deepseek-ai/dsh-skill-search-local': 'workspace:^',
+    '@deepseek-ai/dsh-tool-skill-search': 'workspace:^',
+  })
+  expect(desktop).toMatchObject({ '@deepseek-ai/dsh-home-paths': 'workspace:^' })
+})
+
+it('pins and verifies the released local embedding model without a download path', async () => {
+  const root = join(import.meta.dirname, '..', 'resources', 'bundled-models', 'bge-small-zh-v1.5')
+  await expect(verifyModelResources(root)).resolves.toEqual(expect.objectContaining({
+    schemaVersion: 1,
+    modelId: 'Xenova/bge-small-zh-v1.5',
+    upstreamModelId: 'BAAI/bge-small-zh-v1.5',
+    revision: '75c43b069aac4d136ba6bc1122f995fedcfd2781',
+    dimensions: 512,
+    license: 'MIT',
+    transformersJsVersion: '4.2.0',
+  }))
+})
+
+it('rejects missing and modified local embedding model files before staging', async () => {
+  const source = join(import.meta.dirname, '..', 'resources', 'bundled-models', 'bge-small-zh-v1.5')
+  const root = await mkdtemp(join(tmpdir(), 'desktop-model-assets-'))
+  try {
+    const missing = join(root, 'missing')
+    await mkdir(missing)
+    await writeFile(join(missing, 'model-manifest.json'), await readFile(join(source, 'model-manifest.json')))
+    await writeFile(join(missing, 'LICENSE'), await readFile(join(source, 'LICENSE')))
+    await expect(verifyModelResources(missing)).rejects.toThrow('config.json')
+
+    const unapproved = join(root, 'unapproved')
+    await prepareModelAssets(source, unapproved)
+    const manifest = JSON.parse(await readFile(join(unapproved, 'model-manifest.json'), 'utf8')) as Record<string, unknown>
+    manifest.revision = 'unapproved'
+    await writeFile(join(unapproved, 'model-manifest.json'), `${JSON.stringify(manifest)}\n`)
+    await expect(verifyModelResources(unapproved)).rejects.toThrow('approved snapshot')
+
+    const modified = join(root, 'modified')
+    await prepareModelAssets(source, modified)
+    await writeFile(join(modified, 'config.json'), 'modified')
+    await expect(verifyModelResources(modified)).rejects.toThrow('SHA-256 mismatch')
+  } finally { await rm(root, { recursive: true, force: true }) }
 })
