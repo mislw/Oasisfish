@@ -45,6 +45,8 @@ import type {
   SessionPromptValue,
   SessionRenameRequest,
   SessionRenameValue,
+  SessionSetDefaultModelRequest,
+  SessionSetDefaultModelValue,
   SessionSelectModelRequest,
   SessionSelectModelValue,
   SessionUpdateQueueRequest,
@@ -78,6 +80,36 @@ export class SessionCommandController {
     private readonly agents: ApiSessionAgentController,
     private readonly defaultCwd: string,
   ) {}
+
+  private async resolveModelSelection(
+    request: SessionSetDefaultModelRequest,
+    applyAdapterReasoningDefault: boolean,
+  ): Promise<AgentModelSelection> {
+    try {
+      const resolved = await this.ctx.llm.resolveCallConfig({
+        provider: request.provider,
+        model: request.model,
+        ...(request.reasoningEffort === undefined
+          ? {}
+          : { reasoningEffort: ReasoningEffortId(request.reasoningEffort) }),
+      })
+      const reasoningEffort = applyAdapterReasoningDefault || request.reasoningEffort !== undefined
+        ? resolved.reasoningEffort
+        : undefined
+      return {
+        provider: resolved.provider,
+        model: resolved.model,
+        ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+      }
+    } catch (error) {
+      if (remoteErrorOf(error) !== undefined) throw error
+      throw new RemoteError(
+        'session/model-unavailable',
+        error instanceof Error ? error.message : String(error),
+        { provider: request.provider, model: request.model },
+      )
+    }
+  }
 
   /**
    * Create or idempotently adopt one ordinary Session.
@@ -126,6 +158,17 @@ export class SessionCommandController {
   }
 
   /**
+   * Validate and save the deployment default without addressing a Session.
+   * @param request - requested default model selection.
+   * @returns the normalized selection saved for future default reads.
+   */
+  async setDefaultModel(request: SessionSetDefaultModelRequest): Promise<SessionSetDefaultModelValue> {
+    const selected = await this.resolveModelSelection(request, false)
+    await this.ctx.agentDefaultModel.saveSelection(selected)
+    return { selected: { ...selected } }
+  }
+
+  /**
    * Validate and install one Session-local model selection.
    * @param request - Session identity and requested model selection.
    * @returns the normalized selection installed for the Session.
@@ -133,38 +176,16 @@ export class SessionCommandController {
   async selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue> {
     const agent = await this.resolveAgent(request.sessionId)
     return this.agents.serializeImageAdmission(agent, async () => {
+      const selected = await this.resolveModelSelection(request, true)
+      this.agents.selectForNextRequest(agent, selected)
       try {
-        const resolved = await this.ctx.llm.resolveCallConfig({
-          provider: request.provider,
-          model: request.model,
-          ...(request.reasoningEffort === undefined
-            ? {}
-            : { reasoningEffort: ReasoningEffortId(request.reasoningEffort) }),
-        })
-        const selected: AgentModelSelection = {
-          provider: resolved.provider,
-          model: resolved.model,
-          ...(resolved.reasoningEffort === undefined
-            ? {}
-            : { reasoningEffort: resolved.reasoningEffort }),
-        }
-        this.agents.selectForNextRequest(agent, selected)
-        try {
-          await this.ctx.agentDefaultModel.saveSelection(selected)
-        } catch (error) {
-          this.ctx.logger.warn(
-            `session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`,
-          )
-        }
-        return { selected: { ...selected } }
+        await this.ctx.agentDefaultModel.saveSelection(selected)
       } catch (error) {
-        if (remoteErrorOf(error) !== undefined) throw error
-        throw new RemoteError(
-          'session/model-unavailable',
-          error instanceof Error ? error.message : String(error),
-          { provider: request.provider, model: request.model },
+        this.ctx.logger.warn(
+          `session-controller: model selection changed for the Session but the default was not saved: ${String(error)}`,
         )
       }
+      return { selected: { ...selected } }
     })
   }
 

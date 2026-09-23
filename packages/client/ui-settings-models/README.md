@@ -1,5 +1,5 @@
 ---
-description: "Models settings and product-onboarding plugin for the dsh web client: provider rows, API-key management, model lists, and the DeepSeek first-run dialogs."
+description: "Models settings and product-onboarding plugin for the dsh web client: the session default, provider rows, API-key management, model lists, and the DeepSeek first-run dialogs."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, with provider rows and one editor card at a time. The page joins the provider directory, the settings document, and the credential descriptions into one shared snapshot, so a row's state stays consistent across all three. It also walks first-run users through two ordered dialogs — a versioned internal-testing notice and the conditional official-DeepSeek credential step.
+`dsh-client-ui-settings-models` is the Models settings page of the dsh web client: users choose the default model for new Sessions, configure API keys (stored write-only under the profile's credential reference), edit each provider's model list, and hand-declare custom pi-ai routes, with provider rows and one editor card at a time. The page joins the Host model catalog, provider directory, settings document, and credential descriptions into one shared snapshot. It also walks first-run users through two ordered dialogs — a versioned internal-testing notice and the conditional official-DeepSeek credential step.
 
 ## Table of Contents
 
@@ -27,6 +27,8 @@ English | [中文](README.zh.md)
 
 Open the Models page from the Settings navigation to see every configured provider as a row. A whole-section provider whose key is not configured anywhere renders as its open setup card instead, but only in the first-run posture and only until the user closes that card. Each card kind owns its own open state, so closing one never discards a draft in another.
 
+The Session default editor above the provider rows reads `ModelCatalog.default` and offers only the providers, models, and reasoning efforts in the same Host catalog. **Use model default** clears the explicit reasoning effort. Save validates the route through the Host and updates the editor from the normalized response; a rejected save keeps the draft and displays the Host diagnostic. The provider that owns the current default cannot be deleted until the user saves another default.
+
 A provider with a stored catalog error remains visible with its diagnostic and edit/delete actions. Add actions are offered only for registered settings namespaces, so an unavailable namespace cannot leave a button that opens no editor. A rejected save leaves the editor open and displays the Host diagnostic.
 
 ### API keys
@@ -43,7 +45,7 @@ Expand **Customized settings → Model options** to edit each model. Both provid
 
 ### Adding and deleting providers
 
-The add flow is a card carrying the dormant-directory provider select — a bare-mounted `llm-pi-ai` offers its whole installed catalog before any route exists. **Add a custom provider** declares a route pi-ai does not ship; the create card asks for a unique **Provider ID**, an endpoint, a protocol, and at least one uniquely-identified model, because nothing can default those. The endpoint must be a parseable HTTP or HTTPS URL; localhost, IPv4 and IPv6 literals, and custom ports remain valid. A syntax error blocks both discovery and creation at the field, while a request failure remains a separate provider error. **Fetch available models** asks the `llm/discoverModels` Remote about the endpoint the form shows, so adding a provider is one pass instead of save-then-return; the reply opens a searchable picker rather than being written, and nothing is written until **Add selected**. Each selected candidate copies its id, display name, context window, output-token cap, and disclosed input types into the editable row when disclosed, while an existing row retains its user-tuned values. Search matches model ids and optional display names without clearing hidden selections. **Select all** adds the visible results, while **Deselect all** clears the entire selection so hidden results cannot be adopted accidentally. A row is deletable only when the user layer alone carries it (removal restores the composition base), and its confirmation dialog names the provider.
+The add flow is a card carrying the dormant-directory provider select — a bare-mounted `llm-pi-ai` offers its whole installed catalog before any route exists. **Add a custom provider** declares a route pi-ai does not ship; the create card asks for a unique **Provider ID**, an endpoint, a protocol, and at least one uniquely-identified model, because nothing can default those. The endpoint must be a parseable HTTP or HTTPS URL; localhost, IPv4 and IPv6 literals, and custom ports remain valid. A syntax error blocks both discovery and creation at the field, while a request failure remains a separate provider error. **Fetch available models** asks the `llm/discoverModels` Remote about the endpoint the form shows, so adding a provider is one pass instead of save-then-return; the reply opens a searchable picker rather than being written, and nothing is written until **Add selected**. Each selected candidate copies its id, display name, context window, output-token cap, and disclosed input types into the editable row when disclosed, while an existing row retains its user-tuned values. Search matches model ids and optional display names without clearing hidden selections. **Select all** adds the visible results, while **Deselect all** clears the entire selection so hidden results cannot be adopted accidentally. A row is deletable only when the user layer alone carries it (removal restores the composition base), its confirmation dialog names the provider, and the current default provider remains protected until another default is saved.
 
 ### First-run dialogs
 
@@ -61,7 +63,7 @@ The section declares two seats for plugins distributed outside this repository, 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The page never holds a full settings section: it holds only the REDACTED descriptor, so every edit lands as `settings.mutate` path ops against the stored section — a set per changed field, an unset per cleared one, and a single unset for a deleted provider row.
+The page never holds a full settings section: it holds only the REDACTED descriptor, so every provider edit lands as `settings.mutate` path ops against the stored section — a set per changed field, an unset per cleared one, and a single unset for a deleted provider row. The default editor instead reads `session.modelCatalog()` and writes the complete selection through `session.setDefaultModel()`; the Host owns route validation and settings persistence.
 
 ### Validation
 

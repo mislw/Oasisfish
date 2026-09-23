@@ -12,8 +12,9 @@
  * re-renders from pushed invalidations or the post-apply reload.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import type { ModelCatalog, ModelSelection } from '@deepseek-ai/dsh-api-remotes/client'
 import { Button, IconPlusOutline16, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
@@ -59,6 +60,138 @@ type ModelsRenderSlot = PropsRenderSlots<ModelsChildSlots>['renderSlot']
 export type ModelsSectionProps = Partial<InjectFace<ModelsSectionInjected>> & PropsRenderSlots<ModelsChildSlots>
 
 type ModelsSectionFace = InjectFace<ModelsSectionInjected>
+
+interface DefaultModelEditorProps {
+  catalog: ModelCatalog
+  controller: ModelsSettingsStore
+  readOnly: boolean
+  t: ModelsSectionFace['t']
+}
+
+/** Render the saved default independently from Session-local selection. */
+function DefaultModelEditor({ catalog, controller, readOnly, t }: DefaultModelEditorProps): ReactNode {
+  const [provider, setProvider] = useState(catalog.default.provider)
+  const [model, setModel] = useState(catalog.default.model)
+  const [reasoningEffort, setReasoningEffort] = useState(catalog.default.reasoningEffort ?? '')
+  const [saving, setSaving] = useState(false)
+  const [failure, setFailure] = useState<string | undefined>(undefined)
+  const [saved, setSaved] = useState(false)
+  const group = catalog.groups.find(candidate => candidate.id === provider)
+  const selectedModel = group?.models.find(candidate => candidate.id === model)
+  const providerListed = catalog.groups.some(candidate => candidate.id === provider)
+  const modelListed = group?.models.some(candidate => candidate.id === model) === true
+  const effortListed = selectedModel?.reasoning?.efforts.some(effort => effort.id === reasoningEffort) === true
+
+  useEffect(() => {
+    setProvider(catalog.default.provider)
+    setModel(catalog.default.model)
+    setReasoningEffort(catalog.default.reasoningEffort ?? '')
+  }, [catalog.default.model, catalog.default.provider, catalog.default.reasoningEffort])
+
+  const chooseProvider = (nextProvider: string): void => {
+    const nextGroup = catalog.groups.find(candidate => candidate.id === nextProvider)
+    setProvider(nextProvider)
+    setModel(nextGroup?.models[0]?.id ?? '')
+    setReasoningEffort('')
+    setFailure(undefined)
+    setSaved(false)
+  }
+  const chooseModel = (nextModel: string): void => {
+    setModel(nextModel)
+    setReasoningEffort('')
+    setFailure(undefined)
+    setSaved(false)
+  }
+  const save = (): void => {
+    if (saving || provider.length === 0 || model.length === 0) return
+    const selection: ModelSelection = {
+      provider,
+      model,
+      ...(reasoningEffort.length === 0 ? {} : { reasoningEffort }),
+    }
+    setSaving(true)
+    setFailure(undefined)
+    setSaved(false)
+    void controller.selectDefault(selection)
+      .then((message) => {
+        if (message === undefined) setSaved(true)
+        else setFailure(message)
+      })
+      .finally(() => { setSaving(false) })
+  }
+
+  return (
+    <section className={styles['defaultEditor']} aria-labelledby="models-default-title">
+      <div className={styles['defaultHeader']}>
+        <h3 id="models-default-title" className={styles['defaultTitle']}>{t('defaultTitle')}</h3>
+        <p className={styles['defaultDescription']}>{t('defaultDescription')}</p>
+      </div>
+      <div className={styles['defaultFields']}>
+        <label className={styles['field']}>
+          <span className={styles['fieldLabel']}>{t('defaultProvider')}</span>
+          <select
+            className={`${styles['input']} ${styles['selectInput']}`}
+            value={provider}
+            disabled={saving || readOnly}
+            onChange={(event) => { chooseProvider(event.currentTarget.value) }}
+          >
+            {!providerListed ? <option value={provider}>{provider}</option> : null}
+            {catalog.groups.map(candidate => (
+              <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className={styles['field']}>
+          <span className={styles['fieldLabel']}>{t('defaultModel')}</span>
+          <select
+            className={`${styles['input']} ${styles['selectInput']}`}
+            value={model}
+            disabled={saving || readOnly}
+            onChange={(event) => { chooseModel(event.currentTarget.value) }}
+          >
+            {!modelListed && model.length > 0 ? <option value={model}>{model}</option> : null}
+            {group?.models.map(candidate => (
+              <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className={styles['field']}>
+          <span className={styles['fieldLabel']}>{t('defaultReasoningEffort')}</span>
+          <select
+            className={`${styles['input']} ${styles['selectInput']}`}
+            value={reasoningEffort}
+            disabled={saving || readOnly}
+            onChange={(event) => {
+              setReasoningEffort(event.currentTarget.value)
+              setFailure(undefined)
+              setSaved(false)
+            }}
+          >
+            <option value="">{t('defaultReasoningAutomatic')}</option>
+            {!effortListed && reasoningEffort.length > 0
+              ? <option value={reasoningEffort}>{reasoningEffort}</option>
+              : null}
+            {selectedModel?.reasoning?.efforts.map(effort => (
+              <option key={effort.id} value={effort.id}>{effort.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {failure === undefined ? null : <p className={styles['error']} role="alert">{failure}</p>}
+      {saved ? <p className={styles['savedNotice']} role="status">{t('defaultSaved')}</p> : null}
+      <div className={styles['defaultActions']}>
+        <button
+          type="button"
+          className={styles['primaryButton']}
+          disabled={saving || readOnly || provider.length === 0 || model.length === 0}
+          onClick={save}
+        >
+          {saving ? t('savingDefault') : t('saveDefault')}
+        </button>
+      </div>
+    </section>
+  )
+}
 
 /** Provider identity shared by row actions and confirmation copy. */
 export interface ProviderIdentity {
@@ -309,6 +442,16 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     <div className={styles['section']}>
       <h2 className={styles['title']}>{t('title')}</h2>
       <p className={styles['intro']}>{t('intro')}</p>
+      {state.catalog === null
+        ? null
+        : (
+          <DefaultModelEditor
+            catalog={state.catalog}
+            controller={controller}
+            readOnly={!state.writable}
+            t={t}
+          />
+        )}
       {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
       {savedIdentity === undefined
         ? null
@@ -408,7 +551,10 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                         type="button"
                         className={styles['dangerButton']}
                         aria-label={providerCopy(t('removeProvider'), target)}
-                        disabled={!state.writable}
+                        disabled={!state.writable || row.entry.provider === state.catalog?.default.provider}
+                        title={row.entry.provider === state.catalog?.default.provider
+                          ? t('defaultProviderProtected')
+                          : undefined}
                         onClick={() => {
                           setSavedTarget(undefined)
                           setDeleteFailure(undefined)

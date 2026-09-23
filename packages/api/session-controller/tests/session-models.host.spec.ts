@@ -8,7 +8,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { agentEvents } from '@deepseek-ai/dsh-agent'
-import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { Agent, ModelSelection as AgentModelSelection } from '@deepseek-ai/dsh-agent'
 import AttachmentStore from '@deepseek-ai/dsh-attachment'
 import LlmRuntime, { LlmAdapter, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {
@@ -158,6 +158,62 @@ function currentSelection(ctx: Context, sessionId: SessionId) {
 }
 
 describe('Web session model selection', () => {
+  it('saves a normalized default without addressing a Session', async () => {
+    const { ctx } = await harness()
+    let stored: AgentModelSelection = {
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: ReasoningEffortId('max'),
+    }
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => stored,
+      saveDefaultModelSelection: (selection) => { stored = { ...selection } },
+      cwd: '/tmp',
+    })
+
+    const selected = expectValue(await remote.setDefaultModel({
+      provider: 'deepseek-official', model: 'deepseek-chat',
+    }))
+
+    expect(selected.selected).toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
+    expect(ctx.agentDefaultModel.currentSelection()).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-chat',
+    })
+    ;(selected.selected as { model: string }).model = 'mutated-client-value'
+    expect(ctx.agentDefaultModel.currentSelection()).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-chat',
+    })
+    await ctx.fiber.dispose()
+  })
+
+  it('clears an omitted default reasoning effort and refuses an unavailable route', async () => {
+    const { ctx } = await harness()
+    let stored: AgentModelSelection = {
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: ReasoningEffortId('max'),
+    }
+    const remote = createSessionTestRemote(ctx, {
+      defaultModelSelection: () => stored,
+      saveDefaultModelSelection: (selection) => { stored = { ...selection } },
+      cwd: '/tmp',
+    })
+
+    expectValue(await remote.setDefaultModel({ provider: 'deepseek-official', model: 'deepseek-chat' }))
+    expect(ctx.agentDefaultModel.currentSelection()).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-chat',
+    })
+
+    expect(await remote.setDefaultModel({ provider: 'missing', model: 'model' })).toMatchObject({
+      ok: false,
+      error: {
+        code: 'session/model-unavailable',
+        message: 'no adapter registered for provider "missing"',
+        details: { provider: 'missing', model: 'model' },
+      },
+    })
+    expect(ctx.agentDefaultModel.currentSelection()).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-chat',
+    })
+    await ctx.fiber.dispose()
+  })
+
   it('validates an ordered image batch before persisting any member', async () => {
     const { ctx, agent, sessionId } = await harness()
     const validateImage = vi.fn((_input: { data: Uint8Array }) => Promise.resolve())

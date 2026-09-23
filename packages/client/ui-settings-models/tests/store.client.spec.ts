@@ -1,6 +1,6 @@
 /** Page-store join: directory × namespaces × credentials, with last-good rows on failure. */
 import { describe, expect, it } from 'vitest'
-import type { RpcResponse } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ModelCatalog, ModelSelection, RpcResponse } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import { SettingsDescribeMirror } from '@deepseek-ai/dsh-client-ui-settings/src/client/settings-mirror.ts'
 import { settingsSchema } from './settings-schema.client.ts'
@@ -42,6 +42,27 @@ const DIRECTORY = [
   { provider: 'ghost', displayName: 'Ghost', settingsNs: '', settingsPath: [], active: true },
 ]
 
+const CATALOG: ModelCatalog = {
+  default: { provider: 'deepseek-official', model: 'deepseek-chat' },
+  routableProviders: ['deepseek-official', 'openai'],
+  groups: [
+    {
+      id: 'deepseek-official',
+      name: 'DeepSeek',
+      models: [
+        { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+        {
+          id: 'deepseek-reasoner',
+          name: 'DeepSeek Reasoner',
+          reasoning: { efforts: [{ id: 'max', name: 'Max' }] },
+        },
+      ],
+    },
+    { id: 'openai', name: 'OpenAI', models: [{ id: 'gpt-4o', name: 'GPT-4o' }] },
+  ],
+  failures: [],
+}
+
 const NAMESPACES = [
   {
     ns: 'llm-deepseek',
@@ -67,6 +88,8 @@ function api(overrides: {
   providers?: () => Promise<RpcResponse<{ providers: typeof DIRECTORY }>>
   describeSettings?: () => Promise<RemoteAnswer<{ writable: boolean; hasDocument: boolean; namespaces: typeof NAMESPACES }>>
   describeCredentials?: (refs: readonly string[]) => Promise<RemoteAnswer<Record<string, unknown>>>
+  modelCatalog?: () => Promise<RemoteAnswer<ModelCatalog>>
+  setDefaultModel?: (selection: ModelSelection) => Promise<RemoteAnswer<{ selected: ModelSelection }>>
 } = {}) {
   const seenRefs: string[][] = []
   const providers = overrides.providers ?? (() => Promise.resolve(ok({ providers: DIRECTORY })))
@@ -96,6 +119,11 @@ function api(overrides: {
         .filter(row => row.settingsNs !== '')
         .map(({ active: _active, ...row }) => row)),
       discoverModels: () => Promise.resolve(remoteOk([])),
+    },
+    session: {
+      modelCatalog: overrides.modelCatalog ?? (() => Promise.resolve(remoteOk(CATALOG))),
+      setDefaultModel: overrides.setDefaultModel
+        ?? ((selection: ModelSelection) => Promise.resolve(remoteOk({ selected: selection }))),
     },
     settings: {
       describe: overrides.describeSettings
@@ -127,6 +155,7 @@ describe('ModelsSettingsStore', () => {
     expect(state.status).toBe('ready')
     expect(state.writable).toBe(true)
     expect(state.credentialError).toBeNull()
+    expect(state.catalog?.default).toEqual({ provider: 'deepseek-official', model: 'deepseek-chat' })
     // Named references first (rows order), then the derived <ROUTE>_API_KEY
     // of every row whose profile names none — one batched describe.
     expect(seenRefs).toEqual([['DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GHOST_API_KEY']])
@@ -147,6 +176,45 @@ describe('ModelsSettingsStore', () => {
     expect(byProvider.get('anthropic')?.apiKeyEnv).toBeUndefined()
     expect(byProvider.get('ghost')).toMatchObject({ configured: false, removable: false })
     expect(state.namespaces.get('llm-pi-ai')?.ns).toBe('llm-pi-ai')
+  })
+
+  it('saves the selected default and adopts the normalized Host value', async () => {
+    const requests: ModelSelection[] = []
+    const { ctx, mirror } = api({
+      setDefaultModel: (selection) => {
+        requests.push(selection)
+        return Promise.resolve(remoteOk({
+          selected: { provider: selection.provider, model: selection.model, reasoningEffort: 'high' },
+        }))
+      },
+    })
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+
+    await expect(store.selectDefault({
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
+    })).resolves.toBeUndefined()
+
+    expect(requests).toEqual([{
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
+    }])
+    expect(store.store.getSnapshot().catalog?.default).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'high',
+    })
+  })
+
+  it('returns a default-save failure without replacing the loaded selection', async () => {
+    const { ctx, mirror } = api({
+      setDefaultModel: () => Promise.resolve(remoteFail('settings are read-only')),
+    })
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+
+    await expect(store.selectDefault({ provider: 'openai', model: 'gpt-4o' }))
+      .resolves.toBe('settings are read-only')
+    expect(store.store.getSnapshot().catalog?.default).toEqual({
+      provider: 'deepseek-official', model: 'deepseek-chat',
+    })
   })
 
   it('degrades the credential badge, not the page, when the credential domain fails', async () => {

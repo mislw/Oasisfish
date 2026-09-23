@@ -306,6 +306,18 @@ export interface SessionSelectModelValue {
   readonly selected: ModelSelection
 }
 
+/** Deployment default-model request. */
+export interface SessionSetDefaultModelRequest {
+  readonly provider: string
+  readonly model: string
+  readonly reasoningEffort?: string
+}
+
+/** Saved deployment default after Host resolution. */
+export interface SessionSetDefaultModelValue {
+  readonly selected: ModelSelection
+}
+
 /** Session rename request. */
 export interface SessionRenameRequest {
   readonly sessionId: SessionId

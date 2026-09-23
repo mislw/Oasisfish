@@ -50,6 +50,8 @@ import type {
   SessionRenameValue,
   SessionSearchRequest,
   SessionSearchValue,
+  SessionSetDefaultModelRequest,
+  SessionSetDefaultModelValue,
   SessionSelectModelRequest,
   SessionSelectModelValue,
   SessionUpdateQueueRequest,
@@ -309,6 +311,16 @@ export class SessionController extends TypertRemoteService {
   @Remote('create')
   create(request: SessionCreateRequest): Promise<SessionCreateValue> {
     return this.commands.create(request)
+  }
+
+  /**
+   * Save the deployment default without creating or resuming a Session.
+   * @param request - requested default model selection.
+   * @returns the normalized selection saved for future default reads.
+   */
+  @Remote('setDefaultModel')
+  setDefaultModel(request: SessionSetDefaultModelRequest): Promise<SessionSetDefaultModelValue> {
+    return this.commands.setDefaultModel(request)
   }
 
   /**

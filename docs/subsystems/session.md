@@ -801,6 +801,13 @@ inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionInspectio
 @Remote('create') create(request: SessionCreateRequest): Promise<SessionCreateValue>
 
 /**
+ * Save the deployment default without creating or resuming a Session.
+ * @param request - requested default model selection.
+ * @returns the normalized selection saved for future default reads.
+ */
+@Remote('setDefaultModel') setDefaultModel(request: SessionSetDefaultModelRequest): Promise<SessionSetDefaultModelValue>
+
+/**
  * Select one Session-local model after explicitly resuming the Session.
  * @param request - Session identity and requested model selection.
  * @returns the normalized selection installed for the Session.

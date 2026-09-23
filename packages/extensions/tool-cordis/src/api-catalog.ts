@@ -1707,6 +1707,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the Session identity and resolved preset when configured.',
       },
       {
+        signature: '@Remote(\'setDefaultModel\') setDefaultModel(request: SessionSetDefaultModelRequest): Promise<SessionSetDefaultModelValue>',
+        description: 'Save the deployment default without creating or resuming a Session.',
+        parameters: [{ name: 'request', description: 'requested default model selection.' }],
+        returns: 'the normalized selection saved for future default reads.',
+      },
+      {
         signature: '@Remote(\'selectModel\') selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue>',
         description: 'Select one Session-local model after explicitly resuming the Session.',
         parameters: [{ name: 'request', description: 'Session identity and requested model selection.' }],
@@ -6107,6 +6113,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionSeqCursor',
     declaration: 'export type SessionSeqCursor = SessionSeq | -1;',
+  },
+  {
+    name: 'SessionSetDefaultModelRequest',
+    declaration: 'export interface SessionSetDefaultModelRequest {\n    readonly provider: string;\n    readonly model: string;\n    readonly reasoningEffort?: string;\n}',
+  },
+  {
+    name: 'SessionSetDefaultModelValue',
+    declaration: 'export interface SessionSetDefaultModelValue {\n    readonly selected: ModelSelection;\n}',
   },
   {
     name: 'SessionStartSource',

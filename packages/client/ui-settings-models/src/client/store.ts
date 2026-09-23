@@ -9,7 +9,8 @@
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {
-  CredentialInfo, LlmConfigurableProvider, LlmProviderInfo, SettingsNamespaceView,
+  CredentialInfo, LlmConfigurableProvider, LlmProviderInfo, ModelCatalog, ModelSelection,
+  SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
@@ -99,6 +100,8 @@ export interface ModelsSettingsState {
   writable: boolean
   /** Every configurable provider joined with its configured/credential state. */
   rows: readonly ProviderRow[]
+  /** Host model directory and the saved default selection. */
+  catalog: ModelCatalog | null
   /** Namespace views by ns, for the editor's schema/layers/secrets. */
   namespaces: ReadonlyMap<string, SettingsNamespaceView>
 }
@@ -151,7 +154,8 @@ function apiKeyEnvOf(
 export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
-    status: 'idle', error: null, credentialError: null, writable: false, rows: [], namespaces: new Map(),
+    status: 'idle', error: null, credentialError: null, writable: false, rows: [], catalog: null,
+    namespaces: new Map(),
   })
 
   /** Latest load wins; an older response never overwrites a newer one. */
@@ -180,13 +184,15 @@ export class ModelsSettingsStore {
   async load(): Promise<void> {
     const generation = ++this.generation
     this.store.update((s) => { s.status = 'loading'; s.error = null })
-    const [registered, declared] = await Promise.all([
+    const [registered, declared, catalog] = await Promise.all([
       this.ctx.remote.llm.listProviders(),
       this.ctx.remote.llm.listConfigurableProviders(),
+      this.ctx.remote.session.modelCatalog(),
       this.describeFace.ensure(),
     ])
     if (!registered.ok) { this.failLoad(generation, registered.error.message); return }
     if (!declared.ok) { this.failLoad(generation, declared.error.message); return }
+    if (!catalog.ok) { this.failLoad(generation, catalog.error.message); return }
     const mirrored = this.describeFace.getSnapshot()
     if (mirrored.view === undefined) {
       this.failLoad(generation, mirrored.error ?? 'settings are unavailable in this browser')
@@ -229,6 +235,7 @@ export class ModelsSettingsStore {
       s.error = null
       s.credentialError = credentialError
       s.writable = writable
+      s.catalog = catalog.value
       s.rows = rows.map((row) => {
         const named = row.apiKeyEnv === undefined ? undefined : credentials[row.apiKeyEnv]
         const derived = row.apiKeyEnv !== undefined ? undefined : credentials[deriveKeyRef(row.entry.provider)]
@@ -240,6 +247,21 @@ export class ModelsSettingsStore {
       })
       s.namespaces = namespaces
     })
+  }
+
+  /**
+   * Save the default selection and adopt the normalized Host response.
+   * @param selection - provider, model, and optional explicit reasoning effort.
+   * @returns the Host failure message, or undefined after the snapshot updates.
+   */
+  async selectDefault(selection: ModelSelection): Promise<string | undefined> {
+    const response = await this.ctx.remote.session.setDefaultModel(selection)
+    if (!response.ok) return response.error.message
+    this.store.update((state) => {
+      if (state.catalog === null) return
+      state.catalog = { ...state.catalog, default: { ...response.value.selected } }
+    })
+    return undefined
   }
 
   /** Publish one load's failure text, unless a newer load already took over. */

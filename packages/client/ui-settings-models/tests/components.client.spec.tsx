@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import Schema from '@deepseek-ai/schemastery'
 import { bindSnapshotSelector, RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type {
-  CredentialInfo, RemoteResult, SettingsNamespaceView,
+  CredentialInfo, ModelCatalog, ModelSelection, RemoteResult, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
@@ -90,6 +90,32 @@ const DEFAULT_DEEPSEEK_MODELS = [
   { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro', contextWindow: 1_000_000 },
 ]
 
+const MODEL_CATALOG: ModelCatalog = {
+  default: { provider: 'deepseek-official', model: 'deepseek-chat' },
+  routableProviders: ['deepseek-official', 'openai'],
+  groups: [
+    {
+      id: 'deepseek-official',
+      name: 'DeepSeek',
+      models: [
+        { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+        {
+          id: 'deepseek-reasoner',
+          name: 'DeepSeek Reasoner',
+          reasoning: {
+            efforts: [
+              { id: 'off', name: 'Off' },
+              { id: 'max', name: 'Max' },
+            ],
+          },
+        },
+      ],
+    },
+    { id: 'openai', name: 'OpenAI', models: [{ id: 'gpt-4o', name: 'GPT-4o' }] },
+  ],
+  failures: [],
+}
+
 function wireNamespaces(): SettingsNamespaceView[] {
   return [
     {
@@ -162,12 +188,17 @@ function scriptedFace(overrides: {
   mutate?: ReturnType<typeof vi.fn>
   set?: ReturnType<typeof vi.fn>
   unset?: ReturnType<typeof vi.fn>
+  modelCatalog?: ReturnType<typeof vi.fn>
+  setDefaultModel?: ReturnType<typeof vi.fn>
 } = {}) {
   const providerNamespace = wireNamespaces().find(view => view.ns === 'llm-pi-ai')!
   const update = overrides.update ?? vi.fn(() => Promise.resolve(remoteOk(providerNamespace)))
   const mutate = overrides.mutate ?? vi.fn(() => Promise.resolve(remoteOk(providerNamespace)))
   const set = overrides.set ?? vi.fn(() => Promise.resolve(remoteOk(undefined)))
   const unset = overrides.unset ?? vi.fn(() => Promise.resolve(remoteOk(undefined)))
+  const modelCatalog = overrides.modelCatalog ?? vi.fn(() => Promise.resolve(remoteOk(MODEL_CATALOG)))
+  const setDefaultModel = overrides.setDefaultModel
+    ?? vi.fn((selection: ModelSelection) => Promise.resolve(remoteOk({ selected: selection })))
   const face = {
     llm: {
       listProviders: vi.fn(() => Promise.resolve(remoteOk([
@@ -183,6 +214,10 @@ function scriptedFace(overrides: {
         { provider: 'plain', displayName: 'plain', settingsNs: 'llm-plain', settingsPath: ['profiles', 'plain'], active: false },
       ].map(({ active: _active, ...entry }) => entry)))),
       discoverModels: vi.fn(() => Promise.resolve(remoteOk([]))),
+    },
+    session: {
+      modelCatalog,
+      setDefaultModel,
     },
     settings: {
       describe: vi.fn(() => Promise.resolve(remoteOk({ writable: true, hasDocument: false, namespaces: wireNamespaces() }))),
@@ -204,7 +239,7 @@ function scriptedFace(overrides: {
       unset,
     },
   }
-  return { face, update, mutate, set, unset }
+  return { face, update, mutate, set, unset, modelCatalog, setDefaultModel }
 }
 
 type PageContext = ConstructorParameters<typeof ModelsSettingsStore>[0]
@@ -260,7 +295,7 @@ function cardSeatCalls(
 }
 
 async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
-  const { face, update, mutate, set, unset } = scripted
+  const { face, update, mutate, set, unset, modelCatalog, setDefaultModel } = scripted
   const ctx = ctxWith(face)
   const mirror = new SettingsDescribeMirror(ctx)
   const controller = new ModelsSettingsStore(ctx, settingsSchema, mirror)
@@ -275,7 +310,9 @@ async function mountFace(scripted: ReturnType<typeof scriptedFace>) {
     renderSlot: renderSlot as unknown as ModelsSectionProps['renderSlot'],
   }
   const view = render(<ModelsSection {...injected} />)
-  return { view, ctx, face, update, mutate, set, unset, controller, mirror, renderSlot }
+  return {
+    view, ctx, face, update, mutate, set, unset, modelCatalog, setDefaultModel, controller, mirror, renderSlot,
+  }
 }
 
 async function mountSection(overrides: Parameters<typeof scriptedFace>[0] = {}) {
@@ -307,6 +344,74 @@ async function mountDeepSeekCard(overrides: Parameters<typeof scriptedFace>[0] =
 }
 
 describe('ModelsSection', () => {
+  it('edits the initial default across provider, model, and reasoning controls', async () => {
+    const setDefaultModel = vi.fn((selection: ModelSelection) => Promise.resolve(remoteOk({
+      selected: { ...selection, reasoningEffort: 'off' },
+    })))
+    await mountSection({ setDefaultModel })
+    const provider = screen.getByLabelText<HTMLSelectElement>(en.defaultProvider)
+    const model = screen.getByLabelText<HTMLSelectElement>(en.defaultModel)
+    const effort = screen.getByLabelText<HTMLSelectElement>(en.defaultReasoningEffort)
+
+    expect(provider.value).toBe('deepseek-official')
+    expect(model.value).toBe('deepseek-chat')
+    expect(effort.value).toBe('')
+
+    fireEvent.change(provider, { target: { value: 'openai' } })
+    expect(model.value).toBe('gpt-4o')
+    expect(effort.value).toBe('')
+    fireEvent.change(provider, { target: { value: 'deepseek-official' } })
+    fireEvent.change(model, { target: { value: 'deepseek-reasoner' } })
+    fireEvent.change(effort, { target: { value: 'max' } })
+    fireEvent.click(screen.getByRole('button', { name: en.saveDefault }))
+
+    await waitFor(() => {
+      expect(setDefaultModel).toHaveBeenCalledWith({
+        provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max',
+      })
+    })
+    expect(screen.getByRole('status').textContent).toBe(en.defaultSaved)
+    expect(effort.value).toBe('off')
+  })
+
+  it('clears default reasoning effort by omitting it from the save request', async () => {
+    const catalog: ModelCatalog = {
+      ...MODEL_CATALOG,
+      default: { provider: 'deepseek-official', model: 'deepseek-reasoner', reasoningEffort: 'max' },
+    }
+    const modelCatalog = vi.fn(() => Promise.resolve(remoteOk(catalog)))
+    const setDefaultModel = vi.fn((selection: ModelSelection) => Promise.resolve(remoteOk({ selected: selection })))
+    await mountSection({ modelCatalog, setDefaultModel })
+
+    fireEvent.change(screen.getByLabelText(en.defaultReasoningEffort), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: en.saveDefault }))
+
+    await waitFor(() => {
+      expect(setDefaultModel).toHaveBeenCalledWith({
+        provider: 'deepseek-official', model: 'deepseek-reasoner',
+      })
+    })
+  })
+
+  it('keeps the default editor open and reports a refused save', async () => {
+    const setDefaultModel = vi.fn(() => Promise.resolve(remoteFail('default is read-only', 'gateway/internal')))
+    await mountSection({ setDefaultModel })
+
+    fireEvent.click(screen.getByRole('button', { name: en.saveDefault }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe('default is read-only')
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.saveDefault }).disabled).toBe(false)
+  })
+
+  it('protects the provider used by the default from deletion', async () => {
+    const catalog: ModelCatalog = { ...MODEL_CATALOG, default: { provider: 'openai', model: 'gpt-4o' } }
+    await mountSection({ modelCatalog: vi.fn(() => Promise.resolve(remoteOk(catalog))) })
+
+    const remove = screen.getByRole<HTMLButtonElement>('button', { name: openaiCopy(en.removeProvider) })
+    expect(remove.disabled).toBe(true)
+    expect(remove.title).toBe(en.defaultProviderProtected)
+  })
+
   it('hides both add actions when their settings namespaces are absent', async () => {
     const scripted = scriptedFace()
     scripted.face.settings.describe.mockResolvedValue(remoteOk({ writable: true, hasDocument: false, namespaces: [] }))
@@ -425,7 +530,7 @@ describe('ModelsSection', () => {
     await mountFirstRun()
     // Nothing is reachable yet, and DeepSeek has no configured credential and
     // no stored apiKey → setup card.
-    expect(screen.getByText('DeepSeek')).toBeTruthy()
+    expect(within(screen.getAllByRole('listitem')[0]!).getByText('DeepSeek')).toBeTruthy()
     expect(screen.getByLabelText(en.keyInput)).toBeTruthy()
     expect(screen.getByText('openai')).toBeTruthy()
     expect(screen.queryByText('Active')).toBeNull()
@@ -1480,7 +1585,7 @@ describe('ModelsSection', () => {
       t={t}
       renderSlot={() => null}
     />)
-    await screen.findByText('DeepSeek')
+    await screen.findByRole('button', { name: deepSeekCopy(en.editProvider) })
   })
 
   it('removes by unsetting the profile path, never by rebuilding the section', async () => {
