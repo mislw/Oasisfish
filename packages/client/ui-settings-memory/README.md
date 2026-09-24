@@ -51,7 +51,7 @@ The page loads the effective records for the main-view Session `cwd`, separates 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The Host entry is intentionally side-effect free because the memory Service owns Remote methods. The Client entry registers localized copy and one `settings.section` slot, while `MemorySettingsStore` serializes Remote operations, keeps the last successful record set during failures, and ignores mutation settlements after a newer project load starts. The component reads the renderer-owned Session snapshot and selects the row retained by the main view instead of maintaining another Session subscription.
+The Host entry is intentionally side-effect free because the memory Service owns Remote methods. The Client entry registers localized copy and one `settings.section` slot, while `MemorySettingsStore` serializes Remote operations, keeps the last successful record set during failures, and suppresses stale state writes after a newer project load starts while still reporting whether the Host committed the mutation. The component reads the renderer-owned Session snapshot and selects the row retained by the main view instead of maintaining another Session subscription.
 
 | File | Role |
 |---|---|

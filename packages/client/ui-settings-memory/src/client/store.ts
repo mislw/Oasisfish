@@ -124,7 +124,7 @@ export class MemorySettingsStore {
     this.store.set({ ...current, operation, failure: undefined })
     try {
       const result = await run()
-      if (generation !== this.loadToken) return false
+      if (generation !== this.loadToken) return result.ok
       const latest = this.store.getSnapshot()
       if (!result.ok) {
         this.store.set({ ...current, operation: undefined, failure: result.error.message })

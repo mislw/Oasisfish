@@ -51,7 +51,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部细节 — 点击展开</summary>
 
-Host entry 有意不产生副作用，因为 memory Service 拥有 Remote 方法。Client entry 注册本地化文案和一个 `settings.section` slot，`MemorySettingsStore` 则串行执行 Remote 操作，在失败期间保留最后一次成功的记录集合，并忽略较新的项目加载开始后才结算的变更。组件读取 renderer 拥有的 Session 快照，并选择 main view 保留的条目，而不维护另一份 Session 订阅。
+Host entry 有意不产生副作用，因为 memory Service 拥有 Remote 方法。Client entry 注册本地化文案和一个 `settings.section` slot，`MemorySettingsStore` 则串行执行 Remote 操作，在失败期间保留最后一次成功的记录集合，并在较新的项目加载开始后抑制陈旧状态写入，同时仍报告 Host 是否已提交该变更。组件读取 renderer 拥有的 Session 快照，并选择 main view 保留的条目，而不维护另一份 Session 订阅。
 
 | 文件 | 作用 |
 |---|---|

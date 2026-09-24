@@ -182,7 +182,7 @@ describe('MemorySettingsStore', () => {
     await controller.load('/work/project-b')
     pendingAdd.resolve({ ok: true, value: { ...PROJECT_A_RECORD, id: MemoryId('late-a'), content: 'Late A fact.' } })
 
-    await expect(mutation).resolves.toBe(false)
+    await expect(mutation).resolves.toBe(true)
     expect(controller.store.getSnapshot()).toEqual({
       status: 'ready', enabled: false, records: [PROJECT_B_RECORD], operation: undefined, failure: undefined,
     })
