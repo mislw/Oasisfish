@@ -1179,6 +1179,45 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'imageInputImages',
+    summary: 'Current-turn direct-user image inputs shared by optimizer and executor Consumers.',
+    description: 'Current-turn direct-user image inputs shared by optimizer and executor Consumers.',
+    methods: [
+      {
+        signature: 'references(agent: Agent): readonly ImageAttachmentRef[]',
+        description: 'Return a defensive copy of one live Agent\'s admitted current-turn images.',
+        parameters: [{ name: 'agent', description: 'live Agent whose current input is requested.' }],
+        returns: 'durable image references in admitted message and content order.',
+      },
+    ],
+  },
+  {
+    key: 'imageOptimizer',
+    summary: 'Concrete service owner for image optimization configuration and operations.',
+    description: 'Concrete service owner for image optimization configuration and operations.',
+    methods: [
+      {
+        signature: 'readonly config: ResolvedConfig',
+        description: 'Validated deployment limits with every default materialized.',
+        parameters: [],
+      },
+      {
+        signature: 'registerProvider(provider: ImageOptimizationProvider): () => void',
+        description: 'Register one borrowed Provider until the returned disposer runs.',
+        parameters: [{ name: 'provider', description: 'Provider contributing explicit resolution and matching.' }],
+        returns: 'disposer for the exact Provider registration.',
+        throws: ['{Error} when the Provider identity is invalid or its name is already registered.'],
+      },
+      {
+        signature: 'async optimize( request: ImageOptimizationRequest, options?: ImageOptimizerOptions, ): Promise<ImageOptimizationResult>',
+        description: 'Select Provider evidence and prepare an executor-neutral specification.',
+        parameters: [{ name: 'request', description: 'complete Provider-neutral user task.' }, { name: 'options', description: 'optional cancellation and durable reference transport.' }],
+        returns: 'a prepared specification or caller-actionable clarification issues.',
+        throws: ['{ImageOptimizationInputError} when request structure or configured limits are invalid.', '{ImageOptimizationError} when references, roles, or explicit source ids cannot be resolved.', '{DOMException} when cancellation is requested before compilation completes.'],
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',
@@ -4800,6 +4839,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    tools?: ToolSchema[];\n}',
   },
   {
+    name: 'ExactTextRequest',
+    declaration: 'export interface ExactTextRequest {\n    text: string;\n    placement?: string;\n    preserveCase: boolean;\n}',
+  },
+  {
+    name: 'ExactTextRequirement',
+    declaration: 'export interface ExactTextRequirement extends ExactTextRequest {\n}',
+  },
+  {
     name: 'FeedbackCategory',
     declaration: 'export type FeedbackCategory = \'task-result\' | \'instruction-following\' | \'product-interaction\' | \'service-stability\' | \'resource-cost\' | \'security-privacy-permission\' | \'other\';',
   },
@@ -4897,7 +4944,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GenerateImageRequest',
-    declaration: 'export interface GenerateImageRequest {\n    prompt: string;\n    count?: number;\n    variations?: readonly string[];\n    size?: string;\n    referenceImages?: readonly ImageAttachmentRef[];\n    quality?: \'low\' | \'medium\' | \'high\';\n    signal?: AbortSignal;\n}',
+    declaration: 'export interface GenerateImageRequest {\n    prompt: string;\n    count?: number;\n    variations?: readonly string[];\n    size?: string;\n    aspectRatio?: string;\n    transparentBackground?: boolean;\n    requiredCapabilities?: readonly string[];\n    referenceImages?: readonly ImageAttachmentRef[];\n    quality?: \'low\' | \'medium\' | \'high\';\n    signal?: AbortSignal;\n}',
   },
   {
     name: 'GenerateOptions',
@@ -4976,8 +5023,72 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ImageBlock {\n    type: \'image\';\n    attachment: ImageAttachmentRef;\n    offloaded?: true;\n}',
   },
   {
+    name: 'ImageGenerationSpec',
+    declaration: 'export interface ImageGenerationSpec {\n    schemaVersion: 1;\n    operation: ImageOperation;\n    canonicalPrompt: string;\n    references: readonly ImageReferencePlan[];\n    composition: readonly string[];\n    visualStyle: readonly string[];\n    scene: readonly string[];\n    exactText: readonly ExactTextRequirement[];\n    output: ImageOutputRequirement;\n    preserve: readonly string[];\n    negativeConstraints: readonly string[];\n    requiredCapabilities: readonly string[];\n    evidence: readonly ImageOptimizationEvidence[];\n    warnings: readonly string[];\n}',
+  },
+  {
     name: 'ImageMediaType',
     declaration: 'export type ImageMediaType = \'image/png\' | \'image/jpeg\' | \'image/webp\' | \'image/gif\';',
+  },
+  {
+    name: 'ImageOperation',
+    declaration: 'export type ImageOperation = \'generate\' | \'edit\' | \'variation\';',
+  },
+  {
+    name: 'ImageOptimizationCandidate',
+    declaration: 'export interface ImageOptimizationCandidate {\n    kind: \'template\' | \'case\';\n    id: string;\n    category?: string;\n    score: number;\n    composition: readonly string[];\n    visualStyle: readonly string[];\n    scene: readonly string[];\n    preserve: readonly string[];\n    avoid: readonly string[];\n    requiredCapabilities: readonly string[];\n    visualStyleTags: readonly string[];\n    sceneTags: readonly string[];\n    source: {\n        title: string;\n        url: string;\n        license: string;\n        redistributablePrompt: boolean;\n    };\n}',
+  },
+  {
+    name: 'ImageOptimizationEvidence',
+    declaration: 'export interface ImageOptimizationEvidence {\n    provider: string;\n    templateId?: string;\n    caseIds: readonly string[];\n    visualStyleTags: readonly string[];\n    sceneTags: readonly string[];\n}',
+  },
+  {
+    name: 'ImageOptimizationIssue',
+    declaration: 'export interface ImageOptimizationIssue {\n    code: \'IMAGE_EXACT_TEXT_CONFLICT\';\n    path: string;\n    message: string;\n}',
+  },
+  {
+    name: 'ImageOptimizationProvider',
+    declaration: 'export interface ImageOptimizationProvider {\n    name: string;\n    rank: number;\n    resolve(selection: ImageOptimizationSelection, signal?: AbortSignal): Promise<readonly ImageOptimizationCandidate[]>;\n    match(query: ImageOptimizationQuery, signal?: AbortSignal): Promise<readonly ImageOptimizationCandidate[]>;\n}',
+  },
+  {
+    name: 'ImageOptimizationQuery',
+    declaration: 'export interface ImageOptimizationQuery {\n    intent: string;\n    locale: string;\n    category?: string;\n    styleHints: readonly string[];\n    sceneHints: readonly string[];\n}',
+  },
+  {
+    name: 'ImageOptimizationRequest',
+    declaration: 'export interface ImageOptimizationRequest {\n    operation: ImageOperation;\n    intent: string;\n    references: readonly ImageReferenceRequest[];\n    exactText: readonly ExactTextRequest[];\n    output: ImageOutputRequest;\n    preserve: readonly string[];\n    avoid: readonly string[];\n    locale: string;\n    category?: string;\n    styleHints: readonly string[];\n    sceneHints: readonly string[];\n    templateId?: string;\n    caseIds: readonly string[];\n}',
+  },
+  {
+    name: 'ImageOptimizationResult',
+    declaration: 'export type ImageOptimizationResult = {\n    status: \'prepared\';\n    spec: ImageGenerationSpec;\n} | {\n    status: \'needs_clarification\';\n    issues: readonly ImageOptimizationIssue[];\n};',
+  },
+  {
+    name: 'ImageOptimizationSelection',
+    declaration: 'export interface ImageOptimizationSelection {\n    templateId?: string;\n    caseIds: readonly string[];\n}',
+  },
+  {
+    name: 'ImageOptimizerOptions',
+    declaration: 'export interface ImageOptimizerOptions {\n    signal?: AbortSignal;\n    resolvedReferences?: readonly ResolvedImageReference[];\n}',
+  },
+  {
+    name: 'ImageOutputRequest',
+    declaration: 'export interface ImageOutputRequest {\n    aspectRatio?: string;\n    width?: number;\n    height?: number;\n    transparentBackground: boolean;\n    count: number;\n}',
+  },
+  {
+    name: 'ImageOutputRequirement',
+    declaration: 'export interface ImageOutputRequirement extends ImageOutputRequest {\n}',
+  },
+  {
+    name: 'ImageReferencePlan',
+    declaration: 'export interface ImageReferencePlan extends ImageReferenceRequest {\n    attachment: ImageAttachmentRef;\n}',
+  },
+  {
+    name: 'ImageReferenceRequest',
+    declaration: 'export interface ImageReferenceRequest {\n    inputIndex: number;\n    role: ImageReferenceRole;\n    priority: number;\n}',
+  },
+  {
+    name: 'ImageReferenceRole',
+    declaration: 'export type ImageReferenceRole = \'style\' | \'layout\' | \'content\' | \'edit-target\';',
   },
   {
     name: 'ImageRequestTarget',
@@ -5778,6 +5889,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ResolvedCredential',
     declaration: 'export interface ResolvedCredential {\n    value: string;\n    source: string;\n}',
+  },
+  {
+    name: 'ResolvedImageReference',
+    declaration: 'export interface ResolvedImageReference {\n    inputIndex: number;\n    attachment: ImageAttachmentRef;\n}',
   },
   {
     name: 'ResolvedNormalRetryPolicy',

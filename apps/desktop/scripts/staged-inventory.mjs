@@ -5,7 +5,15 @@ import { inspectRegularTree } from './regular-tree.mjs'
 
 const OWNED_STAGED_ROOTS = Object.freeze([
   'bundled-skills',
+  'desktop',
   'models',
+])
+
+const APPLICATION_APPROVED_FILES = Object.freeze([
+  Object.freeze({
+    path: 'desktop/oasisfish.cordis.patch.yml',
+    sha256: 'edaee3f9d8e6903aabab144554d2eb87fa7729b198054ce26490a9f3a698f013',
+  }),
 ])
 
 function approvedInventory() {
@@ -33,7 +41,7 @@ export const RETRIEVAL_APPROVED_FILES = Object.freeze(approvedInventory())
 
 function approvedDirectories() {
   const directories = new Set(OWNED_STAGED_ROOTS)
-  for (const file of RETRIEVAL_APPROVED_FILES) {
+  for (const file of [...RETRIEVAL_APPROVED_FILES, ...APPLICATION_APPROVED_FILES]) {
     const segments = file.path.split('/')
     segments.pop()
     while (segments.length > 0) {
@@ -67,7 +75,9 @@ export async function verifyStagedRetrievalResources(root) {
     for (const file of tree.files) actualFiles.set(`${ownedRoot}/${file.path}`, file.absolutePath)
   }
 
-  const approvedFiles = new Map(RETRIEVAL_APPROVED_FILES.map(file => [file.path, file.sha256]))
+  const approvedFiles = new Map(
+    [...RETRIEVAL_APPROVED_FILES, ...APPLICATION_APPROVED_FILES].map(file => [file.path, file.sha256]),
+  )
   const allowedDirectories = approvedDirectories()
   const missing = [...approvedFiles.keys()].filter(path => !actualFiles.has(path))
   const extraFiles = [...actualFiles.keys()].filter(path => !approvedFiles.has(path))
@@ -84,6 +94,6 @@ export async function verifyStagedRetrievalResources(root) {
       ...extraDirectories.sort().map(path => `- extra directory: ${path}`),
       ...modified.sort().map(path => `- modified file: ${path}`),
     ]
-    throw new Error(`Desktop retrieval inventory mismatch:\n${lines.join('\n')}`)
+    throw new Error(`Desktop staged retrieval inventory mismatch:\n${lines.join('\n')}`)
   }
 }

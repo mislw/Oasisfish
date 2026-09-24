@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/promises'
+import { DatabaseSync } from 'node:sqlite'
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -28,6 +29,14 @@ import type {} from '@deepseek-ai/dsh-tools'
 // Type-only: resolves `ctx.get('sessionProjections')` and `ctx.get('tokenMeter')`.
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from '@deepseek-ai/dsh-token-meter'
+import { IMAGE_GENERATION_SETTINGS_NAMESPACE } from '@deepseek-ai/dsh-image-generation'
+import type { ImageOptimizationRequest } from '@deepseek-ai/dsh-image-optimizer'
+import { SkillSearchProviderName } from '@deepseek-ai/dsh-skill-search'
+import {
+  DeterministicFixtureEmbedder,
+  LocalSkillSearchProvider,
+  openSkillSearchStore,
+} from '@deepseek-ai/dsh-skill-search-local'
 
 const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 /** The shipped Web surface: the dsh-base and dsh-web-app bundle patches over an empty preset root. */
@@ -39,6 +48,7 @@ const CLAUDE_CODE_PACKAGE_DIR = join(REPO_ROOT, 'packages/subagent/subagent-clau
 /** The installation anchor whose dependency surface the preset module fallback mirrors. */
 const INSTALL_ANCHOR = join(REPO_ROOT, 'apps/cli/package.json')
 const MINIMAL_PROMPT = 'You are a helpful software engineer assistant.'
+const FIXTURE_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC'
 const MINIMAL_BASH_DESCRIPTION = `Run commands in a bash shell
 * When invoking this tool, the contents of the "command" parameter does NOT need to be XML-escaped.
 * Network access depends on the task environment. Prefer configured mirrors/proxies when they are available.
@@ -286,6 +296,8 @@ describe('the shipped Web composition', () => {
     })
     try {
       expect(toolNames(productCtx, handle.agent)).toEqual(expect.arrayContaining([
+        'memory_manage',
+        'skill_search',
         'image_optimize',
         'image_generate',
       ]))
@@ -294,6 +306,191 @@ describe('the shipped Web composition', () => {
       await productCtx.fiber.dispose()
     }
   }, 120_000)
+
+  it('persists the restored Oasisfish capabilities across a complete Loader restart', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-oasisfish-capabilities-'))
+    const settingsFile = join(home, 'settings.yaml')
+    const bundledSkillDir = join(REPO_ROOT, 'apps', 'desktop', 'resources', 'bundled-skills')
+    const skillSearchDatabase = join(home, 'skill-search.sqlite')
+    const project = join(home, 'project')
+    await mkdir(project)
+    await writeFile(settingsFile, '{}\n')
+
+    const bootProduct = async (): Promise<{
+      productCtx: Context
+      provider: LocalSkillSearchProvider
+      unregister: () => void
+    }> => {
+      const productCtx = await bootWeb(settingsFile, [
+        ...loadOverlayPatches('oasisfish-persistence-test', OASISFISH_DESKTOP_PATCH),
+        { id: 'attachment-local', config: { dshHome: home } },
+        {
+          id: 'skill-filesystem',
+          disabled: false,
+          config: { bundledSkillDir, includeDefaultRoots: false, watch: false },
+        },
+        { id: 'skill-search-local', disabled: true },
+      ])
+      let provider: LocalSkillSearchProvider | undefined
+      try {
+        provider = new LocalSkillSearchProvider(
+          await openSkillSearchStore(skillSearchDatabase),
+          new DeterministicFixtureEmbedder(32),
+          {
+            providerName: 'oasisfish-persistence-fixture',
+            chunkTargetCodePoints: 800,
+            chunkMaxCodePoints: 1200,
+            chunkOverlapCodePoints: 120,
+            lexicalCandidates: 50,
+            vectorCandidates: 50,
+            rrfK: 60,
+            headingBoost: 0.1,
+            pathBoost: 0.05,
+            mmrLambda: 0.6,
+            defaultResultCount: 5,
+            maxResultCount: 10,
+          },
+        )
+        const unregister = productCtx.skillSearch.registerProvider(
+          SkillSearchProviderName('oasisfish-persistence-fixture'),
+          provider,
+        )
+        return { productCtx, provider, unregister }
+      } catch (error) {
+        await Promise.allSettled([
+          provider?.dispose() ?? Promise.resolve(),
+          productCtx.fiber.dispose(),
+        ])
+        throw error
+      }
+    }
+
+    const closeProduct = async (product: Awaited<ReturnType<typeof bootProduct>>): Promise<void> => {
+      try {
+        product.unregister()
+      } finally {
+        try {
+          await product.provider.dispose()
+        } finally {
+          await product.productCtx.fiber.dispose()
+        }
+      }
+    }
+    const corpusRevisions = (): unknown[] => {
+      const database = new DatabaseSync(skillSearchDatabase, { readOnly: true })
+      try {
+        return database.prepare('SELECT corpus_key AS corpusKey, revision FROM corpora ORDER BY corpus_key').all()
+      } finally {
+        database.close()
+      }
+    }
+    const optimizationRequest: ImageOptimizationRequest = {
+      operation: 'generate',
+      intent: 'Create a square Oasis game item icon.',
+      references: [],
+      exactText: [],
+      output: { width: 1024, height: 1024, transparentBackground: false, count: 1 },
+      preserve: ['clear item silhouette'],
+      avoid: ['watermark'],
+      locale: 'en',
+      category: 'Game Assets',
+      styleHints: ['game item icon'],
+      sceneHints: ['inventory'],
+      caseIds: [],
+    }
+
+    vi.stubGlobal('fetch', vi.fn((input: string | URL | Request) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url !== 'https://fixture-image.example/v1/images/generations') {
+        return Promise.reject(new Error(`unexpected fixture request: ${url}`))
+      }
+      return Promise.resolve(new Response(JSON.stringify({
+        data: [{ b64_json: FIXTURE_PNG_BASE64 }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    }))
+    let generatedAttachment: Awaited<ReturnType<Context['attachments']['saveImage']>> | undefined
+    let firstRevisions: unknown[] = []
+    try {
+      const first = await bootProduct()
+      try {
+        await first.productCtx.agentDefaultModel.saveSelection({
+          provider: 'fixture-chat',
+          model: 'fixture-model',
+        })
+        await first.productCtx.memory.add({ scope: 'user', content: 'Reply concisely.' }, {})
+        await first.productCtx.memory.add(
+          { scope: 'project', content: 'Use the Oasis Wiki before editing UGC code.' },
+          { cwd: project },
+        )
+        const firstSearch = await first.productCtx.skillSearch.search({
+          name: 'oasis-wiki',
+          query: 'UGCAskQ DataTable',
+          limit: 1,
+        })
+        expect(firstSearch.hits).toHaveLength(1)
+        firstRevisions = corpusRevisions()
+        expect(firstRevisions).toHaveLength(1)
+
+        const optimized = await first.productCtx.imageOptimizer.optimize(optimizationRequest)
+        expect(optimized.status).toBe('prepared')
+        if (optimized.status !== 'prepared') throw new Error('expected prepared image request')
+        await first.productCtx.settings.update('llm-pi-ai', {
+          providers: {
+            fixtureImage: {
+              api: 'openai-completions',
+              baseURL: 'https://fixture-image.example/v1',
+              models: [{ id: 'fixture-image-1' }],
+            },
+          },
+        })
+        await first.productCtx.settings.update(IMAGE_GENERATION_SETTINGS_NAMESPACE, {
+          provider: 'fixtureImage',
+          model: 'fixture-image-1',
+        })
+        const generated = await first.productCtx.imageGeneration.generate({
+          prompt: optimized.spec.canonicalPrompt,
+          size: '1024x1024',
+        })
+        expect(generated).toMatchObject({ failedCount: 0, images: [{ candidateIndex: 0 }] })
+        generatedAttachment = generated.images[0]?.attachment
+        expect(generatedAttachment).toBeDefined()
+      } finally {
+        await closeProduct(first)
+      }
+
+      const second = await bootProduct()
+      try {
+        expect(second.productCtx.agentDefaultModel.currentSelection()).toEqual({
+          provider: 'fixture-chat',
+          model: 'fixture-model',
+        })
+        await expect(second.productCtx.memory.list({ cwd: project })).resolves.toMatchObject({
+          records: [
+            expect.objectContaining({ scope: 'user', content: 'Reply concisely.' }),
+            expect.objectContaining({
+              scope: 'project',
+              content: 'Use the Oasis Wiki before editing UGC code.',
+            }),
+          ],
+        })
+        await expect(second.productCtx.skillSearch.search({
+          name: 'oasis-wiki',
+          query: 'UGCAskQ DataTable',
+          limit: 1,
+        })).resolves.toMatchObject({ hits: [expect.any(Object)] })
+        expect(corpusRevisions()).toEqual(firstRevisions)
+        if (generatedAttachment === undefined) throw new Error('generated attachment was not recorded')
+        const stored = await second.productCtx.attachments.readImage(generatedAttachment)
+        expect(stored.ref).toEqual(generatedAttachment)
+        expect(stored.data).toEqual(Uint8Array.from(Buffer.from(FIXTURE_PNG_BASE64, 'base64')))
+      } finally {
+        await closeProduct(second)
+      }
+    } finally {
+      vi.unstubAllGlobals()
+      await rm(home, { recursive: true, force: true })
+    }
+  }, 180_000)
 
   it('applies the default-off subagent model allowlist only to new sessions', async () => {
     await ctx.settings.update(SUBAGENT_MODEL_SELECTION_SETTINGS_NAMESPACE, {

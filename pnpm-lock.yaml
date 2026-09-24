@@ -2463,9 +2463,6 @@ importers:
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
-      '@deepseek-ai/dsh-tool-memory':
-        specifier: workspace:^
-        version: link:../../memory/tool-memory
       '@deepseek-ai/dsh-tool-subagent':
         specifier: workspace:^
         version: link:../../subagent/tool-subagent
@@ -9215,6 +9212,12 @@ importers:
       '@deepseek-ai/dsh-tool-image-optimize':
         specifier: workspace:^
         version: link:../../image/tool-image-optimize
+      '@deepseek-ai/dsh-tool-memory':
+        specifier: workspace:^
+        version: link:../../memory/tool-memory
+      '@deepseek-ai/dsh-tool-skill-search':
+        specifier: workspace:^
+        version: link:../../skill/tool-skill-search
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery

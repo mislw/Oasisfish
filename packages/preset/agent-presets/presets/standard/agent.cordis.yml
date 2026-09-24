@@ -87,13 +87,20 @@
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
 
-# Current-turn image ordinals are per-agent state shared only by these Consumers.
+# Oasisfish enables the auxiliary image service in its Desktop overlay. Keep
+# every restored model-facing capability out of generic Web presets, and share
+# current-turn image ordinals only inside the product composition that uses them.
 - id: image-tools
   name: cordis:group
   group: true
+  disabled: !!js "!ctx.get('imageGeneration')"
   isolate:
     imageInputImages: true
   config:
+    - id: tool-memory
+      name: '@deepseek-ai/dsh-tool-memory'
+    - id: tool-skill-search
+      name: '@deepseek-ai/dsh-tool-skill-search'
     - id: tool-image-optimize
       name: '@deepseek-ai/dsh-tool-image-optimize'
     - id: tool-image-generate

@@ -1,6 +1,6 @@
 /** Launch the Desktop profile through the Web application and report its URL to Electron. */
 
-import { delimiter, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { loadLayeredEnv, loadProfileDirectory } from '@deepseek-ai/dsh-app-boot'
 import { runProfile } from '@deepseek-ai/dsh/profile-boot'
 import type {} from '@deepseek-ai/dsh-client-connection'
@@ -13,17 +13,20 @@ import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 /**
  * Select application-owned overlays for one built client identity.
  * @param profile - Client build profile embedded in the renderer artifacts.
+ * @param resourceRoot - Desktop runtime resource directory prepared by the application build.
  * @returns absolute patch paths applied after the Desktop profile.
  */
-export function desktopPatchFiles(profile: string | undefined): string[] {
+export function desktopPatchFiles(profile: string | undefined, resourceRoot: string): string[] {
   return profile === 'oasisfish'
-    ? [join(import.meta.dirname, '..', 'oasisfish.cordis.patch.yml')]
+    ? [join(resourceRoot, 'desktop', 'oasisfish.cordis.patch.yml')]
     : []
 }
 
 async function main(): Promise<void> {
   const runtimeDir = process.argv[2] as string
   const projectDir = process.argv[3] as string
+  const primaryRuntime = process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime')
+  const resourceRoot = dirname(primaryRuntime)
   const installAnchor = join(runtimeDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json')
   const profile = loadProfileDirectory('dsh', projectDir, installAnchor)
   const application = runProfile({
@@ -31,7 +34,7 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolutionMode: process.argv[5] === 'runtime' ? 'runtime' : 'link',
     resolvedProfile: { profile, installAnchor },
-    patchFiles: desktopPatchFiles(process.env.DSH_CLIENT_BUILD_PROFILE),
+    patchFiles: desktopPatchFiles(process.env.DSH_CLIENT_BUILD_PROFILE, resourceRoot),
     args: ['--no-open', '--port', '19387'],
     ...(process.argv[6] === undefined ? {} : {
       packageManager: {
@@ -78,7 +81,7 @@ async function main(): Promise<void> {
   const { ctx } = await application
   control.updateTasks = installDesktopUpdateTaskControl(ctx)
   await ctx.plugin(desktopOffice, {
-    source: process.argv[4] ?? join(runtimeDir, '..', 'runtime', 'primary-runtime'),
+    source: primaryRuntime,
     root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
   })
   const url = ctx.connection.authenticatedUrl(`http://127.0.0.1:${String(ctx.webServer.port)}`)

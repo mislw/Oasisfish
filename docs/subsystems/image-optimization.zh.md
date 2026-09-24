@@ -255,6 +255,25 @@ interface ImageOptimizationProvider {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctximageinputimages--imageinputimages"></a>
+
+### `ctx.imageInputImages` — `ImageInputImages`
+
+Current-turn direct-user image inputs shared by optimizer and executor Consumers.
+
+```ts cordis-catalog
+/**
+ * Return a defensive copy of one live Agent's admitted current-turn images.
+ * @param agent - live Agent whose current input is requested.
+ * @returns durable image references in admitted message and content order.
+ */
+references(agent: Agent): readonly ImageAttachmentRef[]
+```
+
+Types: [Agent](core.zh.md) · [ImageAttachmentRef](attachment.zh.md)
+
+Source: [`packages/image/image-optimizer/src/types.ts`](../../packages/image/image-optimizer/src/types.ts)
+
 <a id="ctximageoptimizer--imageoptimizer"></a>
 
 ### `ctx.imageOptimizer` — `ImageOptimizer`

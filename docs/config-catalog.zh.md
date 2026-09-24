@@ -1119,6 +1119,8 @@ export interface Config {
 export interface Config extends Partial<ImageGenerationSettings> {
   /** Maximum accepted Images API JSON or downloaded image bytes. */
   maxResponseBytes?: number
+  /** Maximum independently generated candidates accepted in one call. */
+  maxCandidates?: number
 }
 
 /** Persisted default image route. */
@@ -1143,6 +1145,40 @@ export interface ImageGenerationSettings {
 ```
 
 来源：[`packages/attachment/image-generation/src/index.ts:58`](../packages/attachment/image-generation/src/index.ts)
+
+<a id="deepseek-aidsh-image-optimizer"></a>
+
+## `@deepseek-ai/dsh-image-optimizer`
+
+```ts config-catalog
+/** Image optimizer configuration. All fields receive defaults during plugin activation. */
+export interface Config {
+  /** Maximum automatic case candidates selected for one optimization. */
+  maxCases?: number
+  /** Maximum UTF-8 bytes accepted in the complete serialized prepared result. */
+  maxPromptBytes?: number
+  /** Maximum exact-text requirements accepted for one optimization. */
+  maxExactTextEntries?: number
+}
+```
+
+来源：[`packages/image/image-optimizer/src/index.ts:21`](../packages/image/image-optimizer/src/index.ts)
+
+<a id="deepseek-aidsh-image-optimizer-library"></a>
+
+## `@deepseek-ai/dsh-image-optimizer-library`
+
+依赖：`imageOptimizer`
+
+```ts config-catalog
+/** Packaged case-library resource location. */
+export interface Config {
+  /** Absolute normalized-assets directory; defaults to this package's assets. */
+  assetRoot?: string
+}
+```
+
+来源：[`packages/image/image-optimizer-library/src/index.ts:31`](../packages/image/image-optimizer-library/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 
@@ -2567,6 +2603,22 @@ export interface Config {
 
 来源：[`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
 
+<a id="deepseek-aidsh-skill-image-generation"></a>
+
+## `@deepseek-ai/dsh-skill-image-generation`
+
+依赖：`skills`
+
+```ts config-catalog
+/** Image generation skill resource location. */
+export interface Config {
+  /** Absolute assets directory containing the image-generation skill; defaults to packaged assets. */
+  assetRoot?: string
+}
+```
+
+来源：[`packages/image/skill-image-generation/src/index.ts:13`](../packages/image/skill-image-generation/src/index.ts)
+
 <a id="deepseek-aidsh-skill-office"></a>
 
 ## `@deepseek-ai/dsh-skill-office`
@@ -3309,7 +3361,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/attachment/tool-image-generate/src/index.ts:17`](../packages/attachment/tool-image-generate/src/index.ts)
+来源：[`packages/attachment/tool-image-generate/src/index.ts:18`](../packages/attachment/tool-image-generate/src/index.ts)
 
 <a id="deepseek-aidsh-tool-jobs"></a>
 
@@ -3684,7 +3736,7 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-来源：[`packages/core/tools/src/index.ts:656`](../packages/core/tools/src/index.ts)
+来源：[`packages/core/tools/src/index.ts:658`](../packages/core/tools/src/index.ts)
 
 <a id="deepseek-aidsh-typert-loader"></a>
 
@@ -4052,6 +4104,7 @@ export interface Config {
 - `@deepseek-ai/dsh-tool-ask-user` — 需要 `tools` · `userInteraction`（[`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts)）
 - `@deepseek-ai/dsh-tool-call-timeout-policy` — 需要 `tools`（[`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts)）
 - `@deepseek-ai/dsh-tool-cordis` — 需要 `tools` · `systemPrompt` · `cordisInspect`（[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)）
+- `@deepseek-ai/dsh-tool-image-optimize` — 需要 `tools` · `imageOptimizer`（[`packages/image/tool-image-optimize/src/index.ts`](../packages/image/tool-image-optimize/src/index.ts)）
 - `@deepseek-ai/dsh-tool-memory` — 需要 `tools` · `systemPrompt` · `agents` · `memory`（[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)）
 - `@deepseek-ai/dsh-tool-skill-search` — 需要 `tools` · `skillSearch`（[`packages/skill/tool-skill-search/src/index.ts`](../packages/skill/tool-skill-search/src/index.ts)）
 - `@deepseek-ai/dsh-tool-subagent-control` — 需要 `tools` · `subagents`（[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)）

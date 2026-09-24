@@ -40,6 +40,12 @@ flowchart LR
   cfg --> plugin_dsh_base_agent
   plugin_dsh_base_memory["memory<br/>@deepseek-ai/dsh-memory"]
   cfg --> plugin_dsh_base_memory
+  plugin_dsh_base_image_optimizer["image-optimizer<br/>@deepseek-ai/dsh-image-optimizer"]
+  cfg --> plugin_dsh_base_image_optimizer
+  plugin_dsh_base_image_optimizer_library["image-optimizer-library<br/>@deepseek-ai/dsh-image-optimizer-library"]
+  cfg --> plugin_dsh_base_image_optimizer_library
+  plugin_dsh_base_image_generation["image-generation<br/>@deepseek-ai/dsh-image-generation"]
+  cfg --> plugin_dsh_base_image_generation
   plugin_dsh_base_plugin_package_inventory_deepseek["plugin-package-inventory-deepseek<br/>@deepseek-ai/dsh-plugin-package-inventory-deepseek"]
   cfg --> plugin_dsh_base_plugin_package_inventory_deepseek
   plugin_dsh_base_agent_default_model["agent-default-model<br/>@deepseek-ai/dsh-agent-default-model"]
@@ -106,6 +112,8 @@ flowchart LR
   cfg --> plugin_dsh_base_agent_instructions
   plugin_dsh_base_skill["skill<br/>@deepseek-ai/dsh-skill"]
   cfg --> plugin_dsh_base_skill
+  plugin_dsh_base_skill_image_generation["skill-image-generation<br/>@deepseek-ai/dsh-skill-image-generation"]
+  cfg --> plugin_dsh_base_skill_image_generation
   plugin_dsh_base_skill_search["skill-search<br/>@deepseek-ai/dsh-skill-search"]
   cfg --> plugin_dsh_base_skill_search
   plugin_dsh_base_skill_filesystem["skill-filesystem<br/>@deepseek-ai/dsh-skill-filesystem"]
@@ -116,6 +124,8 @@ flowchart LR
   cfg --> plugin_dsh_base_tool_skill
   plugin_dsh_base_tool_skill_search["tool-skill-search<br/>@deepseek-ai/dsh-tool-skill-search"]
   cfg --> plugin_dsh_base_tool_skill_search
+  plugin_dsh_base_tool_image_optimize["tool-image-optimize<br/>@deepseek-ai/dsh-tool-image-optimize"]
+  cfg --> plugin_dsh_base_tool_image_optimize
   plugin_dsh_base_commands["commands<br/>@deepseek-ai/dsh-commands"]
   cfg --> plugin_dsh_base_commands
   plugin_dsh_base_command_feedback["command-feedback<br/>@deepseek-ai/dsh-command-feedback"]
@@ -214,6 +224,9 @@ flowchart LR
 | `user-questions` | `@deepseek-ai/dsh-user-questions` |
 | `agent` | `@deepseek-ai/dsh-agent` |
 | `memory` | `@deepseek-ai/dsh-memory` |
+| `image-optimizer` | `@deepseek-ai/dsh-image-optimizer` |
+| `image-optimizer-library` | `@deepseek-ai/dsh-image-optimizer-library` |
+| `image-generation` | `@deepseek-ai/dsh-image-generation` |
 | `plugin-package-inventory-deepseek` | `@deepseek-ai/dsh-plugin-package-inventory-deepseek` |
 | `agent-default-model` | `@deepseek-ai/dsh-agent-default-model` |
 | `jobs` | `@deepseek-ai/dsh-jobs-local` |
@@ -247,11 +260,13 @@ flowchart LR
 | `tool-fs-search` | `@deepseek-ai/dsh-tool-fs-search` |
 | `agent-instructions` | `@deepseek-ai/dsh-agent-instructions` |
 | `skill` | `@deepseek-ai/dsh-skill` |
+| `skill-image-generation` | `@deepseek-ai/dsh-skill-image-generation` |
 | `skill-search` | `@deepseek-ai/dsh-skill-search` |
 | `skill-filesystem` | `@deepseek-ai/dsh-skill-filesystem` |
 | `skill-badge` | `@deepseek-ai/dsh-skill-badge` |
 | `tool-skill` | `@deepseek-ai/dsh-tool-skill` |
 | `tool-skill-search` | `@deepseek-ai/dsh-tool-skill-search` |
+| `tool-image-optimize` | `@deepseek-ai/dsh-tool-image-optimize` |
 | `commands` | `@deepseek-ai/dsh-commands` |
 | `command-feedback` | `@deepseek-ai/dsh-command-feedback` |
 | `goal` | `@deepseek-ai/dsh-goal` |

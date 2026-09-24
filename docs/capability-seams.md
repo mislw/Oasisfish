@@ -136,6 +136,7 @@ flowchart LR
   svc_tools["ctx.tools<br/>Tool registry and guarded execution pipeline"]
   pkg_tool_ask_user["tool-ask-user"]
   pkg_tool_cordis["tool-cordis"]
+  pkg_tool_image_optimize["tool-image-optimize"]
   pkg_tool_skill["tool-skill"]
   pkg_tool_skill_search["tool-skill-search"]
   pkg_tool_todo["tool-todo"]
@@ -156,10 +157,15 @@ flowchart LR
   svc_skills["ctx.skills<br/>Skill provider registry"]
   pkg_skill_badge["skill-badge"]
   pkg_skill_filesystem["skill-filesystem"]
+  pkg_skill_image_generation["skill-image-generation"]
   pkg_skill_office["skill-office"]
   pkg_skill_search["skill-search"]
   svc_skillSearch["ctx.skillSearch<br/>Skill corpus search seam"]
   pkg_skill_search_local["skill-search-local"]
+  pkg_image_optimizer["image-optimizer"]
+  svc_imageOptimizer["ctx.imageOptimizer<br/>Image optimization Provider registry and compiler"]
+  pkg_image_optimizer_library["image-optimizer-library"]
+  svc_imageInputImages["ctx.imageInputImages<br/>Current-turn direct-user image inventory"]
   pkg_memory["memory"]
   svc_memory["ctx.memory<br/>Native durable memory seam"]
   pkg_memory_local["memory-local"]
@@ -319,6 +325,9 @@ flowchart LR
   pkg_host_directory_picker_native --> svc_directoryPicker
   pkg_host_webserver --> svc_webServer
   pkg_image_generation --> svc_imageGeneration
+  pkg_image_optimizer --> svc_imageInputImages
+  pkg_image_optimizer --> svc_imageOptimizer
+  pkg_image_optimizer_library --> svc_imageOptimizer
   pkg_inspector --> svc_inspector
   pkg_invariants --> svc_invariants
   pkg_jobs --> svc_jobs
@@ -367,6 +376,7 @@ flowchart LR
   pkg_skill --> svc_skills
   pkg_skill_badge --> svc_skills
   pkg_skill_filesystem --> svc_skills
+  pkg_skill_image_generation --> svc_skills
   pkg_skill_office --> svc_skills
   pkg_skill_search --> svc_skillSearch
   pkg_skill_search_local --> svc_skillSearch
@@ -391,6 +401,7 @@ flowchart LR
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
   pkg_token_meter --> svc_tokenMeter
+  pkg_tool_image_optimize --> svc_imageInputImages
   pkg_tool_subagent --> svc_subagentModelSelection
   pkg_tools --> svc_tools
   pkg_typert_registry --> svc_typert
@@ -445,6 +456,9 @@ flowchart LR
   svc_fs --> pkg_tool_fs
   svc_hmr --> pkg_app_boot
   svc_imageGeneration --> pkg_tool_image_generate
+  svc_imageInputImages --> pkg_tool_image_generate
+  svc_imageInputImages --> pkg_tool_image_optimize
+  svc_imageOptimizer --> pkg_tool_image_optimize
   svc_invariants --> pkg_agent
   svc_invariants --> pkg_agent_loop
   svc_invariants --> pkg_scope
@@ -535,6 +549,7 @@ flowchart LR
   svc_tools --> pkg_tool_bash
   svc_tools --> pkg_tool_cordis
   svc_tools --> pkg_tool_fs
+  svc_tools --> pkg_tool_image_optimize
   svc_tools --> pkg_tool_skill
   svc_tools --> pkg_tool_skill_search
   svc_tools --> pkg_tool_subagent
@@ -603,15 +618,17 @@ flowchart LR
 | `ctx.sessionReferenceResolver` | `core` | [`session-reference`](../packages/context/session-reference) | - | - | - | Projects bounded current-surface conversation snapshots into durable untrusted message context; host adapters own mention syntax. |
 | `ctx.sessionTitle` | `seam` | [`session-title`](../packages/session/session-title) | [`session-title-first-prompt-llm`](../packages/session/session-title-first-prompt-llm), [`session-title-all-prompts-llm`](../packages/session/session-title-all-prompts-llm) | - | - | Owns the deterministic fallback, latest-title fold, and sole optional asynchronous provider registration. |
 | `ctx.systemPrompt` | `core` | [`system-prompt`](../packages/core/system-prompt) | - | [`agent-loop`](../packages/core/agent-loop), [`tools`](../packages/core/tools), [`tool-fs`](../packages/fs/tool-fs), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-web`](../packages/web/tool-web) | - | Collects prompt sections and model-facing tool schemas for each step. |
-| `ctx.tools` | `core` | [`tools`](../packages/core/tools) | - | [`agent-loop`](../packages/core/agent-loop), [`tool-ask-user`](../packages/interaction/tool-ask-user), [`tool-bash`](../packages/shell/tool-bash), [`tool-cordis`](../packages/extensions/tool-cordis), [`tool-fs`](../packages/fs/tool-fs), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-skill`](../packages/skill/tool-skill), [`tool-skill-search`](../packages/skill/tool-skill-search), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-todo`](../packages/todo/tool-todo), [`tool-web`](../packages/web/tool-web) | - | Registers capabilities, owns PTC mode transport, and routes calls through pre-policy, monotonic guards, around dispatch, post-policy, and final-result observation. |
+| `ctx.tools` | `core` | [`tools`](../packages/core/tools) | - | [`agent-loop`](../packages/core/agent-loop), [`tool-ask-user`](../packages/interaction/tool-ask-user), [`tool-bash`](../packages/shell/tool-bash), [`tool-cordis`](../packages/extensions/tool-cordis), [`tool-fs`](../packages/fs/tool-fs), [`tool-image-optimize`](../packages/image/tool-image-optimize), [`tool-terminal`](../packages/terminal/tool-terminal), [`tool-skill`](../packages/skill/tool-skill), [`tool-skill-search`](../packages/skill/tool-skill-search), [`tool-subagent`](../packages/subagent/tool-subagent), [`tool-todo`](../packages/todo/tool-todo), [`tool-web`](../packages/web/tool-web) | - | Registers capabilities, owns PTC mode transport, and routes calls through pre-policy, monotonic guards, around dispatch, post-policy, and final-result observation. |
 | `ctx.userQuestions` | `seam` | [`user-questions`](../packages/interaction/user-questions) | - | [`tool-ask-user`](../packages/interaction/tool-ask-user) | - | UI front ends provide the active human-answer provider; tool-ask-user pauses a tool call on the provider-neutral ask() promise. |
 | `ctx.planMode` | `core` | [`plan-mode`](../packages/plan/plan-mode) | - | - | - | Folds logged plan/mode state, flushes user selections at turn boundaries, renders deployment-owned guidance, registers /plan, and keeps the plan-exit schema stable across transitions. |
 | `ctx.agentPresets` | `core` | [`agent-presets`](../packages/preset/agent-presets) | - | - | - | Discovers preset directories over trusted and user-authored roots and mounts one preset cordis.yml under an agent scope during creation, rejecting a row that never activates or that publishes into the root service realm. |
 | `ctx.commands` | `core` | [`commands`](../packages/interaction/commands) | - | - | - | Plugins register direct human commands without sending invocations to the model. |
 | `ctx.sessionProjections` | `core` | [`session-projection`](../packages/session/session-projection) | - | [`api-session-controller`](../packages/api/session-controller), [`tool-todo`](../packages/todo/tool-todo), [`session-title`](../packages/session/session-title) | - | Domains register state-driven fold units; the eager drive keeps per-session watermark states and the Session controller serves baselines and pushes changed values. |
 | `ctx.sessionProjectionCache` | `core` | [`session-projection-cache`](../packages/session/session-projection-cache) | - | [`api-session-controller`](../packages/api/session-controller), [`session-query`](../packages/session-query/session-query), [`session-reference`](../packages/context/session-reference), [`subagent`](../packages/subagent/subagent) | - | Durably checkpoints projection unit states per session (throttled + turn/end/detach mandatory points) and serves the cold-read ladder: cache row + persistence tail replay, so listings never load full logs. |
-| `ctx.skills` | `seam` | [`skill`](../packages/skill/skill) | [`skill-badge`](../packages/skill/skill-badge), [`skill-filesystem`](../packages/skill/skill-filesystem), [`skill-office`](../packages/skill/skill-office) | [`skill-search`](../packages/skill/skill-search), [`tool-skill`](../packages/skill/tool-skill) | - | Merges provider skill catalogs; tool-skill renders the session-prefix catalog and loads complete skill bodies. |
+| `ctx.skills` | `seam` | [`skill`](../packages/skill/skill) | [`skill-badge`](../packages/skill/skill-badge), [`skill-filesystem`](../packages/skill/skill-filesystem), [`skill-image-generation`](../packages/image/skill-image-generation), [`skill-office`](../packages/skill/skill-office) | [`skill-search`](../packages/skill/skill-search), [`tool-skill`](../packages/skill/tool-skill) | - | Merges provider skill catalogs; tool-skill renders the session-prefix catalog and loads complete skill bodies. |
 | `ctx.skillSearch` | `seam` | [`skill-search`](../packages/skill/skill-search) | [`skill-search-local`](../packages/skill/skill-search-local) | [`tool-skill-search`](../packages/skill/tool-skill-search) | - | Resolves model-invocable Skills and explicit corpus declarations before routing one search to the first visible supporting provider. |
+| `ctx.imageOptimizer` | `seam` | [`image-optimizer`](../packages/image/image-optimizer) | [`image-optimizer-library`](../packages/image/image-optimizer-library) | [`tool-image-optimize`](../packages/image/tool-image-optimize) | - | Providers register normalized template and case candidates; the service resolves explicit ids, orders automatic matches, and compiles provider-neutral generation specifications. |
+| `ctx.imageInputImages` | `seam` | [`image-optimizer`](../packages/image/image-optimizer) | [`tool-image-optimize`](../packages/image/tool-image-optimize) | [`tool-image-optimize`](../packages/image/tool-image-optimize), [`tool-image-generate`](../packages/attachment/tool-image-generate) | - | The optimizer Tool Consumer records admitted direct-user images in message and content order; optimization and prepared generation resolve one-based ordinals against the same per-agent inventory. |
 | `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-local`](../packages/memory/memory-local) | [`memory`](../packages/memory/memory) | - | Routes global user and cwd-derived project records through one provider; its Typert Remote adapters expose the same operations to authenticated management clients. |
 | `ctx.agents` | `core` | [`agent`](../packages/core/agent) | - | [`agent-loop`](../packages/core/agent-loop), [`acp`](../packages/acp/acp), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) | - | Owns live Agent handles, the create/resume factory seam, and process-local initiator propagation. |
 | `ctx.agentDefaultModel` | `core` | [`agent-default-model`](../packages/core/agent-default-model) | - | [`api-session-controller`](../packages/api/session-controller), [`headless`](../packages/bundle/headless) | - | Layers the default ModelSelection through settings so direct and Host-backed Agent entry points share one state owner. |

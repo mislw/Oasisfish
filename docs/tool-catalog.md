@@ -30,7 +30,8 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-str-replace-editor` | `str_replace_editor` | `ctx.tools`, `ctx.fs` | `tool/call`, `fs/observed after view presence/absence, edit absence, or successful mutation`, `tool/result` | - | Standalone view/create/unique literal replace/line insert tool over the filesystem seam; it composes with any shell or terminal API. |
 | `@deepseek-ai/dsh-tool-fs` | `edit`, `read`, `read_image`, `write` | `ctx.tools`, `ctx.fs`, `ctx.systemPrompt`, `ctx.attachments (image-tool registration)`, `ctx.llm + an image-capable route (image-tool execution)` | `tool/call`, `fs/write-intent or fs/edit-intent for mutations`, `fs/observed after read presence/absence or successful file operation`, `durable attachment (read_image)`, `tool/result` | - | The read-before-write/edit policy is added by `@deepseek-ai/dsh-fs-observation-policy` (an `fs/*` event-gate plugin, no schema change); a deployment that loads these tools is expected to also load it. The image tool is not registered without `ctx.attachments`; its schema is route-independent, and execution refuses unless the exact routed model declares image input. |
 | `@deepseek-ai/dsh-tool-fs-search` | `glob`, `grep` | `ctx.tools`, `ctx.subprocess`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments. |
-| `@deepseek-ai/dsh-tool-image-generate` | `image_generate` | `ctx.tools`, `ctx.imageGeneration` | `tool/call`, `durable generated-image attachment`, `tool/result` | - | The tool uses a separately configured auxiliary image route and does not change the conversation model route. |
+| `@deepseek-ai/dsh-tool-image-generate` | `image_generate` | `ctx.tools`, `ctx.imageGeneration`, `ctx.imageInputImages at call time for prepared references` | `tool/call`, `durable generated-image attachment`, `tool/result` | - | The tool uses a separately configured auxiliary image route and does not change the conversation model route. Prepared reference ordinals resolve through the current-turn image inventory provided by image optimization. |
+| `@deepseek-ai/dsh-tool-image-optimize` | `image_optimize` | `ctx.tools`, `ctx.imageOptimizer`, `a calling Agent with admitted direct-user images` | `tool/call`, `tool/result` | - | The tool resolves one-based positions only against direct-user images admitted for the calling Agent current turn. It returns a prepared specification or structured clarification issues and does not execute an image model. |
 | `@deepseek-ai/dsh-tool-terminal` | `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_send`, `terminal_signal` | `ctx.tools`, `ctx.terminals`, `ctx.systemPrompt`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema. |
 | `@deepseek-ai/dsh-tool-goal` | `create_goal`, `get_goal`, `update_goal` | `ctx.tools`, `ctx.agents`, `ctx.goals`, `ctx.systemPrompt`, `a calling Agent in an authorized open turn` | `tool/call`, `goal/change for mutations`, `tool/result` | - | create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds. |
 | `@deepseek-ai/dsh-schedule` | `schedule_create`, `schedule_delete`, `schedule_list` | `ctx.tools`, `ctx.sessions`, `Session persistence`, `a future live root Agent` | `tool/call`, `schedule/change create or delete`, `tool/result` | - | Registered only inside live root Agent scopes created after the opt-in Schedule plugin loads. Version 1 accepts after_seconds, explicit absolute at, and bounded fixed-rate every_seconds, and discloses session-local delivery; management reads and mutations require the shared Session persistence barrier. |
@@ -1111,19 +1112,97 @@ glob and grep are unconditional discovery tools that spawn the packaged ripgrep 
 
 ### `image_generate`
 
-Generate or edit an image with the configured default image model. Refine the user request before calling: turn brief wording into a detailed, coherent visual specification while preserving every explicit requirement. Reuse images from the latest direct user message when they are relevant. The conversation model remains unchanged.
+Generate or edit an image with the configured default image model. After image_optimize returns prepared, pass only its prepared prompt, reference positions, output settings, and required capabilities in prepared. Refine the user request before calling in direct mode, using one detailed prompt and four variations. The conversation model remains unchanged.
 
 ```json
 {
   "type": "object",
   "properties": {
+    "prepared": {
+      "type": "object",
+      "description": "Executor inputs copied from one prepared image_optimize result. Do not include optimizer evidence or case ids.",
+      "additionalProperties": false,
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The prepared canonical prompt."
+        },
+        "references": {
+          "type": "array",
+          "description": "Prepared current-input reference positions and semantic metadata.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "inputIndex": {
+                "type": "integer"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "style",
+                  "layout",
+                  "content",
+                  "edit-target"
+                ]
+              },
+              "priority": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "inputIndex",
+              "role",
+              "priority"
+            ]
+          }
+        },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "aspectRatio": {
+              "type": "string"
+            },
+            "width": {
+              "type": "integer"
+            },
+            "height": {
+              "type": "integer"
+            },
+            "transparentBackground": {
+              "type": "boolean"
+            },
+            "count": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "transparentBackground",
+            "count"
+          ]
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "prompt",
+        "references",
+        "output",
+        "requiredCapabilities"
+      ]
+    },
     "prompt": {
       "type": "string",
-      "description": "A generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged."
+      "description": "Legacy direct mode: a generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged."
     },
     "variation_prompts": {
       "type": "array",
-      "description": "Exactly four concise candidate differences. Vary composition, material, lighting, camera, or graphic structure without changing the shared requirements.",
+      "description": "Legacy direct mode: exactly four concise candidate differences.",
       "items": {
         "type": "string"
       }
@@ -1145,17 +1224,184 @@ Generate or edit an image with the configured default image model. Refine the us
         "high"
       ]
     }
-  },
-  "required": [
-    "prompt",
-    "variation_prompts"
-  ]
+  }
 }
 ```
 
 Source: [`packages/attachment/tool-image-generate/src/index.ts`](../packages/attachment/tool-image-generate/src/index.ts)
 
-The tool uses a separately configured auxiliary image route and does not change the conversation model route.
+The tool uses a separately configured auxiliary image route and does not change the conversation model route. Prepared reference ordinals resolve through the current-turn image inventory provided by image optimization.
+
+<a id="deepseek-aidsh-tool-image-optimize"></a>
+
+## `@deepseek-ai/dsh-tool-image-optimize`
+
+### `image_optimize`
+
+Prepare a provider-neutral image generation, edit, or variation specification from the current direct-user image inputs.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "Image task kind.",
+      "enum": [
+        "generate",
+        "edit",
+        "variation"
+      ]
+    },
+    "intent": {
+      "type": "string",
+      "description": "Concrete visual outcome to prepare."
+    },
+    "references": {
+      "type": "array",
+      "description": "Current direct-user image positions and their semantic roles.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inputIndex": {
+            "type": "integer",
+            "description": "One-based current-input image position."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "style",
+              "layout",
+              "content",
+              "edit-target"
+            ]
+          },
+          "priority": {
+            "type": "integer",
+            "description": "Positive priority; larger values are more important."
+          }
+        },
+        "required": [
+          "inputIndex",
+          "role",
+          "priority"
+        ]
+      }
+    },
+    "exactText": {
+      "type": "array",
+      "description": "Text that the prepared image must reproduce exactly.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "placement": {
+            "type": "string"
+          },
+          "preserveCase": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "text",
+          "preserveCase"
+        ]
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "aspectRatio": {
+          "type": "string"
+        },
+        "width": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "transparentBackground": {
+          "type": "boolean"
+        },
+        "count": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "transparentBackground",
+        "count"
+      ]
+    },
+    "preserve": {
+      "type": "array",
+      "description": "Visual facts that must remain unchanged.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "avoid": {
+      "type": "array",
+      "description": "Prohibited visual outcomes.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "locale": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "styleHints": {
+      "type": "array",
+      "description": "Requested visual-style hints.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sceneHints": {
+      "type": "array",
+      "description": "Requested scene and composition hints.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "templateId": {
+      "type": "string"
+    },
+    "caseIds": {
+      "type": "array",
+      "description": "Explicit optimization-library case identifiers.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "operation",
+    "intent",
+    "references",
+    "exactText",
+    "output",
+    "preserve",
+    "avoid",
+    "locale",
+    "styleHints",
+    "sceneHints",
+    "caseIds"
+  ],
+  "additionalProperties": false
+}
+```
+
+Source: [`packages/image/tool-image-optimize/src/index.ts`](../packages/image/tool-image-optimize/src/index.ts)
+
+The tool resolves one-based positions only against direct-user images admitted for the calling Agent current turn. It returns a prepared specification or structured clarification issues and does not execute an image model.
 
 <a id="deepseek-aidsh-tool-terminal"></a>
 

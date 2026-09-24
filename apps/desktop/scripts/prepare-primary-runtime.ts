@@ -245,6 +245,11 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
   await prepareSkillAssets(join(APP_ROOT, 'resources', 'bundled-skills'), join(paths.runtime, 'bundled-skills'))
   await prepareModelAssets(join(APP_ROOT, 'resources', 'bundled-models', 'bge-small-zh-v1.5'),
     join(paths.runtime, 'models', 'bge-small-zh-v1.5'))
+  await mkdir(join(paths.runtime, 'desktop'), { recursive: true })
+  await copyFile(
+    join(APP_ROOT, '..', 'desktop-host', 'oasisfish.cordis.patch.yml'),
+    join(paths.runtime, 'desktop', 'oasisfish.cordis.patch.yml'),
+  )
   await verifyStagedRetrievalResources(paths.runtime)
   if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }

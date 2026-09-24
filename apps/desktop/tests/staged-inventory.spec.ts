@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const inventoryModule = fileURLToPath(new URL('../scripts/staged-inventory.mjs', import.meta.url))
 const resources = fileURLToPath(new URL('../resources/', import.meta.url))
+const oasisfishPatch = fileURLToPath(new URL('../../desktop-host/oasisfish.cordis.patch.yml', import.meta.url))
 const temporaryDirectories: string[] = []
 
 afterEach(async () => {
@@ -26,6 +27,8 @@ async function stagedResources(): Promise<string> {
     join(root, 'models', 'bge-small-zh-v1.5'),
     { recursive: true },
   )
+  await mkdir(join(root, 'desktop'))
+  await cp(oasisfishPatch, join(root, 'desktop', 'oasisfish.cordis.patch.yml'))
   return root
 }
 
@@ -42,6 +45,20 @@ describe('Desktop retrieval resource inventory', () => {
   it('accepts the complete approved staged resources', async () => {
     const { verifyStagedRetrievalResources } = await import('../scripts/staged-inventory.mjs')
     await expect(verifyStagedRetrievalResources(await stagedResources())).resolves.toBeUndefined()
+  })
+
+  it.each([
+    ['missing', async (root: string) => {
+      await rm(join(root, 'desktop', 'oasisfish.cordis.patch.yml'))
+    }],
+    ['modified', async (root: string) => {
+      await writeFile(join(root, 'desktop', 'oasisfish.cordis.patch.yml'), '- id: modified\n')
+    }],
+  ])('rejects a %s Oasisfish application overlay', async (_name, mutate) => {
+    const { verifyStagedRetrievalResources } = await import('../scripts/staged-inventory.mjs')
+    const root = await stagedResources()
+    await mutate(root)
+    await expect(verifyStagedRetrievalResources(root)).rejects.toThrow('retrieval inventory')
   })
 
   it.each([

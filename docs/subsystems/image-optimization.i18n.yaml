@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/image-optimization.md
-image-optimization.md: e50c11484150f3a3d69bd065ce6efdfd32f19c31
-image-optimization.zh.md: 545920d3e6a26037c295ffa7a92e06a0d736731b
+image-optimization.md: 110699297e9bc5706b28cf73b4da58888aa394e0
+image-optimization.zh.md: 07b9cc7e92d88ad60792cbfe1893e4efd5b9cf3e

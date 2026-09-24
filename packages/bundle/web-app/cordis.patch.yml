@@ -42,6 +42,9 @@
 - id: tool-image-optimize
   disabled: true
 
+- id: tool-skill-search
+  disabled: true
+
 # ── web-only host rows, the transport layer, and the browser roster ─────────
 
 # `dsh.client` rows are the browser roster the modules node half scans into
@@ -57,11 +60,9 @@
       config:
         maxNoteBytes: 8192
 
+    # Persistence and settings stay on the Host; presets own the model-facing tool.
     - id: memory-local
       name: '@deepseek-ai/dsh-memory-local'
-
-    - id: tool-memory
-      name: '@deepseek-ai/dsh-tool-memory'
 
     # Browser Session export: `/export` command plus the shared download dialog.
     - id: session-log-download
