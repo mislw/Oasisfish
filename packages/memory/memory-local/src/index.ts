@@ -263,6 +263,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     maxProjectChars: positive('maxProjectChars', config.maxProjectChars ?? 18000),
   }
   const domain = await ctx.storageDomain.open(memoryDomainSpec)
-  ctx.memory.registerProvider(new LocalMemoryProvider(domain.global, limits))
   ctx.effect(() => async () => { await domain.close() }, 'memory-local.domainClose')
+  ctx.memory.registerProvider(new LocalMemoryProvider(domain.global, limits))
 }

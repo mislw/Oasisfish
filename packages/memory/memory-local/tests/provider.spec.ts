@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Storage from '@deepseek-ai/dsh-storage'
@@ -5,6 +6,7 @@ import type { KvUnit, StorageBackend } from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
 import { descriptorOf } from '@deepseek-ai/dsh-storage-domain'
 import MemoryService, { MemoryId } from '@deepseek-ai/dsh-memory'
+import type { MemoryProvider } from '@deepseek-ai/dsh-memory/types'
 import { MemoryMediaPool, MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import * as MemoryLocal from '../src/index.ts'
 import { memoryDomainSpec, memoryRecordSchema, memoryStateSchema } from '../src/spec.ts'
@@ -18,6 +20,8 @@ const limits = {
 }
 
 const cleanups: Array<() => Promise<void>> = []
+const projectA = resolve('fixtures/memory/project-a')
+const projectB = resolve('fixtures/memory/project-b')
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup()
@@ -27,6 +31,17 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void
   const promise = new Promise<void>((settle) => { resolve = settle })
   return { promise, resolve }
+}
+
+function unusedProvider(): MemoryProvider {
+  const unexpected = (): Promise<never> => Promise.reject(new Error('unexpected occupied-provider call'))
+  return {
+    list: unexpected,
+    add: unexpected,
+    update: unexpected,
+    remove: unexpected,
+    setEnabled: unexpected,
+  }
 }
 
 class BlockingStorageBackend implements StorageBackend {
@@ -84,15 +99,15 @@ async function harness(
 describe('local memory provider', () => {
   it('isolates project records while sharing user records', async () => {
     const { memory } = await harness()
-    await memory.add({ scope: 'user', content: 'Reply in Chinese.' }, { cwd: 'C:\\a' })
-    const project = await memory.add({ scope: 'project', content: 'Run focused tests.' }, { cwd: 'C:\\a' })
+    await memory.add({ scope: 'user', content: 'Reply in Chinese.' }, { cwd: projectA })
+    const project = await memory.add({ scope: 'project', content: 'Run focused tests.' }, { cwd: projectA })
 
-    expect(project).toMatchObject({ scope: 'project', projectLabel: 'a' })
-    await expect(memory.list({ cwd: 'C:\\a' })).resolves.toMatchObject({ records: [
+    expect(project).toMatchObject({ scope: 'project', projectLabel: 'project-a' })
+    await expect(memory.list({ cwd: projectA })).resolves.toMatchObject({ records: [
       expect.objectContaining({ scope: 'user' }),
       expect.objectContaining({ scope: 'project' }),
     ] })
-    await expect(memory.list({ cwd: 'C:\\b' })).resolves.toMatchObject({ records: [
+    await expect(memory.list({ cwd: projectB })).resolves.toMatchObject({ records: [
       expect.objectContaining({ scope: 'user' }),
     ] })
   })
@@ -105,10 +120,10 @@ describe('local memory provider', () => {
 
   it('updates a visible project record and hides it from other project contexts', async () => {
     const { memory } = await harness()
-    const record = await memory.add({ scope: 'project', content: 'Use pnpm.' }, { cwd: 'C:\\repo-a' })
-    await expect(memory.update({ id: record.id, content: 'Use pnpm only.' }, { cwd: 'C:\\repo-a' }))
+    const record = await memory.add({ scope: 'project', content: 'Use pnpm.' }, { cwd: projectA })
+    await expect(memory.update({ id: record.id, content: 'Use pnpm only.' }, { cwd: projectA }))
       .resolves.toMatchObject({ scope: 'project', content: 'Use pnpm only.' })
-    await expect(memory.update({ id: record.id, content: 'Hidden update.' }, { cwd: 'C:\\repo-b' }))
+    await expect(memory.update({ id: record.id, content: 'Hidden update.' }, { cwd: projectB }))
       .rejects.toMatchObject({ code: 'MEMORY_NOT_FOUND' })
   })
 
@@ -118,7 +133,7 @@ describe('local memory provider', () => {
       { scope: 'user', content: 'Use short replies.' },
       { sourceSessionId: 'source-session' as never },
     )
-    await memory.add({ scope: 'project', content: 'Use pnpm.' }, { cwd: 'C:\\repo' })
+    await memory.add({ scope: 'project', content: 'Use pnpm.' }, { cwd: projectA })
     expect(user.sourceSessionId).toBe('source-session')
     await expect(memory.list({})).resolves.toMatchObject({ records: [expect.objectContaining({ scope: 'user' })] })
     const updated = await memory.update(
@@ -221,6 +236,23 @@ describe('local memory provider', () => {
     })
   })
 
+  it('releases the opened domain when duplicate Provider registration aborts activation', async () => {
+    const ctx = new Context()
+    cleanups.push(async () => { await ctx.fiber.dispose() })
+    await ctx.plugin(Storage)
+    ctx.storage.backend.register('memory', new MemoryStorageBackend())
+    const facility = new DomainFacility(ctx, { backend: 'memory' })
+    ctx.storage.mount('domain', facility)
+    ctx.provide('storageDomain', facility)
+    await ctx.plugin(MemoryService)
+    const unregister = ctx.memory.registerProvider(unusedProvider())
+
+    await expect(ctx.plugin(MemoryLocal, limits))
+      .rejects.toMatchObject({ code: 'MEMORY_DUPLICATE_PROVIDER' })
+    await unregister()
+    await expect(MemoryLocal.apply(ctx, limits)).resolves.toBeUndefined()
+  })
+
   it('rejects duplicates and exact item or aggregate limits', async () => {
     const { memory } = await harness()
     await memory.add({ scope: 'user', content: '1234567890' }, {})
@@ -245,7 +277,7 @@ describe('local memory provider', () => {
 
   it('enforces project-specific item and aggregate limits', async () => {
     const { memory } = await harness()
-    const cwd = 'C:\\repo'
+    const cwd = projectA
     await memory.add({ scope: 'project', content: '12345678901234567890' }, { cwd })
     await memory.add({ scope: 'project', content: 'abcdefghij' }, { cwd })
     await expect(memory.add({ scope: 'project', content: 'third' }, { cwd }))

@@ -525,7 +525,8 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Native durable memory seam',
     mode: 'seam',
     implementations: ['memory-local'],
-    note: 'Routes global user and cwd-derived project records through one provider; consumer composition is added separately from the storage service.',
+    consumers: ['memory'],
+    note: 'Routes global user and cwd-derived project records through one provider; its Typert Remote adapters expose the same operations to authenticated management clients.',
   },
   {
     key: 'agents',
