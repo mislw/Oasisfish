@@ -73,11 +73,13 @@ kind: "package-reference"
 
 Host 半侧为受信任的 `[OASIS_UI_WORKFLOW]` 消息加入一段字节稳定的系统提示。浏览器半侧注册一个输入区控件和一个 shell overlay，构建结构化阶段消息，通过现有对话草稿接口接收所选图片，并按 Session id 保存可丢弃的进度。
 
+本包不发布 invariant companion，因为 prompt 与 slot 注册由 fiber 持有，而启动器进度只存在于浏览器本地且可丢弃。
+
 | 区域 | 源文件 |
 |---|---|
 | Host 提示段落 | [`src/index.ts`](src/index.ts) |
 | 浏览器注册 | [`src/client/index.ts`](src/client/index.ts) |
-| 阶段 Prompt 与定义 | [`src/client/workflow.ts`](src/client/workflow.ts) |
+| 阶段 Prompt 与定义 | [`src/workflow.ts`](src/workflow.ts) |
 | 浏览器本地进度 | [`src/client/progress-store.ts`](src/client/progress-store.ts) |
 | 启动器 UI | [`src/client/OasisUiWorkflow.tsx`](src/client/OasisUiWorkflow.tsx) |
 

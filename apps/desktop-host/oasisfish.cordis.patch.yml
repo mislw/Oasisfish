@@ -4,6 +4,9 @@
 - id: image-generation
   disabled: false
 
+- id: skill-image-generation
+  disabled: false
+
 - id: skill-search
   config:
     corpora:

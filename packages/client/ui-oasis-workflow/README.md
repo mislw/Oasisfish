@@ -73,11 +73,13 @@ The fixed stages are `来源 -> UI Tree -> 视觉稿 -> 分层 -> Workbench -> U
 
 The Host half adds one byte-stable system-prompt section for trusted `[OASIS_UI_WORKFLOW]` messages. The browser half registers one composer control and one shell overlay, builds structured stage messages, routes selected images through the existing conversation draft intake, and stores disposable progress per Session id.
 
+No invariant companion is published because prompt and slot registrations are fiber-owned, while launcher progress is browser-local and disposable.
+
 | Area | Source |
 |---|---|
 | Host prompt section | [`src/index.ts`](src/index.ts) |
 | Browser registrations | [`src/client/index.ts`](src/client/index.ts) |
-| Stage prompts and definitions | [`src/client/workflow.ts`](src/client/workflow.ts) |
+| Stage prompts and definitions | [`src/workflow.ts`](src/workflow.ts) |
 | Browser-local progress | [`src/client/progress-store.ts`](src/client/progress-store.ts) |
 | Launcher UI | [`src/client/OasisUiWorkflow.tsx`](src/client/OasisUiWorkflow.tsx) |
 

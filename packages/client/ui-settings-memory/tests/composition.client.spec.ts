@@ -6,6 +6,7 @@ import { apply as applyHost } from '../src/index.ts'
 const root = resolve(import.meta.dirname, '../../../..')
 const readJson = (path: string) => JSON.parse(readFileSync(resolve(root, path), 'utf8')) as {
   dependencies?: Record<string, string>
+  devDependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
 }
 
@@ -30,8 +31,14 @@ describe('memory Settings product composition', () => {
     expect(patch).toContain("name: '@deepseek-ai/dsh-memory-local'")
     expect(readJson('packages/bundle/web-app/package.json').dependencies)
       .toHaveProperty('@deepseek-ai/dsh-memory-local', 'workspace:^')
-    expect(patch).toContain("name: '@deepseek-ai/dsh-tool-memory'")
+    expect(patch).not.toContain("name: '@deepseek-ai/dsh-tool-memory'")
     expect(readJson('packages/bundle/web-app/package.json').dependencies)
+      .not.toHaveProperty('@deepseek-ai/dsh-tool-memory')
+    for (const preset of ['standard', 'ptc']) {
+      const composition = readFileSync(resolve(root, `packages/preset/agent-presets/presets/${preset}/agent.cordis.yml`), 'utf8')
+      expect(composition).toContain("name: '@deepseek-ai/dsh-tool-memory'")
+    }
+    expect(readJson('packages/preset/agent-presets/package.json').dependencies)
       .toHaveProperty('@deepseek-ai/dsh-tool-memory', 'workspace:^')
   })
 

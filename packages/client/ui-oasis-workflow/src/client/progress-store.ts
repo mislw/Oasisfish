@@ -1,7 +1,7 @@
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import {
   OASIS_UI_STAGES, type OasisUiLaunchRequest, type OasisUiMode, type OasisUiSource,
-} from './workflow.ts'
+} from '../workflow.ts'
 
 /** User-confirmed lifecycle state for one workflow stage. */
 export type OasisUiProgressStatus = 'ready' | 'awaiting_confirmation' | 'complete'

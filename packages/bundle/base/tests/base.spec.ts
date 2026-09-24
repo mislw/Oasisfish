@@ -63,9 +63,11 @@ describe('dsh-base bundle', () => {
     })
     expect(rows.find(row => row.id === 'skill-image-generation')).toMatchObject({
       name: '@deepseek-ai/dsh-skill-image-generation',
+      disabled: true,
     })
     expect(rows.find(row => row.id === 'tool-image-optimize')).toMatchObject({
       name: '@deepseek-ai/dsh-tool-image-optimize',
+      disabled: true,
     })
     expect(rows.find(row => row.id === 'tool-memory')).toBeUndefined()
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')

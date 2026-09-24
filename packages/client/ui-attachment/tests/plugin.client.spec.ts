@@ -49,7 +49,7 @@ describe('attachment plugin', () => {
       locale: 'conversation',
       component: MessageImages,
     }])
-    expect(ctx.slots.entries('tool.call.toolview', 'image_generate')).toMatchObject([{
+    expect(ctx.slots.entries('tool.call.toolview').filter(entry => entry.options.key === 'image_generate')).toMatchObject([{
       locale: 'conversation',
       component: ImageGenerateResult,
     }])
@@ -64,7 +64,7 @@ describe('attachment plugin', () => {
     expect(ctx.slots.entries('conversation.message.images')).toHaveLength(0)
     expect(ctx.slots.entries('conversation.trajectory.images')).toHaveLength(0)
     expect(ctx.slots.entries('tool.call.images')).toHaveLength(0)
-    expect(ctx.slots.entries('tool.call.toolview', 'image_generate')).toHaveLength(0)
+    expect(ctx.slots.entries('tool.call.toolview').filter(entry => entry.options.key === 'image_generate')).toHaveLength(0)
     expect(ctx.slots.entries('image-generation.result.images')).toHaveLength(0)
   })
 })

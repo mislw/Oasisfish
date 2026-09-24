@@ -60,7 +60,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 The plugin wraps `llm/stream`, so direct streams and agent-loop requests use the same route state. Closed routes count terminal transient failures; success resets the consecutive count. Open routes short-circuit with one error finish. After the interval, one synchronous reservation becomes the half-open probe; its success or definitive error closes the route, its transient failure reopens it, and an unresolved probe becomes immediately eligible again. Generation and probe identities prevent late terminal completions from changing newer state.
 
-The package logs transitions to open, half-open, and closed. It has no `./invariant` export because the same plugin owns both the private state and every observation that changes it.
+The package logs transitions to open, half-open, and closed. No invariant companion is published because the same plugin owns both the private state and every observation that changes it.
 
 | File | Role |
 |---|---|

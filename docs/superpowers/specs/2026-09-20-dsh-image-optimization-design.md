@@ -159,15 +159,15 @@ Skill catalog and tool instructions drive first-phase automatic routing, so this
 
 ## Profile Composition
 
-`dsh-base` mounts the optimization service, case-library Provider, and bundled Skill Provider on the Host plane. Headless, ordinary SDK, and ACP use the Base-owned global `image_optimize` tool.
+`dsh-base` mounts the optimization service and case-library Provider on the Host plane, but keeps the bundled `image-generation` Skill and Base `image_optimize` tool disabled. Generic Headless, ordinary SDK, and ACP compositions do not expose the product-specific Skill or tool.
 
-Web continues to place model tools in Agent Presets. The `standard`, `ptc`, and `cordis` Presets each mount `tool-image-optimize`; they resolve the same Host-owned optimization service and case library without copying resources per Session.
+Web keeps the Base tool disabled. The `standard` and `ptc` Presets carry a guarded product group that mounts `tool-image-optimize` only when the deployment provides `imageGeneration`; the tools resolve the same Host-owned optimization service and case library without copying resources per Session.
 
-`sdk-minimal` explicitly mounts the Skill Registry, bundled `image-generation` Skill, `tool-skill`, optimization service, case library, and `image_optimize`. It does not add user-directory Skill discovery or other Base tools. To support referenced image input, it also mounts the existing Attachment Service and local Provider; requests without references do not read Attachment data.
+Oasisfish Desktop enables the auxiliary image Provider and bundled `image-generation` Skill, which activates the guarded `standard` and `ptc` tool group. Dedicated image-generation and image-optimization snapshot profiles opt in to the same Skill and tool explicitly.
 
 Desktop receives the general capability through formal package dependencies rather than `DSH_BUNDLED_SKILL_DIR` or the user-directory `gpt-image-2-style-library`. The Desktop-bundled `oasis-wiki` may remain in its existing resource directory until that domain knowledge receives a separate formal package owner.
 
-Users and deployments can disable the Tool or Skill through a later Profile patch; every shipped DSH Profile enables them by default.
+Other deployments can opt in through a later Profile patch after providing an image-generation Provider; generic shipped profiles keep the Tool and Skill disabled.
 
 ## Oasis and Cowart Integration
 

@@ -159,15 +159,15 @@ abstract class ImageOptimizer {
 
 ## Profile 组合
 
-`dsh-base` 在 Host 层装载优化服务、案例库 Provider 和内置 Skill Provider。Headless、普通 SDK 和 ACP 使用 Base 的全局 `image_optimize` 工具。
+`dsh-base` 在 Host 层装载优化服务和案例库 Provider，但保持内置 `image-generation` Skill 与 Base `image_optimize` 工具为禁用状态。通用 Headless、普通 SDK 和 ACP 组合不暴露这项产品专用 Skill 或工具。
 
-Web 继续把模型工具放在 Agent Preset 中。`standard`、`ptc` 和 `cordis` Preset 均装载 `tool-image-optimize`；它们解析 Host 层的同一优化服务和案例库，不为每个 Session 复制资源。
+Web 保持 Base 工具为禁用状态。`standard` 与 `ptc` Preset 包含一个受保护的产品工具组，仅在部署提供 `imageGeneration` 时装载 `tool-image-optimize`；这些工具解析 Host 层的同一优化服务和案例库，不为每个 Session 复制资源。
 
-`sdk-minimal` 明确装载 Skill Registry、内置 `image-generation` Skill、`tool-skill`、优化服务、案例库和 `image_optimize`。它不增加用户目录 Skill 扫描或其他 Base 工具。为支持参考图片输入，它同时装载现有 Attachment Service 和本地 Provider；无参考图任务不读取 Attachment 数据。
+Oasisfish Desktop 启用辅助图片 Provider 和内置 `image-generation` Skill，从而激活 `standard` 与 `ptc` 中受保护的工具组。专用图片生成和图片优化快照 Profile 也显式启用同一个 Skill 与工具。
 
 Desktop 通过正式包依赖获得通用能力，不依赖 `DSH_BUNDLED_SKILL_DIR` 或用户目录中的 `gpt-image-2-style-library`。随 Desktop 发布的 `oasis-wiki` 仍可保留在现有资源目录，直到该领域知识另行获得正式包归属。
 
-用户和部署可以通过后续 Profile patch 禁用工具或 Skill；所有随 DSH 发布的 Profile 默认启用。
+其他部署在提供图片生成 Provider 后，可以通过后续 Profile patch 显式启用；通用发布 Profile 保持工具与 Skill 禁用。
 
 ## Oasis 和 Cowart 集成
 

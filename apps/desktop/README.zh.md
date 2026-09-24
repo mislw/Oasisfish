@@ -28,6 +28,8 @@ Desktop 还会把完整的 `oasis-wiki` 与 `ai-image-prompts` 固化到 `runtim
 
 本地 Skill 检索使用 `runtime/models/bge-small-zh-v1.5` 下固定的 `Xenova/bge-small-zh-v1.5` ONNX 快照。准备阶段会在暂存前校验获准的上游修订、MIT 许可证、清单、文件类型和每个 SHA-256 摘要。Provider 不会下载模型。可重建的 SQLite 索引位于 `$DSH_HOME/cache/skill-search`，不进入签名资源；模型和语料身份兼容时，重启后会复用该索引。
 
+Oasisfish Desktop 组合提供持久保存的默认对话模型、原生用户与项目记忆、本地 Oasis Wiki 检索、提供方无关的图片优化，以及辅助图片生成。Models 设置页面负责对话默认模型以及独立的主图片路由和备用图片路由，Memory 设置负责记录可见性与删除。standard 和 PTC agent 在该产品组合中获得 `memory_manage`、`skill_search`、`image_optimize` 与 `image_generate`。优化过程会准备确定性规格，不调用图片模型；生成过程使用辅助路由，不改变对话模型，并把成功字节提交为持久附件。选定的默认模型、记忆记录、兼容的搜索索引和已生成附件都会在 Host 重启后保留。
+
 该产物随 Desktop 版本发布。`runtime.json` 记录 Desktop 版本、目标平台、组件与 Python 分发包版本，以及所选目标的锁定产物输入与组装格式的摘要。分发包名称按 PEP 503 归一化；名称归一化后重复，或 numpy/pandas 的组件版本与分发包版本冲突时，清单会被拒绝。匹配的安装会被复用；依赖或压缩包变化后，即使 Desktop 版本不变，也会在完整暂存副本完成后替换目录。不含摘要的旧清单会在下次安装时被替换。用户自行添加的 Python 包仅在产物身份一致时保留。目录替换失败时保留之前的安装；解释器仍在运行时，Windows 可能拒绝替换。
 
 Desktop 私有的 `runtime/bin` 目录仅添加到包安装进程。Host 将已安装主运行时的 `dependencies/node/bin` 目录放在 PTC 和 agent shell 继承的 PATH 最前面，因此打包后的 Desktop 无需系统 Node.js 安装即可提供 `node`、`npm` 和 `npx`。`load_workspace_dependencies` 工具除此之外不修改环境变量或用户包管理器配置。pnpm 的全局包、命令入口和 store 保留自身默认值及用户设置，包括环境不支持全局安装时的原生错误。不提供独立依赖更新器。[第一方 Runtime 决策](../../.agents/notes/implemented/feature/2026-09-14-desktop-primary-runtime.zh.md)记录这些选择。

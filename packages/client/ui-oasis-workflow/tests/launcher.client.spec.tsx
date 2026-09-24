@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { OASIS_UI_STAGES } from '../src/client/workflow.ts'
+import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+import { OASIS_UI_STAGES } from '../src/workflow.ts'
 import { OasisUiLauncherStore } from '../src/client/launcher-store.ts'
+import { en, NS, type OasisUiLocaleKey, zh } from '../src/client/locales.ts'
 import {
   OasisUiLauncherButton, OasisUiWorkflowOverlay, type OasisUiLauncherButtonProps,
 } from '../src/client/OasisUiWorkflow.tsx'
@@ -11,6 +13,18 @@ afterEach(() => {
   cleanup()
   localStorage.clear()
 })
+
+function translate(dict: Record<OasisUiLocaleKey, string>): PropsLocale<typeof NS>['t'] {
+  return ((key: OasisUiLocaleKey, params?: Record<string, unknown>) => {
+    let value = dict[key]
+    for (const [name, replacement] of Object.entries(params ?? {})) {
+      value = value.replaceAll(`{${name}}`, String(replacement))
+    }
+    return value
+  }) as PropsLocale<typeof NS>['t']
+}
+
+const t = translate(zh)
 
 function openLauncher(
   addFiles = vi.fn<(files: readonly File[]) => string | null>(() => null),
@@ -22,7 +36,7 @@ function openLauncher(
   const launcher = new OasisUiLauncherStore()
   const target = { sessionId, draft, addFiles, inputActions: { setDraft, submit } }
   launcher.open(target)
-  render(<OasisUiWorkflowOverlay launcher={launcher} />)
+  render(<OasisUiWorkflowOverlay launcher={launcher} t={t} />)
   return { launcher, setDraft, submit, addFiles, reopen: () => { act(() => { launcher.open(target) }) } }
 }
 
@@ -37,7 +51,7 @@ const REQUEST = {
 describe('OasisUiWorkflowOverlay', () => {
   it('renders nothing while closed and closes from Escape, the backdrop, and close controls', () => {
     const launcher = new OasisUiLauncherStore()
-    const view = render(<OasisUiWorkflowOverlay launcher={launcher} />)
+    const view = render(<OasisUiWorkflowOverlay launcher={launcher} t={t} />)
     expect(view.container.firstChild).toBeNull()
 
     const opened = openLauncher()
@@ -213,7 +227,7 @@ describe('OasisUiWorkflowOverlay', () => {
       get request() { return request },
     }
     Object.defineProperty(progress, 'getSnapshot', { value: () => snapshot })
-    render(<OasisUiWorkflowOverlay launcher={launcher} />)
+    render(<OasisUiWorkflowOverlay launcher={launcher} t={t} />)
     expect(screen.getByRole('button', { name: '开始本阶段' }).hasAttribute('disabled')).toBe(false)
 
     request = null
@@ -299,6 +313,24 @@ describe('OasisUiWorkflowOverlay', () => {
 })
 
 describe('OasisUiLauncherButton', () => {
+  it('renders launcher copy from the injected locale namespace', () => {
+    const launcher = new OasisUiLauncherStore()
+    const props = {
+      launcher,
+      addFiles: vi.fn(() => null),
+      sessionId: 'localized-session',
+      useInput: vi.fn(() => ({ phase: 'plain', draft: '' })),
+      inputActions: { setDraft: vi.fn(), submit: vi.fn() },
+      useProjection: vi.fn(() => undefined),
+      t: translate(en),
+    } as unknown as OasisUiLauncherButtonProps
+
+    render(<OasisUiLauncherButton {...props} />)
+
+    expect(screen.getByRole('button', { name: 'Open the Oasis UI workflow' })).toBeTruthy()
+    expect(screen.getByText('UI workflow')).toBeTruthy()
+  })
+
   it('opens the launcher with the current draft and attachment limits', () => {
     const launcher = new OasisUiLauncherStore()
     const addFiles = vi.fn(() => null)
@@ -311,6 +343,7 @@ describe('OasisUiLauncherButton', () => {
       useInput: vi.fn(() => ({ phase: 'plain', draft: 'current draft' })),
       inputActions,
       useProjection: vi.fn(() => imageLimits),
+      t,
     } as unknown as OasisUiLauncherButtonProps
     render(<OasisUiLauncherButton {...props} />)
     fireEvent.click(screen.getByRole('button', { name: '打开 Oasis UI 生图工具链' }))
@@ -331,6 +364,7 @@ describe('OasisUiLauncherButton', () => {
       useInput: vi.fn(() => ({ phase: 'submitting', draft: '' })),
       inputActions: { setDraft: vi.fn(), submit: vi.fn() },
       useProjection: vi.fn(() => undefined),
+      t,
     } as unknown as OasisUiLauncherButtonProps
     render(<OasisUiLauncherButton {...props} />)
     const button = screen.getByRole('button', { name: '打开 Oasis UI 生图工具链' })

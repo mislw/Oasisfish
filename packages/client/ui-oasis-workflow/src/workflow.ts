@@ -72,16 +72,22 @@ export const OASIS_UI_STAGES: readonly OasisUiStageDefinition[] = [
   },
 ]
 
-const SOURCE_LABEL: Record<OasisUiSource, string> = {
+const SOURCE_PROMPT_VALUE: Record<OasisUiSource, string> = {
   generate: '还没有 UI，需要先生成正式视觉稿',
   existing: '已经有 UI 图，使用当前会话附件或下面列出的文件',
   continue: '继续之前做到一半的 UI，先只读重发现实际产物',
 }
 
-const MODE_LABEL: Record<OasisUiMode, string> = {
+const MODE_PROMPT_VALUE: Record<OasisUiMode, string> = {
   text: '文字导航版',
   desktop: 'UI 桌面版',
 }
+
+/** Model-visible fallback used when revision details remain in the following chat message. */
+export const OASIS_UI_REVISION_FOLLOW_UP = '请根据我接下来在对话中补充的意见继续修改当前阶段。'
+
+/** Model-visible reference recorded after the launcher attaches a pasted image. */
+export const OASIS_UI_PASTED_REFERENCE = '已从剪贴板粘贴参考图，并作为当前消息附件提交'
 
 /** Inputs required to compile one stage-scoped user message. */
 export interface OasisUiStagePromptRequest {
@@ -103,7 +109,7 @@ export function buildOasisUiStagePrompt(input: OasisUiStagePromptRequest): strin
   const feedback = input.feedback?.trim()
   const revision = feedback !== undefined && feedback !== ''
 
-  return `[OASIS_UI_WORKFLOW]\n请切换到 Oasis Wiki 的 UI 生图工具链。\n\n模式：${MODE_LABEL[input.mode]}\n当前阶段：${input.stageIndex + 1}/${OASIS_UI_STAGES.length} · ${stage.name}\n本轮类型：${revision ? '修改当前阶段' : '开始当前阶段'}\n任务名称：${request.pageName}\n来源：${SOURCE_LABEL[request.source]}\n页面目的：${request.purpose}\n参考图/现有产物：${request.references}\n额外约束：${request.constraints}${revision ? `\n修改意见：${feedback}` : ''}\n\nAgent 本阶段工作：${stage.agentWork}\n用户本阶段验收：${stage.userAcceptance}\n预期产物：${stage.expectedOutput}\n\n执行约束：\n1. 先调用 skill 工具加载 oasis-wiki，并按 task-router 进入 UI Design System + Cowart UI Production。\n2. 检测当前项目并解析 RedCliff profile；搜索已有组件后再设计，优先复用项目控件库。\n3. 正式生成前必须有完整 UI Tree 和经过验证的 Generation Package；Style/Layout 参考必须真实进入生成调用。\n4. 正式生图先调用 image_optimize；返回 needs_clarification 时停止并询问用户，不得调用图片执行器。\n5. 仅当 image_optimize 返回 prepared 时，把 prepared prompt、references、output settings 和 required capabilities 传给 image_generate，再调用 image_generate；不得传递优化证据、内部 case id 或无关元数据。\n6. image_generate 不可用时返回 IMAGE_GENERATION_UNAVAILABLE，不得用 HTML/CSS/Chromium 截图伪造正式生成结果。\n7. 动态文字、数值、进度和点击热区保持 Native。\n8. 未经我明确授权，不修改 WidgetBlueprint、Lua、DataTable、.uasset、.umap 或其他 UGC 工程资产。\n9. 只完成当前阶段，不要进入下一阶段，也不要把计划、静态读取或未执行检查标记为完成。\n\n本轮完成后停止，等待用户在工具中确认。`
+  return `[OASIS_UI_WORKFLOW]\n请切换到 Oasis Wiki 的 UI 生图工具链。\n\n模式：${MODE_PROMPT_VALUE[input.mode]}\n当前阶段：${input.stageIndex + 1}/${OASIS_UI_STAGES.length} · ${stage.name}\n本轮类型：${revision ? '修改当前阶段' : '开始当前阶段'}\n任务名称：${request.pageName}\n来源：${SOURCE_PROMPT_VALUE[request.source]}\n页面目的：${request.purpose}\n参考图/现有产物：${request.references}\n额外约束：${request.constraints}${revision ? `\n修改意见：${feedback}` : ''}\n\nAgent 本阶段工作：${stage.agentWork}\n用户本阶段验收：${stage.userAcceptance}\n预期产物：${stage.expectedOutput}\n\n执行约束：\n1. 先调用 skill 工具加载 oasis-wiki，并按 task-router 进入 UI Design System + Cowart UI Production。\n2. 检测当前项目并解析 RedCliff profile；搜索已有组件后再设计，优先复用项目控件库。\n3. 正式生成前必须有完整 UI Tree 和经过验证的 Generation Package；Style/Layout 参考必须真实进入生成调用。\n4. 正式生图先调用 image_optimize；返回 needs_clarification 时停止并询问用户，不得调用图片执行器。\n5. 仅当 image_optimize 返回 prepared 时，把 prepared prompt、references、output settings 和 required capabilities 传给 image_generate，再调用 image_generate；不得传递优化证据、内部 case id 或无关元数据。\n6. image_generate 不可用时返回 IMAGE_GENERATION_UNAVAILABLE，不得用 HTML/CSS/Chromium 截图伪造正式生成结果。\n7. 动态文字、数值、进度和点击热区保持 Native。\n8. 未经我明确授权，不修改 WidgetBlueprint、Lua、DataTable、.uasset、.umap 或其他 UGC 工程资产。\n9. 只完成当前阶段，不要进入下一阶段，也不要把计划、静态读取或未执行检查标记为完成。\n\n本轮完成后停止，等待用户在工具中确认。`
 }
 
 /**

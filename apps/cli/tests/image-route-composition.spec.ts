@@ -12,6 +12,9 @@ const patch = (path: string) => loadOverlayPatches('image route composition', jo
 const base = patch('packages/bundle/base/cordis.patch.yml')
 const web = patch('packages/bundle/web-app/cordis.patch.yml')
 const desktop = patch('apps/desktop-host/oasisfish.cordis.patch.yml')
+const generationSnapshot = patch('snapshots/session/image-generation/cordis.yml')
+const generationSnapshotReplay = patch('snapshots/session/image-generation/cordis.snapshot.yml')
+const optimizationSnapshot = patch('snapshots/session/image-optimization/profile.patch.yml')
 const presetManifest = JSON.parse(
   readFileSync(join(root, 'packages/preset/agent-presets/package.json'), 'utf8'),
 ) as { dependencies?: Record<string, string> }
@@ -45,11 +48,24 @@ describe('auxiliary image route composition', () => {
     })
     expect(baseEntries.find(row => row.id === 'skill-image-generation')).toMatchObject({
       name: '@deepseek-ai/dsh-skill-image-generation',
+      disabled: true,
     })
+    expect(composeEntries([base, web, desktop]).find(row => row.id === 'skill-image-generation'))
+      .toMatchObject({ name: '@deepseek-ai/dsh-skill-image-generation', disabled: false })
+    expect(composeEntries([base, optimizationSnapshot]).find(row => row.id === 'skill-image-generation'))
+      .toMatchObject({ name: '@deepseek-ai/dsh-skill-image-generation', disabled: false })
+    expect(composeEntries([base, generationSnapshot]).find(row => row.id === 'skill-image-generation'))
+      .toMatchObject({ name: '@deepseek-ai/dsh-skill-image-generation', disabled: false })
+    expect(composeEntries([base, generationSnapshotReplay]).find(row => row.id === 'skill-image-generation'))
+      .toMatchObject({ name: '@deepseek-ai/dsh-skill-image-generation', disabled: false })
     expect(imageOptimizeTool([base])).toMatchObject({
       name: '@deepseek-ai/dsh-tool-image-optimize',
+      disabled: true,
     })
     expect(imageOptimizeTool([base, web])?.disabled).toBe(true)
+    expect(imageOptimizeTool([base, generationSnapshot])?.disabled).toBe(false)
+    expect(imageOptimizeTool([base, generationSnapshotReplay])?.disabled).toBe(false)
+    expect(imageOptimizeTool([base, optimizationSnapshot])?.disabled).toBe(false)
   })
 
   it.each(['standard', 'ptc'])('mounts optimization before generation in the %s preset', (preset) => {

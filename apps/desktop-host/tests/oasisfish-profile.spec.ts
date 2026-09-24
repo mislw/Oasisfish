@@ -19,8 +19,8 @@ describe('Oasisfish Desktop profile', () => {
 
   it('loads the Oasisfish overlay from prepared Desktop resources instead of the Host package', () => {
     const resourceRoot = join(root, '.desktop-build', 'runtime')
-    const select = desktopPatchFiles as (profile: string | undefined, root: string) => string[]
-    expect(select('oasisfish', resourceRoot)).toEqual([join(resourceRoot, 'desktop', 'oasisfish.cordis.patch.yml')])
+    expect(desktopPatchFiles('oasisfish', resourceRoot))
+      .toEqual([join(resourceRoot, 'desktop', 'oasisfish.cordis.patch.yml')])
     const manifest = JSON.parse(readFileSync(join(root, 'apps', 'desktop-host', 'package.json'), 'utf8')) as {
       files?: string[]
     }
@@ -34,6 +34,7 @@ describe('Oasisfish Desktop profile', () => {
     const oasisfish = loadPatch('apps/desktop-host/oasisfish.cordis.patch.yml')
     const generic = composeEntries([base, web])
     expect(generic.find(row => row.id === 'image-generation')?.disabled).toBe(true)
+    expect(generic.find(row => row.id === 'skill-image-generation')?.disabled).toBe(true)
     expect(generic.find(row => row.id === 'ui-codex-bridge')?.disabled).toBe(true)
     expect(generic.find(row => row.id === 'skill-search')?.config).toEqual({ corpora: [] })
     expect(generic.some(row => row.id === 'skill-search-local')).toBe(false)
@@ -63,6 +64,7 @@ describe('Oasisfish Desktop profile', () => {
     }
     expect(desktop.some(row => row.id === 'tool-memory')).toBe(false)
     expect(desktop.find(row => row.id === 'image-generation')?.disabled).toBe(false)
+    expect(desktop.find(row => row.id === 'skill-image-generation')?.disabled).toBe(false)
     expect(desktop.find(row => row.id === 'ui-codex-bridge')?.disabled).toBe(false)
   })
 })

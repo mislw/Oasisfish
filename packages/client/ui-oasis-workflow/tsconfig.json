@@ -18,6 +18,9 @@
       "path": "../store"
     },
     {
+      "path": "../locale"
+    },
+    {
       "path": "../ui-conversation"
     },
     {
@@ -28,9 +31,6 @@
     },
     {
       "path": "../../core/session"
-    },
-    {
-      "path": "../../runtime-diagnostics/invariants"
     },
     {
       "path": "../../core/system-prompt"

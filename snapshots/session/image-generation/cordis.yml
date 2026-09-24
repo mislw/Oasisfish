@@ -7,6 +7,12 @@
     fallbackProvider: anthropic
     fallbackModel: fixture-backup-image
 
+- id: tool-image-optimize
+  disabled: false
+
+- id: skill-image-generation
+  disabled: false
+
 - insert:
     - id: tool-image-generate
       name: '@deepseek-ai/dsh-tool-image-generate'

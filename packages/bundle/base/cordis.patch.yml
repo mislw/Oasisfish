@@ -304,6 +304,7 @@
 
     - id: skill-image-generation
       name: '@deepseek-ai/dsh-skill-image-generation'
+      disabled: true
 
     # Deployments declare reviewed resource roots explicitly; the shared base
     # never scans every loaded Skill as a search corpus.
@@ -327,6 +328,7 @@
 
     - id: tool-image-optimize
       name: '@deepseek-ai/dsh-tool-image-optimize'
+      disabled: true
 
     - id: commands
       name: '@deepseek-ai/dsh-commands'

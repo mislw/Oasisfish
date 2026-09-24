@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-oasis-workflow/README.md
-README.md: e47bb6ade1d41bddbbb374710247c9c527b04ac4
-README.zh.md: 3aa4066265287a07aa5f9e7e0a229d9544b68de5
+README.md: dd2f24f320d4bcc3630b14a173d61861d94bf05d
+README.zh.md: 0329dd4875b34cc24f3123ed370f1141e136b31c

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MemoryId, type MemoryRecord } from '@deepseek-ai/dsh-memory'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { MemorySettingsStore, type MemoryRemote } from '../src/client/store.ts'
 
 const USER_RECORD: MemoryRecord = Object.freeze({
@@ -78,7 +79,7 @@ describe('MemorySettingsStore', () => {
     const api = remote({
       add: vi.fn(() => Promise.resolve({
         ok: false as const,
-        error: { code: 'remote-error', message: 'rejected', details: {} },
+        error: new RemoteError('gateway/internal', 'rejected', {}),
       })),
     })
     const controller = new MemorySettingsStore(api)
@@ -97,7 +98,7 @@ describe('MemorySettingsStore', () => {
 
     vi.mocked(api.list).mockResolvedValueOnce({
       ok: false,
-      error: { code: 'remote-error', message: 'list rejected', details: {} },
+      error: new RemoteError('gateway/internal', 'list rejected', {}),
     })
     await controller.load('/work/rejected')
     expect(controller.store.getSnapshot()).toMatchObject({
@@ -203,7 +204,7 @@ describe('MemorySettingsStore', () => {
     await controller.load('/work/project-b')
     pendingAdd.resolve({
       ok: false,
-      error: { code: 'remote-error', message: 'project A rejected', details: {} },
+      error: new RemoteError('gateway/internal', 'project A rejected', {}),
     })
 
     await expect(mutation).resolves.toBe(false)

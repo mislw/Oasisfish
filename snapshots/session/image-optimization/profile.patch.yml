@@ -8,5 +8,9 @@
 # Stage the packaged asset under the replay workspace so persisted Skill
 # resource guidance uses the snapshot's existing {{cwd}} token.
 - id: skill-image-generation
+  disabled: false
   config:
     assetRoot: !!js dshHomePath('snapshot-image-skill-assets')
+
+- id: tool-image-optimize
+  disabled: false

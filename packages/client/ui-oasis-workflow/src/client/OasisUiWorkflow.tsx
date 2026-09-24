@@ -1,11 +1,12 @@
 import { useEffect, useState, useSyncExternalStore, type ClipboardEvent } from 'react'
 import type { ImageAttachmentLimits } from '@deepseek-ai/dsh-attachment'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { OasisUiLauncherStore, type OasisUiLaunchTarget } from './launcher-store.ts'
 import {
-  buildOasisUiStagePrompt, OASIS_UI_STAGES, type OasisUiLaunchRequest,
-  type OasisUiMode, type OasisUiSource,
-} from './workflow.ts'
+  buildOasisUiStagePrompt, OASIS_UI_PASTED_REFERENCE, OASIS_UI_REVISION_FOLLOW_UP,
+  OASIS_UI_STAGES, type OasisUiLaunchRequest, type OasisUiMode, type OasisUiSource,
+} from '../workflow.ts'
+import { NS, OASIS_UI_STAGE_LOCALE_KEYS, type OasisUiLocaleKey } from './locales.ts'
 import css from './OasisUiWorkflow.module.css'
 
 export interface OasisUiOverlayInjected {
@@ -17,10 +18,14 @@ export interface OasisUiLauncherInjected extends OasisUiOverlayInjected {
 }
 
 export type OasisUiLauncherButtonProps =
-  PropsRuntime<'conversation.input.left'> & OasisUiLauncherInjected
+  PropsRuntime<'conversation.input.left'> & OasisUiLauncherInjected & PropsLocale<typeof NS>
+
+export type OasisUiWorkflowOverlayProps = OasisUiOverlayInjected & PropsLocale<typeof NS>
+
+type OasisUiTranslate = PropsLocale<typeof NS>['t']
 
 export function OasisUiLauncherButton({
-  launcher, addFiles, useInput, inputActions, sessionId, useProjection,
+  launcher, addFiles, useInput, inputActions, sessionId, t, useProjection,
 }: OasisUiLauncherButtonProps) {
   const input = useInput(value => value)
   const busy = input.phase !== 'plain'
@@ -29,8 +34,8 @@ export function OasisUiLauncherButton({
     <button
       type="button"
       className={css.launcherButton}
-      aria-label="打开 Oasis UI 生图工具链"
-      title="Oasis UI 生图工具链"
+      aria-label={t('launcher.open')}
+      title={t('launcher.title')}
       disabled={busy}
       onClick={() => {
         launcher.open({
@@ -42,16 +47,20 @@ export function OasisUiLauncherButton({
       }}
     >
       <span className={css.sparkle} aria-hidden="true">✦</span>
-      <span>UI 生图</span>
+      <span>{t('launcher.short')}</span>
     </button>
   )
 }
 
-const SOURCE_OPTIONS: ReadonlyArray<{ value: OasisUiSource; title: string; detail: string }> = [
-  { value: 'generate', title: '生成新 UI', detail: '从项目风格、参考图和 UI Tree 开始' },
-  { value: 'existing', title: '使用已有图', detail: '对当前附件或已有图片进入视觉确认' },
-  { value: 'continue', title: '继续现有任务', detail: '从真实文件与对话重新发现当前阶段' },
-]
+const SOURCE_OPTIONS = [
+  { value: 'generate', title: 'source.generate.title', detail: 'source.generate.detail' },
+  { value: 'existing', title: 'source.existing.title', detail: 'source.existing.detail' },
+  { value: 'continue', title: 'source.continue.title', detail: 'source.continue.detail' },
+] as const satisfies ReadonlyArray<{
+  readonly value: OasisUiSource
+  readonly title: OasisUiLocaleKey
+  readonly detail: OasisUiLocaleKey
+}>
 
 const INITIAL: OasisUiLaunchRequest = {
   source: 'generate',
@@ -61,7 +70,7 @@ const INITIAL: OasisUiLaunchRequest = {
   constraints: '',
 }
 
-export function OasisUiWorkflowOverlay({ launcher }: OasisUiOverlayInjected) {
+export function OasisUiWorkflowOverlay({ launcher, t }: OasisUiWorkflowOverlayProps) {
   const snapshot = useSyncExternalStore(launcher.subscribe, launcher.getSnapshot, launcher.getSnapshot)
 
   useEffect(() => {
@@ -74,15 +83,16 @@ export function OasisUiWorkflowOverlay({ launcher }: OasisUiOverlayInjected) {
   }, [launcher, snapshot.open])
 
   if (!snapshot.open || snapshot.target === null) return null
-  return <OasisUiWorkflowDialog key={snapshot.target.sessionId} launcher={launcher} target={snapshot.target} />
+  return <OasisUiWorkflowDialog key={snapshot.target.sessionId} launcher={launcher} target={snapshot.target} t={t} />
 }
 
 interface OasisUiWorkflowDialogProps {
   readonly launcher: OasisUiLauncherStore
   readonly target: OasisUiLaunchTarget
+  readonly t: OasisUiTranslate
 }
 
-function OasisUiWorkflowDialog({ launcher, target }: OasisUiWorkflowDialogProps) {
+function OasisUiWorkflowDialog({ launcher, target, t }: OasisUiWorkflowDialogProps) {
   const progress = useSyncExternalStore(
     target.progress.subscribe, target.progress.getSnapshot, target.progress.getSnapshot)
   const [form, setForm] = useState<OasisUiLaunchRequest>(progress.request ?? INITIAL)
@@ -90,8 +100,9 @@ function OasisUiWorkflowDialog({ launcher, target }: OasisUiWorkflowDialogProps)
   const [feedback, setFeedback] = useState('')
   const [pastedFiles, setPastedFiles] = useState<readonly string[]>([])
   const [pasteError, setPasteError] = useState<string | null>(null)
-  const stage = OASIS_UI_STAGES[progress.currentStage]
-  if (stage === undefined) return null
+  const modelStage = OASIS_UI_STAGES[progress.currentStage]
+  const stage = OASIS_UI_STAGE_LOCALE_KEYS[progress.currentStage]
+  if (modelStage === undefined || stage === undefined) return null
 
   const update = <K extends keyof OasisUiLaunchRequest>(key: K, value: OasisUiLaunchRequest[K]) => {
     setForm(current => ({ ...current, [key]: value }))
@@ -122,7 +133,7 @@ function OasisUiWorkflowDialog({ launcher, target }: OasisUiWorkflowDialogProps)
       mode: progress.mode,
       stageIndex: progress.currentStage,
       request: progress.request,
-      feedback: feedback.trim() || '请根据我接下来在对话中补充的意见继续修改当前阶段。',
+      feedback: feedback.trim() || OASIS_UI_REVISION_FOLLOW_UP,
     }))
     launcher.close()
     target.inputActions.submit()
@@ -141,9 +152,9 @@ function OasisUiWorkflowDialog({ launcher, target }: OasisUiWorkflowDialogProps)
       return
     }
     setPasteError(null)
-    setPastedFiles(current => [...current, ...files.map(file => file.name || '剪贴板图片')])
+    setPastedFiles(current => [...current, ...files.map(file => file.name || t('paste.unnamedFile'))])
     if (form.references.trim() === '') {
-      update('references', '已从剪贴板粘贴参考图，并作为当前消息附件提交')
+      update('references', OASIS_UI_PASTED_REFERENCE)
     }
   }
 
@@ -156,33 +167,37 @@ function OasisUiWorkflowDialog({ launcher, target }: OasisUiWorkflowDialogProps)
       <section className={css.dialog} role="dialog" aria-modal="true" aria-labelledby="oasis-ui-title" onPaste={pasteImages}>
         <header className={css.header}>
           <div>
-            <div className={css.eyebrow}>OASIS WIKI · REDCLIFF</div>
-            <h2 id="oasis-ui-title">UI 生图工具链</h2>
-            <p>每次只推进一个可验收阶段，由你确认后才解锁下一步。</p>
+            <div className={css.eyebrow}>{t('dialog.brand')}</div>
+            <h2 id="oasis-ui-title">{t('dialog.title')}</h2>
+            <p>{t('dialog.subtitle')}</p>
           </div>
-          <button type="button" className={css.closeButton} aria-label="关闭" onClick={() => { launcher.close() }}>×</button>
+          <button type="button" className={css.closeButton} aria-label={t('close')} onClick={() => { launcher.close() }}>×</button>
         </header>
 
         <div className={css.body}>
           {progress.mode === null ? (
-            <ModeChoice onSelect={(mode) => { target.progress.selectMode(mode) }} />
+            <ModeChoice onSelect={(mode) => { target.progress.selectMode(mode) }} t={t} />
           ) : (
             <>
-              <StageRail currentStage={progress.currentStage} status={progress.status} />
+              <StageRail currentStage={progress.currentStage} status={progress.status} t={t} />
               <section className={css.progressPanel} aria-labelledby="oasis-current-stage">
                 <div className={css.progressHeading}>
                   <div>
-                    <span className={css.stepCount}>第 {progress.currentStage + 1}/{OASIS_UI_STAGES.length} 步</span>
-                    <h3 id="oasis-current-stage">{stage.name}</h3>
+                    <span className={css.stepCount}>{t('step.count', { current: progress.currentStage + 1, total: OASIS_UI_STAGES.length })}</span>
+                    <h3 id="oasis-current-stage">{t(stage.name)}</h3>
                   </div>
                   <span className={progress.status === 'awaiting_confirmation' ? css.statusWaiting : css.statusReady}>
-                    {progress.status === 'ready' ? '准备开始' : progress.status === 'complete' ? '流程已完成' : '等待你确认'}
+                    {progress.status === 'ready'
+                      ? t('status.ready')
+                      : progress.status === 'complete'
+                        ? t('status.complete')
+                        : t('status.waiting')}
                   </span>
                 </div>
                 <div className={css.responsibilityGrid}>
-                  <StageDetail title="Agent 要做什么" text={stage.agentWork} />
-                  <StageDetail title="你要检查什么" text={stage.userAcceptance} />
-                  <StageDetail title="预期产物" text={stage.expectedOutput} />
+                  <StageDetail title={t('stage.agentWork')} text={t(stage.agentWork)} />
+                  <StageDetail title={t('stage.userAcceptance')} text={t(stage.userAcceptance)} />
+                  <StageDetail title={t('stage.expectedOutput')} text={t(stage.expectedOutput)} />
                 </div>
               </section>
 
@@ -191,69 +206,70 @@ function OasisUiWorkflowDialog({ launcher, target }: OasisUiWorkflowDialogProps)
                   form={form}
                   pastedFiles={pastedFiles}
                   pasteError={pasteError}
+                  t={t}
                   update={update}
                 />
               )}
               {progress.status === 'ready' && progress.currentStage === 0 && progress.mode === 'text' && (
-                <TextFirstStage form={form} textBrief={textBrief} update={update} setTextBrief={setTextBrief} />
+                <TextFirstStage form={form} textBrief={textBrief} update={update} setTextBrief={setTextBrief} t={t} />
               )}
               {progress.status === 'ready' && progress.currentStage > 0 && progress.request !== null && (
-                <TaskSummary request={progress.request} />
+                <TaskSummary request={progress.request} t={t} />
               )}
               {progress.status === 'awaiting_confirmation' && (
                 <div className={css.confirmPanel}>
                   <label>
-                    <span>需要修改的内容</span>
+                    <span>{t('feedback.label')}</span>
                     <textarea
                       value={feedback}
                       rows={3}
-                      placeholder="写下本阶段需要调整的地方；留空时会在聊天中继续补充"
+                      placeholder={t('feedback.placeholder')}
                       onChange={(event) => { setFeedback(event.target.value) }}
                     />
                   </label>
-                  <p>只有你点击确认后，工具才会进入下一步。Agent 的回复本身不会自动推进进度。</p>
+                  <p>{t('feedback.hint')}</p>
                 </div>
               )}
               {progress.status === 'complete' && (
                 <div className={css.completePanel}>
-                  <strong>8 个阶段均已由你确认</strong>
-                  <span>这里记录的是确认进度；最终验收仍以真实文件、编辑器、PIE 和多人验证证据为准。</span>
+                  <strong>{t('complete.title')}</strong>
+                  <span>{t('complete.detail')}</span>
                 </div>
               )}
 
               <aside className={css.guardrail}>
-                <strong>工具链边界</strong>
-                <span>正式生图只使用可验证的 image_gen；工具不会伪造图片、图层、Cowart 状态，也不会自动写入 UGC 资产。</span>
+                <strong>{t('guardrail.title')}</strong>
+                <span>{t('guardrail.detail')}</span>
               </aside>
               {target.draft.trim() !== '' && progress.status !== 'complete' && (
-                <p className={css.warning}>当前输入框已有草稿。本次操作会用当前阶段请求替换它。</p>
+                <p className={css.warning}>{t('draft.warning')}</p>
               )}
             </>
           )}
         </div>
 
         <footer className={css.footer}>
-          <button type="button" className={css.secondaryButton} onClick={() => { launcher.close() }}>关闭</button>
+          <button type="button" className={css.secondaryButton} onClick={() => { launcher.close() }}>{t('close')}</button>
           {progress.mode !== null && progress.status === 'ready' && (
             <>
-              <button type="button" className={css.secondaryButton} disabled={!ready} onClick={() => { sendStage(false) }}>仅填入输入框</button>
-              <button type="button" className={css.primaryButton} disabled={!ready} onClick={() => { sendStage(true) }}>开始本阶段</button>
+              <button type="button" className={css.secondaryButton} disabled={!ready} onClick={() => { sendStage(false) }}>{t('action.fillDraft')}</button>
+              <button type="button" className={css.primaryButton} disabled={!ready} onClick={() => { sendStage(true) }}>{t('action.startStage')}</button>
             </>
           )}
           {progress.status === 'awaiting_confirmation' && (
             <>
-              <button type="button" className={css.secondaryButton} onClick={sendRevision}>需要修改</button>
+              <button type="button" className={css.secondaryButton} onClick={sendRevision}>{t('action.revise')}</button>
               <button
                 type="button"
                 className={css.primaryButton}
                 onClick={() => { target.progress.confirmStage(); setFeedback('') }}
               >
-                确认通过并进入下一步
+                {t('action.confirm')}
               </button>
             </>
           )}
           {progress.status === 'complete' && (
-            <button type="button" className={css.secondaryButton} onClick={() => { target.progress.reset() }}>重新开始流程</button>
+            <button type="button" className={css.secondaryButton} onClick={() => { target.progress.reset() }}>{t('action.restart')}</button>
           )}
         </footer>
       </section>
@@ -261,24 +277,27 @@ function OasisUiWorkflowDialog({ launcher, target }: OasisUiWorkflowDialogProps)
   )
 }
 
-function ModeChoice({ onSelect }: { readonly onSelect: (mode: OasisUiMode) => void }) {
+function ModeChoice({ onSelect, t }: {
+  readonly onSelect: (mode: OasisUiMode) => void
+  readonly t: OasisUiTranslate
+}) {
   return (
     <section className={css.modeSection} aria-labelledby="oasis-mode-title">
       <div>
-        <span className={css.stepCount}>开始前选择操作方式</span>
-        <h3 id="oasis-mode-title">你想用哪种导航？</h3>
-        <p>两种模式使用同一套 8 阶段门禁，区别只是输入方式和界面密度。</p>
+        <span className={css.stepCount}>{t('mode.kicker')}</span>
+        <h3 id="oasis-mode-title">{t('mode.title')}</h3>
+        <p>{t('mode.detail')}</p>
       </div>
       <div className={css.modeGrid}>
-        <button type="button" className={css.modeButton} aria-label="文字导航版" onClick={() => { onSelect('text') }}>
-          <strong>文字导航版</strong>
-          <span>只填写任务名称和当前情况，Agent 在聊天中逐项引导，适合边沟通边确认。</span>
-          <em>更轻量</em>
+        <button type="button" className={css.modeButton} aria-label={t('mode.text.title')} onClick={() => { onSelect('text') }}>
+          <strong>{t('mode.text.title')}</strong>
+          <span>{t('mode.text.detail')}</span>
+          <em>{t('mode.text.badge')}</em>
         </button>
-        <button type="button" className={css.modeButton} aria-label="UI 桌面版" onClick={() => { onSelect('desktop') }}>
-          <strong>UI 桌面版</strong>
-          <span>集中填写来源、页面目的、参考图和约束，适合信息已经比较完整的任务。</span>
-          <em>信息更完整</em>
+        <button type="button" className={css.modeButton} aria-label={t('mode.desktop.title')} onClick={() => { onSelect('desktop') }}>
+          <strong>{t('mode.desktop.title')}</strong>
+          <span>{t('mode.desktop.detail')}</span>
+          <em>{t('mode.desktop.badge')}</em>
         </button>
       </div>
     </section>
@@ -286,14 +305,18 @@ function ModeChoice({ onSelect }: { readonly onSelect: (mode: OasisUiMode) => vo
 }
 
 function StageRail({
-  currentStage, status,
-}: { readonly currentStage: number; readonly status: 'ready' | 'awaiting_confirmation' | 'complete' }) {
+  currentStage, status, t,
+}: {
+  readonly currentStage: number
+  readonly status: 'ready' | 'awaiting_confirmation' | 'complete'
+  readonly t: OasisUiTranslate
+}) {
   return (
-    <div className={css.stageRail} aria-label="工作流阶段">
-      {OASIS_UI_STAGES.map((item, index) => {
+    <div className={css.stageRail} aria-label={t('stageRail.label')}>
+      {OASIS_UI_STAGE_LOCALE_KEYS.map((item, index) => {
         const complete = index < currentStage || (status === 'complete' && index === currentStage)
         const className = complete ? css.stageComplete : index === currentStage ? css.stageCurrent : css.stage
-        return <div className={className} key={item.name}><span>{complete ? '✓' : index + 1}</span>{item.name}</div>
+        return <div className={className} key={item.name}><span>{complete ? '✓' : index + 1}</span>{t(item.name)}</div>
       })}
     </div>
   )
@@ -305,13 +328,14 @@ function StageDetail({ title, text }: { readonly title: string; readonly text: s
 
 interface FirstStageProps {
   readonly form: OasisUiLaunchRequest
+  readonly t: OasisUiTranslate
   readonly update: <K extends keyof OasisUiLaunchRequest>(key: K, value: OasisUiLaunchRequest[K]) => void
 }
 
-function SourceOptions({ form, update }: FirstStageProps) {
+function SourceOptions({ form, t, update }: FirstStageProps) {
   return (
     <fieldset className={css.sourceGrid}>
-      <legend>从哪里开始</legend>
+      <legend>{t('source.legend')}</legend>
       {SOURCE_OPTIONS.map(option => (
         <label className={form.source === option.value ? css.sourceActive : css.sourceCard} key={option.value}>
           <input
@@ -321,8 +345,8 @@ function SourceOptions({ form, update }: FirstStageProps) {
             checked={form.source === option.value}
             onChange={() => { update('source', option.value) }}
           />
-          <strong>{option.title}</strong>
-          <span>{option.detail}</span>
+          <strong>{t(option.title)}</strong>
+          <span>{t(option.detail)}</span>
         </label>
       ))}
     </fieldset>
@@ -330,38 +354,38 @@ function SourceOptions({ form, update }: FirstStageProps) {
 }
 
 function DesktopFirstStage({
-  form, update, pastedFiles, pasteError,
+  form, update, pastedFiles, pasteError, t,
 }: FirstStageProps & { readonly pastedFiles: readonly string[]; readonly pasteError: string | null }) {
   return (
     <>
-      <SourceOptions form={form} update={update} />
+      <SourceOptions form={form} t={t} update={update} />
       {form.source === 'existing' && (
-        <div className={css.pasteZone} tabIndex={0} aria-label="粘贴已有 UI 图片">
+        <div className={css.pasteZone} tabIndex={0} aria-label={t('paste.label')}>
           <span className={css.pasteIcon} aria-hidden="true">▣</span>
           <div>
-            <strong>直接粘贴已有 UI 图</strong>
-            <span>点击这里后按 Ctrl+V，或在这个面板任意位置粘贴剪贴板图片</span>
-            {pastedFiles.length > 0 && <em>已添加 {pastedFiles.length} 张：{pastedFiles.join('、')}</em>}
+            <strong>{t('paste.title')}</strong>
+            <span>{t('paste.detail')}</span>
+            {pastedFiles.length > 0 && <em>{t('paste.added', { count: pastedFiles.length, names: pastedFiles.join('、') })}</em>}
             {pasteError !== null && <em className={css.pasteError}>{pasteError}</em>}
           </div>
         </div>
       )}
       <div className={css.formGrid}>
         <label>
-          <span>页面名称 <b>*</b></span>
-          <input autoFocus value={form.pageName} placeholder="例如：城防塔升级界面" onChange={(event) => { update('pageName', event.target.value) }} />
+          <span>{t('form.pageName')} <b>*</b></span>
+          <input autoFocus value={form.pageName} placeholder={t('form.pageNamePlaceholder')} onChange={(event) => { update('pageName', event.target.value) }} />
         </label>
         <label>
-          <span>页面目的</span>
-          <input value={form.purpose} placeholder="例如：选择防御塔并展示升级消耗" onChange={(event) => { update('purpose', event.target.value) }} />
+          <span>{t('form.purpose')}</span>
+          <input value={form.purpose} placeholder={t('form.purposePlaceholder')} onChange={(event) => { update('purpose', event.target.value) }} />
         </label>
         <label className={css.fullWidth}>
-          <span>参考图或现有产物</span>
-          <textarea value={form.references} placeholder="可填写文件路径；聊天里的图片请先用输入框附件按钮添加" rows={3} onChange={(event) => { update('references', event.target.value) }} />
+          <span>{t('form.references')}</span>
+          <textarea value={form.references} placeholder={t('form.referencesPlaceholder')} rows={3} onChange={(event) => { update('references', event.target.value) }} />
         </label>
         <label className={css.fullWidth}>
-          <span>额外约束</span>
-          <textarea value={form.constraints} placeholder="留空时默认使用 RedCliff 风格，并保持文字、数值、进度和点击区为 Native" rows={3} onChange={(event) => { update('constraints', event.target.value) }} />
+          <span>{t('form.constraints')}</span>
+          <textarea value={form.constraints} placeholder={t('form.constraintsPlaceholder')} rows={3} onChange={(event) => { update('constraints', event.target.value) }} />
         </label>
       </div>
     </>
@@ -369,35 +393,35 @@ function DesktopFirstStage({
 }
 
 function TextFirstStage({
-  form, textBrief, update, setTextBrief,
+  form, textBrief, update, setTextBrief, t,
 }: FirstStageProps & { readonly textBrief: string; readonly setTextBrief: (value: string) => void }) {
   return (
     <div className={css.textForm}>
-      <SourceOptions form={form} update={update} />
+      <SourceOptions form={form} t={t} update={update} />
       <label>
-        <span>任务名称 <b>*</b></span>
-        <input autoFocus value={form.pageName} placeholder="例如：龙玉交换系统" onChange={(event) => { update('pageName', event.target.value) }} />
+        <span>{t('text.taskName')} <b>*</b></span>
+        <input autoFocus value={form.pageName} placeholder={t('text.taskNamePlaceholder')} onChange={(event) => { update('pageName', event.target.value) }} />
       </label>
       <label>
-        <span>你现在有什么、想做到什么</span>
+        <span>{t('text.brief')}</span>
         <textarea
           value={textBrief}
           rows={5}
-          placeholder="告诉 Agent 你已有的内容、想做的页面和最重要的限制"
+          placeholder={t('text.briefPlaceholder')}
           onChange={(event) => { setTextBrief(event.target.value) }}
         />
       </label>
-      <p>开始后，Agent 会先整理来源并只询问当前真正缺失的一个关键问题。</p>
+      <p>{t('text.hint')}</p>
     </div>
   )
 }
 
-function TaskSummary({ request }: { readonly request: OasisUiLaunchRequest }) {
+function TaskSummary({ request, t }: { readonly request: OasisUiLaunchRequest; readonly t: OasisUiTranslate }) {
   return (
     <dl className={css.taskSummary}>
-      <div><dt>当前任务</dt><dd>{request.pageName}</dd></div>
-      <div><dt>页面目的</dt><dd>{request.purpose || '由 Agent 从上下文推断'}</dd></div>
-      <div><dt>参考产物</dt><dd>{request.references || '使用当前会话附件与已确认产物'}</dd></div>
+      <div><dt>{t('summary.task')}</dt><dd>{request.pageName}</dd></div>
+      <div><dt>{t('summary.purpose')}</dt><dd>{request.purpose || t('summary.purposeFallback')}</dd></div>
+      <div><dt>{t('summary.references')}</dt><dd>{request.references || t('summary.referencesFallback')}</dd></div>
     </dl>
   )
 }

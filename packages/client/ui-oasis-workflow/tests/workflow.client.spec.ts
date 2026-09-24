@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildOasisUiStagePrompt, buildOasisUiWorkflowPrompt } from '../src/client/workflow.ts'
+import { buildOasisUiStagePrompt, buildOasisUiWorkflowPrompt } from '../src/workflow.ts'
 
 describe('buildOasisUiWorkflowPrompt', () => {
   it('compiles the trusted marker and every hard workflow gate', () => {

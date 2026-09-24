@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/superpowers/specs/2026-09-20-dsh-image-optimization-design.md
-2026-09-20-dsh-image-optimization-design.md: 53599c8fecc34a4bb2f0a890c8c14d3afe2bc9f1
-2026-09-20-dsh-image-optimization-design.zh.md: 70f4a32f716ee23142e44645f893d1413e80383d
+2026-09-20-dsh-image-optimization-design.md: 9be0e59a45ec9c8947138d91f8bc35006f9a7624
+2026-09-20-dsh-image-optimization-design.zh.md: ea46551a4526c37d5cbc4da5f5be0ca08a66c5ad

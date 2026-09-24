@@ -29,6 +29,12 @@
     fallbackProvider: anthropic
     fallbackModel: fixture-backup-image
 
+- id: tool-image-optimize
+  disabled: false
+
+- id: skill-image-generation
+  disabled: false
+
 - insert:
     - id: llm-replay
       name: '@deepseek-ai/dsh-llm-replay'
