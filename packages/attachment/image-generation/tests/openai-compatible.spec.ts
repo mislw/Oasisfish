@@ -10,9 +10,18 @@ describe('OpenAI-compatible image generation', () => {
   it('appends the relative images path beneath a versioned Base URL', () => {
     expect(resolveImageEndpoint('https://relay.example/v1', 'images/generations').href)
       .toBe('https://relay.example/v1/images/generations')
-    expect(resolveImageEndpoint('https://relay.example/v1/', '/images/generations').href)
-      .toBe('https://relay.example/v1/images/generations')
     expect(() => resolveImageEndpoint('https://relay.example/v1', '/')).toThrow('must not be empty')
+  })
+
+  it.each([
+    '/images/generations',
+    'https://elsewhere.example/images/generations',
+    '../images/generations',
+    'images/generations?format=png',
+    'images/generations#fragment',
+  ])('rejects endpoint paths outside the provider base path: %s', (endpointPath) => {
+    expect(() => resolveImageEndpoint('https://relay.example/v1', endpointPath))
+      .toThrow('must be a relative path below the provider Base URL')
   })
 
   it('decodes a base64 image result', () => {

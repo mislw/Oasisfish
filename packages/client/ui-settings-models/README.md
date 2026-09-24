@@ -31,6 +31,12 @@ The Session default editor above the provider rows reads `ModelCatalog.default` 
 
 A provider with a stored catalog error remains visible with its diagnostic and edit/delete actions. Add actions are offered only for registered settings namespaces, so an unavailable namespace cannot leave a button that opens no editor. A rejected save leaves the editor open and displays the Host diagnostic.
 
+### Image generation routes
+
+The image-generation editor appears only while the `image-generation` settings namespace is mounted. Its primary route requires a configured `llm-pi-ai` provider with an explicit Base URL, an explicit model id, and separate generation and edit endpoint paths. The optional fallback repeats those four fields; choosing **None** as its provider clears the fallback provider and model, restores both fallback endpoint defaults, and disables the remaining fallback inputs.
+
+Endpoint fields are relative paths below the selected provider's versioned Base URL. They reject absolute URLs, leading-root paths, query strings, fragments, and `..` traversal outside that Base URL. Save writes all eight route fields together through one revision-checked `settings.mutate` call and does not change the conversation default. A rejected write keeps both the stored snapshot and the editable draft and displays the Host diagnostic. A provider selected by either image route cannot be deleted; confirmation rechecks the latest route before removing a provider.
+
 ### API keys
 
 The primary field on an editor card is a single **API key** input — the page never asks for an environment-variable name. A typed key stores write-only through `credentials.set` under the profile's reference, deriving `<ROUTE>_API_KEY` when the profile has none, and the pi-ai profile records that derivation as `apiKeyEnv`, so `settings.yaml` never carries a key value. Leaving a new pi-ai provider's key blank saves a reference-free profile and preserves provider-native authentication (for example the Bedrock credential chain or Vertex ADC). A row labels API-key state with a green solid dot only when a referenced credential is confirmed configured, and with a red solid dot only when a named reference is confirmed missing. A successful Apply emits a local accessible status message without echoing secret material.
@@ -63,7 +69,7 @@ The section declares two seats for plugins distributed outside this repository, 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The page never holds a full settings section: it holds only the REDACTED descriptor, so every provider edit lands as `settings.mutate` path ops against the stored section — a set per changed field, an unset per cleared one, and a single unset for a deleted provider row. The default editor instead reads `session.modelCatalog()` and writes the complete selection through `session.setDefaultModel()`; the Host owns route validation and settings persistence.
+The page never holds a full settings section: it holds only the REDACTED descriptor, so every provider edit lands as `settings.mutate` path ops against the stored section — a set per changed field, an unset per cleared one, and a single unset for a deleted provider row. The image editor replaces all primary and fallback fields in the `image-generation` namespace, while the default editor reads `session.modelCatalog()` and writes the complete selection through `session.setDefaultModel()`; the Host owns route validation and settings persistence.
 
 ### Validation
 

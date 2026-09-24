@@ -21,9 +21,16 @@ export type OpenAiImageResult =
  */
 export function resolveImageEndpoint(baseURL: string, endpointPath: string): URL {
   const base = new URL(baseURL.endsWith('/') ? baseURL : `${baseURL}/`)
-  const relative = endpointPath.replace(/^\/+/, '')
-  if (relative.length === 0) throw new Error('image-generation: endpointPath must not be empty')
-  return new URL(relative, base)
+  if (endpointPath.replace(/^\/+/, '').length === 0) {
+    throw new Error('image-generation: endpointPath must not be empty')
+  }
+  const resolved = new URL(endpointPath, base)
+  if (endpointPath.startsWith('/') || resolved.origin !== base.origin
+    || !resolved.pathname.startsWith(base.pathname) || resolved.pathname === base.pathname
+    || resolved.search !== '' || resolved.hash !== '') {
+    throw new Error('image-generation: endpointPath must be a relative path below the provider Base URL')
+  }
+  return resolved
 }
 
 /**

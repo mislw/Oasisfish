@@ -1,0 +1,14 @@
+# Authored snapshot input; keyless runs use the replay counterpart.
+- id: image-generation
+  disabled: false
+  config:
+    provider: openai
+    model: fixture-primary-image
+    fallbackProvider: anthropic
+    fallbackModel: fixture-backup-image
+
+- insert:
+    - id: tool-image-generate
+      name: '@deepseek-ai/dsh-tool-image-generate'
+      config:
+        timeoutMs: 180000

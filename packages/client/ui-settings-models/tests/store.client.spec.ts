@@ -82,6 +82,18 @@ const NAMESPACES = [
     secrets: [],
     revision: 0,
   },
+  {
+    ns: 'image-generation',
+    schema: {},
+    value: {
+      provider: '', model: '', endpointPath: 'images/generations', editEndpointPath: 'images/edits',
+      fallbackProvider: '', fallbackModel: '', fallbackEndpointPath: 'images/generations',
+      fallbackEditEndpointPath: 'images/edits',
+    },
+    applies: 'live' as const,
+    secrets: [],
+    revision: 0,
+  },
 ]
 
 function api(overrides: {
@@ -90,6 +102,7 @@ function api(overrides: {
   describeCredentials?: (refs: readonly string[]) => Promise<RemoteAnswer<Record<string, unknown>>>
   modelCatalog?: () => Promise<RemoteAnswer<ModelCatalog>>
   setDefaultModel?: (selection: ModelSelection) => Promise<RemoteAnswer<{ selected: ModelSelection }>>
+  mutateSettings?: (ns: string, ops: readonly unknown[], revision?: number) => Promise<RemoteAnswer<unknown>>
 } = {}) {
   const seenRefs: string[][] = []
   const providers = overrides.providers ?? (() => Promise.resolve(ok({ providers: DIRECTORY })))
@@ -128,7 +141,8 @@ function api(overrides: {
     settings: {
       describe: overrides.describeSettings
         ?? (() => Promise.resolve(remoteOk({ writable: true, hasDocument: false, namespaces: NAMESPACES }))),
-      mutate: () => Promise.resolve(remoteFail('the store spec issues no writes')),
+      mutate: overrides.mutateSettings
+        ?? (() => Promise.resolve(remoteFail('the store spec issues no writes'))),
     },
     credentials: {
       describe: (refs: readonly string[]) => {
@@ -147,6 +161,63 @@ function api(overrides: {
 }
 
 describe('ModelsSettingsStore', () => {
+  it('reads the complete unset image route from the settings mirror', async () => {
+    const { ctx, mirror } = api()
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+    expect(store.store.getSnapshot().imageRoute).toEqual({
+      provider: '', model: '', endpointPath: 'images/generations', editEndpointPath: 'images/edits',
+      fallbackProvider: '', fallbackModel: '', fallbackEndpointPath: 'images/generations',
+      fallbackEditEndpointPath: 'images/edits',
+    })
+  })
+
+  it('writes all image route fields and clears the fallback without changing the conversation default', async () => {
+    const writes: unknown[] = []
+    const { ctx, mirror } = api({
+      mutateSettings: (ns, ops, revision) => {
+        writes.push({ ns, ops, revision })
+        return Promise.resolve(remoteOk(NAMESPACES[2]))
+      },
+    })
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+    await expect(store.selectImageRoute({
+      provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+      editEndpointPath: 'images/edits', fallbackProvider: '', fallbackModel: '',
+      fallbackEndpointPath: 'images/generations', fallbackEditEndpointPath: 'images/edits',
+    })).resolves.toBeUndefined()
+    expect(writes).toEqual([{
+      ns: 'image-generation', revision: 0,
+      ops: [
+        { op: 'set', path: ['provider'], value: 'openai' },
+        { op: 'set', path: ['model'], value: 'gpt-image-1' },
+        { op: 'set', path: ['endpointPath'], value: 'images/generations' },
+        { op: 'set', path: ['editEndpointPath'], value: 'images/edits' },
+        { op: 'set', path: ['fallbackProvider'], value: '' },
+        { op: 'set', path: ['fallbackModel'], value: '' },
+        { op: 'set', path: ['fallbackEndpointPath'], value: 'images/generations' },
+        { op: 'set', path: ['fallbackEditEndpointPath'], value: 'images/edits' },
+      ],
+    }])
+    expect(store.store.getSnapshot().catalog?.default).toEqual(CATALOG.default)
+  })
+
+  it('leaves the image route unchanged when the Host refuses the save', async () => {
+    const { ctx, mirror } = api({
+      mutateSettings: () => Promise.resolve(remoteFail('image route rejected')),
+    })
+    const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)
+    await store.load()
+    const previous = store.store.getSnapshot().imageRoute
+    await expect(store.selectImageRoute({
+      provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+      editEndpointPath: 'images/edits', fallbackProvider: '', fallbackModel: '',
+      fallbackEndpointPath: 'images/generations', fallbackEditEndpointPath: 'images/edits',
+    })).resolves.toBe('image route rejected')
+    expect(store.store.getSnapshot().imageRoute).toEqual(previous)
+  })
+
   it('joins rows with configured, removable, and credential state', async () => {
     const { ctx, mirror, seenRefs } = api()
     const store = new ModelsSettingsStore(ctx, settingsSchema, mirror)

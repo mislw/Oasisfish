@@ -1,0 +1,48 @@
+- id: llm-deepseek
+  disabled: true
+
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+- id: session-title-llm
+  disabled: true
+
+- id: session-persistence-jsonl
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: !!js dshHomePath('sessions')
+    compression: none
+
+- id: llm-pi-ai
+  config:
+    providers:
+      openai:
+        baseURL: https://primary.example/v1
+      anthropic:
+        baseURL: https://backup.example/v1
+
+- id: image-generation
+  disabled: false
+  config:
+    provider: openai
+    model: fixture-primary-image
+    fallbackProvider: anthropic
+    fallbackModel: fixture-backup-image
+
+- insert:
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: deepseek-official
+            name: DeepSeek
+            models:
+              - id: deepseek-v4-flash
+
+    - id: tool-image-generate
+      name: '@deepseek-ai/dsh-tool-image-generate'
+      config:
+        timeoutMs: 180000
+
+    - id: image-generation-fixture
+      name: './image-generation-fixture.mjs'

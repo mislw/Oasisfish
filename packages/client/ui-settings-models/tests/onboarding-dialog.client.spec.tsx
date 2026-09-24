@@ -113,6 +113,17 @@ function harness(options: {
       )),
       discoverModels: () => Promise.resolve(remoteOk([])),
     },
+    session: {
+      modelCatalog: () => Promise.resolve(remoteOk({
+        default: { provider: 'deepseek-official', model: 'deepseek-chat' },
+        routableProviders: [],
+        groups: [],
+        failures: [],
+      })),
+      setDefaultModel: () => Promise.resolve(remoteOk({
+        selected: { provider: 'deepseek-official', model: 'deepseek-chat' },
+      })),
+    },
     settings: {
       describe: () => Promise.resolve(remoteOk({
         writable: options.settingsWritable ?? true,

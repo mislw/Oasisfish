@@ -77,6 +77,10 @@
     - id: memory
       name: '@deepseek-ai/dsh-memory'
 
+    - id: image-generation
+      name: '@deepseek-ai/dsh-image-generation'
+      disabled: true
+
     - id: plugin-package-inventory-deepseek
       name: '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
 

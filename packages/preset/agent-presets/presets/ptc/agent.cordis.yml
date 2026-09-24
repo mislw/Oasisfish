@@ -94,6 +94,11 @@
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
 
+- id: tool-image-generate
+  name: '@deepseek-ai/dsh-tool-image-generate'
+  config:
+    timeoutMs: 180000
+
 # ── goals ───────────────────────────────────────────────────────────────────
 
 # The goal service and session driver stay on the host plane, where the Gateway

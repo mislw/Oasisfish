@@ -76,9 +76,22 @@
   gap: 10px;
 }
 
+.imageFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .defaultActions {
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 560px) {
+  .defaultFields,
+  .imageFields {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .rows {

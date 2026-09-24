@@ -31,6 +31,12 @@ kind: "package-reference"
 
 存在已存储目录错误的提供方仍显示诊断以及编辑、删除入口。添加操作只面向已注册的 settings 命名空间，因此不可用的命名空间不会留下无法打开编辑器的按钮。保存被拒绝时，编辑器保持打开并展示 Host 诊断。
 
+### 图像生成路由
+
+图像生成编辑器仅在挂载 `image-generation` settings 命名空间时显示。主路由必须选择已配置且带有显式 Base URL 的 `llm-pi-ai` 提供方，并填写明确的模型 ID 以及相互独立的生成与编辑端点路径。可选回退路由重复这四个字段；把提供方选为**无**会清空回退提供方和模型、恢复两个回退端点的默认值，并禁用其余回退输入框。
+
+端点字段是所选提供方带版本 Base URL 下的相对路径。绝对 URL、根路径、查询字符串、片段以及越出该 Base URL 的 `..` 路径遍历都会被拒绝。保存操作通过一次带 revision 检查的 `settings.mutate` 调用同时写入全部八个路由字段，且不会更改对话默认模型。写入被拒绝时，已存储快照和可编辑草稿都会保留，并显示 Host 诊断。主图像路由或回退图像路由选中的提供方都不能删除；确认删除时会依据最新路由再次检查。
+
 ### API 密钥
 
 编辑卡片上的主字段是单独一个 **API 密钥**输入框——页面从不询问环境变量名。键入的密钥经 `credentials.set` 以**只写**方式存入 profile 的引用之下，profile 没有引用时便派生 `<ROUTE>_API_KEY`，pi-ai profile 会把这次派生记录为 `apiKeyEnv`，因此 `settings.yaml` 从不携带密钥值。为新的 pi-ai 提供方留空密钥会保存一个不带引用的 profile，从而保留提供方原生认证（例如 Bedrock 凭据链或 Vertex ADC）。只有确认引用的凭据已配置时，行才会以绿色实心点标示 API 密钥状态；只有确认具名引用缺失时，才会以红色实心点标示。「应用」成功后会发出本地无障碍状态消息，且绝不回显任何机密内容。
@@ -63,7 +69,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-页面只持有脱敏后的描述符，从不持有完整设置分区：因此每次提供方编辑都以 `settings.mutate` 路径操作落到已存分区上——每个改动字段一次 set、每个清除字段一次 unset、删除提供方行则一次 unset。默认模型编辑器则读取 `session.modelCatalog()`，并通过 `session.setDefaultModel()` 写入完整选择；Host 负责路由校验与设置持久化。
+页面只持有脱敏后的描述符，从不持有完整设置分区：因此每次提供方编辑都以 `settings.mutate` 路径操作落到已存分区上——每个改动字段一次 set、每个清除字段一次 unset、删除提供方行则一次 unset。图像编辑器会替换 `image-generation` 命名空间中的全部主路由和回退路由字段，而默认模型编辑器读取 `session.modelCatalog()`，并通过 `session.setDefaultModel()` 写入完整选择；Host 负责路由校验与设置持久化。
 
 ### 校验
 

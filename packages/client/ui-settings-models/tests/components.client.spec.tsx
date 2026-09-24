@@ -161,6 +161,23 @@ function wireNamespaces(): SettingsNamespaceView[] {
       secrets: [],
       revision: 4,
     },
+    {
+      ns: 'image-generation',
+      schema: JSON.parse(JSON.stringify(Schema.object({
+        provider: Schema.string(), model: Schema.string(), endpointPath: Schema.string(),
+        editEndpointPath: Schema.string(), fallbackProvider: Schema.string(),
+        fallbackModel: Schema.string(), fallbackEndpointPath: Schema.string(),
+        fallbackEditEndpointPath: Schema.string(),
+      }).toJSON())) as JsonValue,
+      value: {
+        provider: '', model: '', endpointPath: 'images/generations', editEndpointPath: 'images/edits',
+        fallbackProvider: '', fallbackModel: '', fallbackEndpointPath: 'images/generations',
+        fallbackEditEndpointPath: 'images/edits',
+      },
+      applies: 'live',
+      secrets: [],
+      revision: 2,
+    },
   ]
 }
 
@@ -344,6 +361,123 @@ async function mountDeepSeekCard(overrides: Parameters<typeof scriptedFace>[0] =
 }
 
 describe('ModelsSection', () => {
+  it('offers an unset image route with separate primary and fallback endpoint paths', async () => {
+    await mountSection()
+    const provider = screen.getByLabelText<HTMLSelectElement>(en.imageProvider)
+    expect(provider.value).toBe('')
+    expect([...provider.options].map(option => option.value)).toEqual(['', 'openai'])
+    expect(screen.getByLabelText<HTMLInputElement>(en.imageModel).value).toBe('')
+    expect(screen.getByLabelText<HTMLSelectElement>(en.imageFallbackProvider).value).toBe('')
+    expect(screen.getByLabelText<HTMLInputElement>(en.imageEditEndpoint).value).toBe('images/edits')
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.imageSave }).disabled).toBe(true)
+  })
+
+  it('saves a primary and fallback image route with explicit model ids and paths', async () => {
+    const { mutate } = await mountSection()
+    fireEvent.change(screen.getByLabelText(en.imageProvider), { target: { value: 'openai' } })
+    fireEvent.change(screen.getByLabelText(en.imageModel), { target: { value: 'gpt-image-1' } })
+    fireEvent.change(screen.getByLabelText(en.imageEndpoint), { target: { value: 'images/generations' } })
+    fireEvent.change(screen.getByLabelText(en.imageEditEndpoint), { target: { value: 'images/edits' } })
+    fireEvent.change(screen.getByLabelText(en.imageFallbackProvider), { target: { value: 'openai' } })
+    fireEvent.change(screen.getByLabelText(en.imageFallbackModel), { target: { value: 'backup-image' } })
+    fireEvent.change(screen.getByLabelText(en.imageFallbackEndpoint), { target: { value: 'chat/completions' } })
+    fireEvent.change(screen.getByLabelText(en.imageFallbackEditEndpoint), { target: { value: 'images/edits' } })
+    fireEvent.click(screen.getByRole('button', { name: en.imageSave }))
+    await waitFor(() => {
+      expect(mutate).toHaveBeenCalledWith(
+        'image-generation',
+        expect.arrayContaining([
+          { op: 'set', path: ['provider'], value: 'openai' },
+          { op: 'set', path: ['model'], value: 'gpt-image-1' },
+          { op: 'set', path: ['fallbackProvider'], value: 'openai' },
+          { op: 'set', path: ['fallbackModel'], value: 'backup-image' },
+          { op: 'set', path: ['fallbackEndpointPath'], value: 'chat/completions' },
+        ]),
+        2,
+      )
+    })
+  })
+
+  it('clears a configured fallback and refuses invalid endpoint paths before writing', async () => {
+    const scripted = scriptedFace()
+    const namespaces = wireNamespaces()
+    const image = namespaces.find(view => view.ns === 'image-generation')!
+    image.value = {
+      ...image.value as Record<string, string>,
+      provider: 'openai', model: 'gpt-image-1',
+      fallbackProvider: 'deepseek-official', fallbackModel: 'backup-image',
+      fallbackEndpointPath: '../outside', fallbackEditEndpointPath: '/images/edits',
+    }
+    scripted.face.settings.describe.mockResolvedValue(remoteOk({
+      writable: true, hasDocument: false, namespaces,
+    }))
+    const { mutate } = await mountFace(scripted)
+    fireEvent.change(screen.getByLabelText(en.imageFallbackProvider), { target: { value: '' } })
+    expect(screen.getByLabelText<HTMLInputElement>(en.imageFallbackEndpoint).value).toBe('images/generations')
+    expect(screen.getByLabelText<HTMLInputElement>(en.imageFallbackEditEndpoint).value).toBe('images/edits')
+    fireEvent.change(screen.getByLabelText(en.imageEndpoint), { target: { value: 'https://elsewhere.example/v1' } })
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.imageSave }).disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText(en.imageEndpoint), { target: { value: 'images/generations' } })
+    fireEvent.click(screen.getByRole('button', { name: en.imageSave }))
+    await waitFor(() => {
+      expect(mutate).toHaveBeenCalledWith(
+        'image-generation',
+        expect.arrayContaining([
+          { op: 'set', path: ['fallbackProvider'], value: '' },
+          { op: 'set', path: ['fallbackModel'], value: '' },
+        ]),
+        2,
+      )
+    })
+  })
+
+  it('keeps the image editor open after a rejected save', async () => {
+    const mutate = vi.fn(() => Promise.resolve(remoteFail('image route rejected', 'settings/rejected')))
+    await mountSection({ mutate })
+    fireEvent.change(screen.getByLabelText(en.imageProvider), { target: { value: 'openai' } })
+    fireEvent.change(screen.getByLabelText(en.imageModel), { target: { value: 'gpt-image-1' } })
+    fireEvent.click(screen.getByRole('button', { name: en.imageSave }))
+    expect((await screen.findByRole('alert')).textContent).toBe('image route rejected')
+    expect(screen.getByLabelText<HTMLInputElement>(en.imageModel).value).toBe('gpt-image-1')
+  })
+
+  it('protects a provider selected as the primary or fallback image route', async () => {
+    const scripted = scriptedFace()
+    const namespaces = wireNamespaces()
+    const image = namespaces.find(view => view.ns === 'image-generation')!
+    image.value = {
+      ...image.value as Record<string, string>,
+      provider: 'openai', model: 'gpt-image-1',
+      fallbackProvider: 'deepseek-official', fallbackModel: 'backup-image',
+    }
+    scripted.face.settings.describe.mockResolvedValue(remoteOk({
+      writable: true, hasDocument: false, namespaces,
+    }))
+    await mountFace(scripted)
+    const remove = screen.getByRole<HTMLButtonElement>('button', { name: openaiCopy(en.removeProvider) })
+    expect(remove.disabled).toBe(true)
+    expect(remove.title).toBe(en.imageProviderProtected)
+  })
+
+  it('refuses deletion when the image route changes after confirmation opens', async () => {
+    const { controller, mutate, unset } = await mountSection()
+    fireEvent.click(screen.getByRole('button', { name: openaiCopy(en.removeProvider) }))
+    const dialog = screen.getByRole('dialog', { name: openaiCopy(en.deleteTitle) })
+    act(() => {
+      controller.store.update((state) => {
+        state.imageRoute = {
+          provider: 'openai', model: 'gpt-image-1', endpointPath: 'images/generations',
+          editEndpointPath: 'images/edits', fallbackProvider: '', fallbackModel: '',
+          fallbackEndpointPath: 'images/generations', fallbackEditEndpointPath: 'images/edits',
+        }
+      })
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: openaiCopy(en.deleteConfirm) }))
+    expect(await within(dialog).findByText(en.imageProviderProtected)).toBeTruthy()
+    expect(mutate).not.toHaveBeenCalled()
+    expect(unset).not.toHaveBeenCalled()
+  })
+
   it('edits the initial default across provider, model, and reasoning controls', async () => {
     const setDefaultModel = vi.fn((selection: ModelSelection) => Promise.resolve(remoteOk({
       selected: { ...selection, reasoningEffort: 'off' },
@@ -551,7 +685,7 @@ describe('ModelsSection', () => {
     // no stored apiKey → setup card.
     expect(within(screen.getAllByRole('listitem')[0]!).getByText('DeepSeek')).toBeTruthy()
     expect(screen.getByLabelText(en.keyInput)).toBeTruthy()
-    expect(screen.getByText('openai')).toBeTruthy()
+    expect(within(screen.getByRole('list')).getByText('openai')).toBeTruthy()
     expect(screen.queryByText('Active')).toBeNull()
     expect(screen.queryByText('Inactive')).toBeNull()
     expect(screen.getByText(en.add)).toBeTruthy()
@@ -594,7 +728,7 @@ describe('ModelsSection', () => {
     expect(missing.className).toContain('credentialDotMissing')
     expect(missing.closest('li')?.textContent).toContain('openai')
     expect(screen.queryByRole('img', { name: en.credentialConfigured })).toBeNull()
-    expect(screen.getByText('zombie').closest('li')?.querySelector('[role="img"]')).toBeNull()
+    expect(within(screen.getByRole('list')).getByText('zombie').closest('li')?.querySelector('[role="img"]')).toBeNull()
   })
 
   it('turns the setup card into a row once the credential reports configured', async () => {

@@ -127,6 +127,17 @@ function scriptedFace(options: {
       ))),
       discoverModels: discover,
     },
+    session: {
+      modelCatalog: () => Promise.resolve(remoteOk({
+        default: { provider: 'deepseek-official', model: 'deepseek-chat' },
+        routableProviders: [],
+        groups: [],
+        failures: [],
+      })),
+      setDefaultModel: () => Promise.resolve(remoteOk({
+        selected: { provider: 'deepseek-official', model: 'deepseek-chat' },
+      })),
+    },
     settings: {
       describe: vi.fn(() => Promise.resolve(remoteOk({ writable: true, namespaces: [namespace] }))),
       mutate,

@@ -20,6 +20,7 @@ import type { InjectFace, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-sl
 // Type-only: pulls this package's SlotMap merge (the two Models child slots).
 import type {} from './slot-contract.ts'
 import { CustomProviderCard } from './CustomProviderCard.tsx'
+import { ImageRouteEditor } from './ImageRouteEditor.tsx'
 import { deriveKeyRef, protocolChoices, providerUsable } from './store.ts'
 import type { ModelsSettingsStore, ProviderRow } from './store.ts'
 import type { ModelsOperations } from './operations.ts'
@@ -242,6 +243,7 @@ function renderProviderEditor({ target, ...props }: ProviderEditorRenderProps): 
  * @param controller - the page store to refresh.
  * @param target - the provider's settings address and optional managed credential.
  * @param defaultProviderProtected - localized refusal when the latest catalog uses the provider as its default.
+ * @param imageProviderProtected - localized refusal when an image route uses the provider.
  * @returns the failure message, or undefined once the write and reload landed.
  */
 export async function removeProviderProfile(
@@ -249,9 +251,14 @@ export async function removeProviderProfile(
   controller: ModelsSettingsStore,
   target: { provider: string; settingsNs: string; settingsPath: readonly string[]; credentialRef?: string },
   defaultProviderProtected: string,
+  imageProviderProtected = defaultProviderProtected,
 ): Promise<string | undefined> {
-  if (controller.store.getSnapshot().catalog?.default.provider === target.provider) {
+  const snapshot = controller.store.getSnapshot()
+  if (snapshot.catalog?.default.provider === target.provider) {
     return defaultProviderProtected
+  }
+  if ([snapshot.imageRoute?.provider, snapshot.imageRoute?.fallbackProvider].includes(target.provider)) {
+    return imageProviderProtected
   }
   if (target.credentialRef !== undefined) {
     const credential = await operations.removeCredential(target.credentialRef)
@@ -388,7 +395,9 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
     if (deleteTarget === undefined || deleting) return
     setDeleting(true)
     setDeleteFailure(undefined)
-    void removeProviderProfile(operations, controller, deleteTarget, t('defaultProviderProtected'))
+    void removeProviderProfile(
+      operations, controller, deleteTarget, t('defaultProviderProtected'), t('imageProviderProtected'),
+    )
       .then((failure) => {
         if (failure !== undefined) {
           setDeleteFailure(failure)
@@ -457,6 +466,15 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             t={t}
           />
         )}
+      {state.imageRoute === undefined ? null : (
+        <ImageRouteEditor
+          route={state.imageRoute}
+          rows={state.rows}
+          controller={controller}
+          readOnly={!state.writable}
+          t={t}
+        />
+      )}
       {!state.writable && state.status === 'ready' ? <p className={styles['notice']}>{t('readOnly')}</p> : null}
       {savedIdentity === undefined
         ? null
@@ -556,10 +574,15 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                         type="button"
                         className={styles['dangerButton']}
                         aria-label={providerCopy(t('removeProvider'), target)}
-                        disabled={!state.writable || row.entry.provider === state.catalog?.default.provider}
+                        disabled={!state.writable || row.entry.provider === state.catalog?.default.provider
+                          || row.entry.provider === state.imageRoute?.provider
+                          || row.entry.provider === state.imageRoute?.fallbackProvider}
                         title={row.entry.provider === state.catalog?.default.provider
                           ? t('defaultProviderProtected')
-                          : undefined}
+                          : row.entry.provider === state.imageRoute?.provider
+                            || row.entry.provider === state.imageRoute?.fallbackProvider
+                            ? t('imageProviderProtected')
+                            : undefined}
                         onClick={() => {
                           setSavedTarget(undefined)
                           setDeleteFailure(undefined)

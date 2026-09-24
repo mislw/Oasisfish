@@ -1,0 +1,12 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "tool-call-delta", "index": 0, "id": "call_image_generate", "name": "image_generate", "argumentsDelta": "{\"prompt\":\"A clear square game icon of a silver compass on white\",\"variation_prompts\":[\"front view\",\"side view\",\"soft light\",\"dramatic light\"]}" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "call_image_generate", "name": "image_generate", "arguments": "{\"prompt\":\"A clear square game icon of a silver compass on white\",\"variation_prompts\":[\"front view\",\"side view\",\"soft light\",\"dramatic light\"]}" } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 10 } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  }
+]

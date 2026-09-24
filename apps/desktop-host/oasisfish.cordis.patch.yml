@@ -1,6 +1,9 @@
 - id: ui-codex-bridge
   disabled: false
 
+- id: image-generation
+  disabled: false
+
 - id: skill-search
   config:
     corpora:

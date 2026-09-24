@@ -22,6 +22,36 @@ import type { SettingsSchemaOperations } from './schema-operations.ts'
  * names one that cannot collide with a configured route.
  */
 const PROBE_ROUTE = '\u0000probe'
+const IMAGE_GENERATION_NAMESPACE = 'image-generation'
+
+/** Complete primary and optional fallback route stored by image generation. */
+export interface ImageRouteSelection {
+  readonly provider: string
+  readonly model: string
+  readonly endpointPath: string
+  readonly editEndpointPath: string
+  readonly fallbackProvider: string
+  readonly fallbackModel: string
+  readonly fallbackEndpointPath: string
+  readonly fallbackEditEndpointPath: string
+}
+
+function imageRouteOf(namespace: SettingsNamespaceView | undefined): ImageRouteSelection | undefined {
+  if (namespace === undefined || typeof namespace.value !== 'object' || namespace.value === null) return undefined
+  const value = namespace.value as Record<string, unknown>
+  const field = (key: keyof ImageRouteSelection, fallback: string): string =>
+    typeof value[key] === 'string' ? value[key] : fallback
+  return {
+    provider: field('provider', ''),
+    model: field('model', ''),
+    endpointPath: field('endpointPath', 'images/generations'),
+    editEndpointPath: field('editEndpointPath', 'images/edits'),
+    fallbackProvider: field('fallbackProvider', ''),
+    fallbackModel: field('fallbackModel', ''),
+    fallbackEndpointPath: field('fallbackEndpointPath', 'images/generations'),
+    fallbackEditEndpointPath: field('fallbackEditEndpointPath', 'images/edits'),
+  }
+}
 
 /** One provider row after joining the configurable directory with live routes. */
 export interface ProviderDirectoryEntry {
@@ -102,6 +132,8 @@ export interface ModelsSettingsState {
   rows: readonly ProviderRow[]
   /** Host model directory and the saved default selection. */
   catalog: ModelCatalog | null
+  /** Auxiliary image route, present only while its Settings namespace is mounted. */
+  imageRoute: ImageRouteSelection | undefined
   /** Namespace views by ns, for the editor's schema/layers/secrets. */
   namespaces: ReadonlyMap<string, SettingsNamespaceView>
 }
@@ -155,6 +187,7 @@ export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
   readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({
     status: 'idle', error: null, credentialError: null, writable: false, rows: [], catalog: null,
+    imageRoute: undefined,
     namespaces: new Map(),
   })
 
@@ -236,6 +269,7 @@ export class ModelsSettingsStore {
       s.credentialError = credentialError
       s.writable = writable
       s.catalog = catalog.value
+      s.imageRoute = imageRouteOf(namespaces.get(IMAGE_GENERATION_NAMESPACE))
       s.rows = rows.map((row) => {
         const named = row.apiKeyEnv === undefined ? undefined : credentials[row.apiKeyEnv]
         const derived = row.apiKeyEnv !== undefined ? undefined : credentials[deriveKeyRef(row.entry.provider)]
@@ -260,6 +294,44 @@ export class ModelsSettingsStore {
     this.store.update((state) => {
       if (state.catalog === null) return
       state.catalog = { ...state.catalog, default: { ...response.value.selected } }
+    })
+    return undefined
+  }
+
+  /**
+   * Whether the image service can resolve this provider from the current pi-ai settings.
+   * @param row - joined provider row from the current snapshot.
+   * @returns true when the stored pi-ai profile names a non-empty Base URL.
+   */
+  canSelectImageProvider(row: ProviderRow): boolean {
+    if (!row.configured || row.entry.settingsNs !== 'llm-pi-ai') return false
+    const namespace = this.store.getSnapshot().namespaces.get(row.entry.settingsNs)
+    if (namespace === undefined) return false
+    const profile = this.schema.getPath(namespace.value, row.entry.settingsPath)
+    if (typeof profile !== 'object' || profile === null || Array.isArray(profile)) return false
+    const baseURL = (profile as Readonly<Record<string, unknown>>)['baseURL']
+    return typeof baseURL === 'string' && baseURL.trim() !== ''
+  }
+
+  /**
+   * Save the complete auxiliary image route without changing the conversation default.
+   * @param selection - primary and fallback identities and endpoint paths.
+   * @returns the Host refusal, or undefined after adopting the saved section.
+   */
+  async selectImageRoute(selection: ImageRouteSelection): Promise<string | undefined> {
+    const namespace = this.store.getSnapshot().namespaces.get(IMAGE_GENERATION_NAMESPACE)
+    if (namespace === undefined) return 'image-generation settings are unavailable'
+    const ops = (Object.keys(selection) as (keyof ImageRouteSelection)[]).map(key => ({
+      op: 'set' as const, path: [key], value: selection[key],
+    }))
+    const response = await this.ctx.remote.settings.mutate(IMAGE_GENERATION_NAMESPACE, ops, namespace.revision)
+    if (!response.ok) return response.error.message
+    const namespaces = new Map(this.store.getSnapshot().namespaces)
+    namespaces.set(IMAGE_GENERATION_NAMESPACE, response.value)
+    const imageRoute = imageRouteOf(response.value)
+    this.store.update((state) => {
+      state.namespaces = namespaces
+      state.imageRoute = imageRoute
     })
     return undefined
   }

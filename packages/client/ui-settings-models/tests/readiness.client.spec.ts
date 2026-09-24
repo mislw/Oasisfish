@@ -49,6 +49,7 @@ function state(overrides: Partial<ModelsSettingsState> = {}): ModelsSettingsStat
     writable: true,
     rows: [row()],
     catalog: null,
+    imageRoute: undefined,
     namespaces: new Map(),
     ...overrides,
   }

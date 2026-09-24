@@ -33,6 +33,7 @@ const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
 /** The shipped Web surface: the dsh-base and dsh-web-app bundle patches over an empty preset root. */
 const BASE_PATCH = join(REPO_ROOT, 'packages/bundle/base/cordis.patch.yml')
 const WEB_PATCH = join(REPO_ROOT, 'packages/bundle/web-app/cordis.patch.yml')
+const OASISFISH_DESKTOP_PATCH = join(REPO_ROOT, 'apps/desktop-host/oasisfish.cordis.patch.yml')
 const CODEX_PACKAGE_DIR = join(REPO_ROOT, 'packages/subagent/subagent-codex')
 const CLAUDE_CODE_PACKAGE_DIR = join(REPO_ROOT, 'packages/subagent/subagent-claude-code')
 /** The installation anchor whose dependency surface the preset module fallback mirrors. */
@@ -270,6 +271,26 @@ describe('the shipped Web composition', () => {
       await handle.dispose()
     }
   })
+
+  it('activates image_generate only when the Oasisfish Desktop service is present', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'dsh-oasisfish-image-preset-'))
+    const settingsFile = join(home, 'settings.yaml')
+    await writeFile(settingsFile, '{}\n')
+    const productCtx = await bootWeb(settingsFile, [
+      ...loadOverlayPatches('oasisfish-test', OASISFISH_DESKTOP_PATCH),
+      { id: 'skill-search-local', disabled: true },
+    ])
+    const handle = await productCtx.agents.create({
+      sessionId: SessionId('preset-standard-image-generation'),
+      setup: agentCtx => productCtx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
+    })
+    try {
+      expect(toolNames(productCtx, handle.agent)).toContain('image_generate')
+    } finally {
+      await handle.dispose()
+      await productCtx.fiber.dispose()
+    }
+  }, 120_000)
 
   it('applies the default-off subagent model allowlist only to new sessions', async () => {
     await ctx.settings.update(SUBAGENT_MODEL_SELECTION_SETTINGS_NAMESPACE, {
