@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `attachment/` group provides durable image attachments: attach images to prompts and commands, and the harness saves them on your machine, shows them again in conversation history, and sends them to the model in later turns. The shipped `dsh` composition enables this with no setup. The capability and its storage are split across two packages, described below. Stored images survive restarts and are never deleted automatically, and only raster image formats are supported.
+The `attachment/` group provides durable image attachments and auxiliary image generation. Storage packages admit, persist, replay, and project raster images. Generation packages call configured image routes, commit successful bytes through `ctx.attachments`, and expose durable results through a model tool. Product composition remains responsible for mounting the generation packages and selecting routes.
 
 ## Table of Contents
 
@@ -22,12 +22,14 @@ The `attachment/` group provides durable image attachments: attach images to pro
 <a id="packages"></a>
 ## Packages
 
-These two packages provide durable image attachments; each README describes what you can do with its part.
+These packages provide durable image storage and optional generation; each README describes its own configuration and failure behavior.
 
 | Package | Role | ctx key |
 |---|---|---|
 | [`attachment/`](attachment/README.md) | Image attachments for prompts and commands that persist and come back in history | `ctx.attachments` |
 | [`attachment-local/`](attachment-local/README.md) | Stores your attached images on this machine below `DSH_HOME` | registers on `ctx.attachments` |
+| [`image-generation/`](image-generation/README.md) | Calls configured image routes and commits successful outputs as attachments | `ctx.imageGeneration` |
+| [`tool-image-generate/`](tool-image-generate/README.md) | Gives the current Agent the `image_generate` Consumer | registers on `ctx.tools` |
 
 -----
 

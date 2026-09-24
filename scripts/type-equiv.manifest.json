@@ -983,6 +983,21 @@
     },
     {
       "doc": "docs/subsystems/attachment.md",
+      "symbol": "GenerateImageRequest",
+      "source": "packages/attachment/image-generation/src/index.ts"
+    },
+    {
+      "doc": "docs/subsystems/attachment.md",
+      "symbol": "GeneratedImage",
+      "source": "packages/attachment/image-generation/src/index.ts"
+    },
+    {
+      "doc": "docs/subsystems/attachment.md",
+      "symbol": "GeneratedImageBatch",
+      "source": "packages/attachment/image-generation/src/index.ts"
+    },
+    {
+      "doc": "docs/subsystems/attachment.md",
       "symbol": "PromptContentPart",
       "source": "packages/attachment/attachment/src/types.ts"
     },

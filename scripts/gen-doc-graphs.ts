@@ -169,8 +169,16 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Durable binary attachment storage',
     mode: 'seam',
     implementations: ['attachment-local'],
-    consumers: ['api-session-controller', 'tool-fs', 'llm-pi-ai', 'llm-deepseek'],
+    consumers: ['api-session-controller', 'tool-fs', 'llm-pi-ai', 'llm-deepseek', 'image-generation'],
     note: 'The host commits accepted images before session events; provider adapters resolve authorized durable references into provider-native content.',
+  },
+  {
+    key: 'imageGeneration',
+    pkg: 'image-generation',
+    title: 'Auxiliary image generation',
+    mode: 'core',
+    consumers: ['tool-image-generate'],
+    note: 'Resolves configured image routes and commits successful provider bytes through durable attachment storage before returning references.',
   },
   {
     key: 'fileUploads',

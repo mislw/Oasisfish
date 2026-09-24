@@ -1,0 +1,33 @@
+.root {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.header span {
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+.caption {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  white-space: pre-wrap;
+}

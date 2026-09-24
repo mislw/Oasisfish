@@ -1110,6 +1110,40 @@ export interface Config {
 
 来源：[`packages/host/webserver/src/index.ts:59`](../packages/host/webserver/src/index.ts)
 
+<a id="deepseek-aidsh-image-generation"></a>
+
+## `@deepseek-ai/dsh-image-generation`
+
+```ts config-catalog
+/** Plugin configuration and composition-layer defaults. */
+export interface Config extends Partial<ImageGenerationSettings> {
+  /** Maximum accepted Images API JSON or downloaded image bytes. */
+  maxResponseBytes?: number
+}
+
+/** Persisted default image route. */
+export interface ImageGenerationSettings {
+  /** Provider route whose Base URL and credential back image requests. */
+  provider: string
+  /** Provider-specific model id sent to the Images API. */
+  model: string
+  /** Relative Images API path resolved against the provider Base URL. */
+  endpointPath: string
+  /** Relative Images API path used when the request includes reference images. */
+  editEndpointPath: string
+  /** Backup provider route tried once when the primary route fails. */
+  fallbackProvider: string
+  /** Backup provider-specific image model id. */
+  fallbackModel: string
+  /** Relative generation path for the backup route. */
+  fallbackEndpointPath: string
+  /** Relative reference-edit path for the backup route. */
+  fallbackEditEndpointPath: string
+}
+```
+
+来源：[`packages/attachment/image-generation/src/index.ts:57`](../packages/attachment/image-generation/src/index.ts)
+
 <a id="deepseek-aidsh-invariants"></a>
 
 ## `@deepseek-ai/dsh-invariants`
@@ -3260,6 +3294,22 @@ export interface Config {
 ```
 
 来源：[`packages/goal/tool-goal/src/index.ts:25`](../packages/goal/tool-goal/src/index.ts)
+
+<a id="deepseek-aidsh-tool-image-generate"></a>
+
+## `@deepseek-ai/dsh-tool-image-generate`
+
+需要：`tools` · `imageGeneration`
+
+```ts config-catalog
+/** Image generation tool runtime limits. */
+export interface Config {
+  /** Maximum duration of one provider request, image download, and attachment save. */
+  timeoutMs: number
+}
+```
+
+来源：[`packages/attachment/tool-image-generate/src/index.ts:17`](../packages/attachment/tool-image-generate/src/index.ts)
 
 <a id="deepseek-aidsh-tool-jobs"></a>
 

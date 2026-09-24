@@ -50,6 +50,7 @@ import * as ToolCordis from '@deepseek-ai/dsh-tool-cordis'
 import * as ToolPresent from '@deepseek-ai/dsh-tool-present'
 import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
 import * as ToolFsSearch from '@deepseek-ai/dsh-tool-fs-search'
+import * as ToolImageGenerate from '@deepseek-ai/dsh-tool-image-generate'
 import * as ToolStrReplaceEditor from '@deepseek-ai/dsh-tool-str-replace-editor'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
@@ -416,6 +417,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-image-generate',
+    dir: 'tool-image-generate',
+    source: 'packages/attachment/tool-image-generate/src/index.ts',
+    requires: ['ctx.tools', 'ctx.imageGeneration'],
+    writes: ['tool/call', 'durable generated-image attachment', 'tool/result'],
+    async mount(ctx) {
+      ctx.provide('imageGeneration', {
+        generate: () => Promise.reject(new Error('gen-tool-catalog: image generation is unreachable during schema harvest')),
+      } as never)
+      await ctx.plugin(ToolImageGenerate, { timeoutMs: 180_000 })
+    },
+    note:
+      'The tool uses a separately configured auxiliary image route and does not change the conversation model route.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-terminal',

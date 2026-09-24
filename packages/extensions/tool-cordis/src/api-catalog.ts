@@ -1166,6 +1166,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'imageGeneration',
+    summary: 'Host-owned generated-image capability and OpenAI-compatible provider.',
+    description: 'Host-owned generated-image capability and OpenAI-compatible provider.',
+    methods: [
+      {
+        signature: 'async generate(request: GenerateImageRequest): Promise<GeneratedImageBatch>',
+        description: 'Generate independent image candidates and persist every successful result.',
+        parameters: [{ name: 'request', description: 'prompt, optional reference images and output controls, and cancellation signal.' }],
+        returns: 'successful candidates in request order and the failed-candidate count.',
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',
@@ -4873,6 +4886,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'FsWriteOutcome',
     declaration: 'export interface FsWriteOutcome {\n    operation: \'create\' | \'update\';\n    version: FsVersion;\n    before: string | null;\n    after: string;\n}',
+  },
+  {
+    name: 'GeneratedImage',
+    declaration: 'export interface GeneratedImage {\n    provider: string;\n    model: string;\n    attachment: ImageAttachmentRef;\n}',
+  },
+  {
+    name: 'GeneratedImageBatch',
+    declaration: 'export interface GeneratedImageBatch {\n    images: readonly GeneratedImage[];\n    failedCount: number;\n}',
+  },
+  {
+    name: 'GenerateImageRequest',
+    declaration: 'export interface GenerateImageRequest {\n    prompt: string;\n    count?: number;\n    variations?: readonly string[];\n    size?: string;\n    referenceImages?: readonly ImageAttachmentRef[];\n    quality?: \'low\' | \'medium\' | \'high\';\n    signal?: AbortSignal;\n}',
   },
   {
     name: 'GenerateOptions',

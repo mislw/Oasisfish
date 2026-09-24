@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package renders everything the conversation UI shows about attachments: one ordered draft rail under the composer, a full-viewport drop invitation, durable images in Chat, Trajectory, and Tool results, and a lightbox for the original image. Attachment data, upload state, image loading, and callbacks come from the declared slot owners. Choose it for the DeepSeek Chat-style attachment experience.
+This package renders everything the conversation UI shows about attachments: one ordered draft rail under the composer, a full-viewport drop invitation, durable images in Chat, Trajectory, and Tool results, and a lightbox for the original image. The `image_generate` result view also shows its prompt and actual provider/model routes without exposing attachment ids. Attachment data, upload state, image loading, and callbacks come from the declared slot owners. Choose it for the DeepSeek Chat-style attachment experience.
 
 ## Table of Contents
 
@@ -37,6 +37,10 @@ In Chat, one user message presents files and images in a right-aligned wrapping 
 
 Trajectory attachment rows request 48px square thumbnails that contain the complete image without cropping. Loading and retry icons keep the same box, with localized tooltips and accessible names; the image opens the same lightbox. A slot owner may supply a presentation-only image label for the thumbnail and lightbox without changing the durable reference or the cache lookup.
 
+### Generated image results
+
+An `image_generate` tool result derives its view from the settled raw content and persisted presentation metadata. Valid results show the recorded prompt, a session-authorized gallery, each successful candidate's actual provider/model route, and the durable result text; attachment ids remain hidden. Missing, malformed, failed, or mismatched data falls back to the generic tool name and durable text instead of inventing UI state.
+
 ### Drop overlay
 
 While a file drag is over the page, the full-viewport overlay announces the drop: illustration, title, and a limits line when drops are accepted. The overlay only shows state — the owner's document-level listeners decide accept or reject.
@@ -49,7 +53,7 @@ While a file drag is over the page, the full-viewport overlay announces the drop
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin waits for `conversation.input.attachments`, `conversation.message.images`, `conversation.trajectory.images`, and `tool.call.images` through `ctx.slots.inject`. It then registers the composer rail, document drop target, shared history gallery for Chat, Trajectory, and Tool results, and original-image lightbox. The presentation components are driven entirely by props: the slot owner supplies attachment data, image loading, callbacks, and the locale translator; the package entry exports no components.
+The plugin waits for the conversation attachment slots and `tool.call.toolview` through `ctx.slots.inject`. It registers the composer rail, shared history galleries, and the keyed `image_generate` result view. That result declares its own `image-generation.result.images` child slot, so its gallery receives the Tool view's session-authorized loader without competing with the generic `tool.call.images` owner. The presentation components are driven entirely by props: slot owners supply attachment data, image loading, callbacks, and the locale translator; the package entry exports no components.
 
 | File | Role |
 |---|---|
@@ -57,6 +61,7 @@ The plugin waits for `conversation.input.attachments`, `conversation.message.ima
 | [`src/client/drop-events.ts`](src/client/drop-events.ts) | Document drag-and-drop listeners installed by each mounted attachment view's effect |
 | [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | Horizontal attachment overflow, wheel translation, edge arrows |
 | [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | Per-message gallery + lightbox assembly |
+| [`src/client/ImageGenerateResult.tsx`](src/client/ImageGenerateResult.tsx) | Durable `image_generate` result derivation, route labels, and child gallery owner |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | Single image sizing, load/retry, click-to-open; local submission-echo previews render their object URL directly |
 | [`src/ImageLightbox.tsx`](src/ImageLightbox.tsx) | Document-level modal preview over the shared mask |
 | [`src/DropOverlay.tsx`](src/DropOverlay.tsx) | Pointer-inert drag invitation portal |

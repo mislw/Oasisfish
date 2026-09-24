@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`attachment/` 组提供持久图片附件：把图片附加到提示词和命令，harness 会把它保存到你的机器上，重新显示在对话历史中，并在后续轮次发送给模型。随附的 `dsh` 组合无需任何设置即可支持这一点。该能力与它的存储拆分为两个包，见下文。已存储的图片在重启后依然存在且永远不会被自动删除，并且只支持光栅图片格式。
+`attachment/` 组提供持久图片附件和辅助图片生成。存储包负责接受、持久化、重放并投影光栅图片。生成包调用已配置的图片路由，通过 `ctx.attachments` 提交成功的字节，并通过模型 tool 暴露持久结果。产品 composition 仍负责挂载生成包并选择路由。
 
 ## 目录
 
@@ -22,12 +22,14 @@ kind: "package-group"
 <a id="packages"></a>
 ## 包
 
-这两个包提供持久图片附件；每个 README 描述其各自部分可以做什么。
+这些包提供持久图片存储和可选生成；每个 README 描述本包自己的配置与失败行为。
 
 | 包 | 角色 | ctx 键 |
 |---|---|---|
 | [`attachment/`](attachment/README.zh.md) | 可用于提示词与命令、会持久保存并回到历史中的图片附件 | `ctx.attachments` |
 | [`attachment-local/`](attachment-local/README.zh.md) | 把附加图片存储在本机 `DSH_HOME` 下 | 注册到 `ctx.attachments` |
+| [`image-generation/`](image-generation/README.zh.md) | 调用已配置的图片路由，并把成功输出提交为附件 | `ctx.imageGeneration` |
+| [`tool-image-generate/`](tool-image-generate/README.zh.md) | 向当前 Agent 提供 `image_generate` Consumer | 注册到 `ctx.tools` |
 
 -----
 

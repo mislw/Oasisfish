@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包渲染对话 UI 中与附件相关的一切：composer 下的一条有序草稿附件栏、全视口拖放提示层、Chat、Trajectory 与工具结果中的长期保留的图片，以及查看原图的灯箱。附件数据、上传状态、图片加载与回调来自声明这些 slot 的持有方。需要 DeepSeek Chat 风格的附件体验时选择它。
+本包渲染对话 UI 中与附件相关的一切：composer 下的一条有序草稿附件栏、全视口拖放提示层、Chat、Trajectory 与工具结果中的长期保留的图片，以及查看原图的灯箱。`image_generate` 结果视图还会显示其 prompt 与实际提供方／模型路由，但不暴露附件 ID。附件数据、上传状态、图片加载与回调来自声明这些 slot 的持有方。需要 DeepSeek Chat 风格的附件体验时选择它。
 
 ## 目录
 
@@ -37,6 +37,10 @@ Chat 中的一条用户消息把文件与图片放在同一个靠右、可换行
 
 Trajectory 附件行使用 48px 方形缩略图，完整缩放图片而不裁剪。加载与重试图标保持相同尺寸，提供本地化的工具提示和可访问名称；图片打开同一个灯箱。插槽持有方可以为缩略图与灯箱提供仅用于展示的图片名称，而不改变持久化引用或缓存查询。
 
+### 生成图片结果
+
+`image_generate` 工具结果从 settled 原始内容与持久 presentation metadata 派生视图。有效结果显示已记录 prompt、由 Session 授权的 gallery、每个成功候选的实际提供方／模型路由，以及持久结果文字；附件 ID 保持隐藏。数据缺失、畸形、失败或不匹配时，视图回退到通用工具名称与持久文字，而不会虚构 UI 状态。
+
 ### 拖放遮罩
 
 文件拖到页面上方时，全视口遮罩显示拖放提示，包括插画和标题；接受拖放时还会显示一行限制说明。遮罩只呈现状态——是否接受由持有方的文档级监听器决定。
@@ -49,7 +53,7 @@ Trajectory 附件行使用 48px 方形缩略图，完整缩放图片而不裁剪
 <details>
 <summary>实现细节——点击展开</summary>
 
-插件通过 `ctx.slots.inject` 等待 `conversation.input.attachments`、`conversation.message.images`、`conversation.trajectory.images` 与 `tool.call.images`。随后它注册 composer rail、文档拖放目标、供 Chat、Trajectory 与工具结果共用的历史图片 gallery，以及原图灯箱。呈现组件仅依赖 props：slot 持有方提供附件数据、图片加载、回调与语言包翻译器；包入口不导出任何组件。
+插件通过 `ctx.slots.inject` 等待对话附件 slot 与 `tool.call.toolview`。随后它注册 composer rail、共享历史 gallery 与 keyed `image_generate` 结果视图。该结果声明自己的 `image-generation.result.images` 子 slot，因此 gallery 会收到工具视图的 Session 授权 loader，并且不会与通用 `tool.call.images` 持有方冲突。呈现组件仅依赖 props：slot 持有方提供附件数据、图片加载、回调与语言包翻译器；包入口不导出任何组件。
 
 | 文件 | 职责 |
 |---|---|
@@ -57,6 +61,7 @@ Trajectory 附件行使用 48px 方形缩略图，完整缩放图片而不裁剪
 | [`src/client/drop-events.ts`](src/client/drop-events.ts) | 每个已挂载附件视图的 effect 安装的 document 拖放监听 |
 | [`src/AttachmentRail.tsx`](src/AttachmentRail.tsx) | 附件横向溢出、滚轮转换、边缘箭头 |
 | [`src/client/MessageImages.tsx`](src/client/MessageImages.tsx) | 每消息画廊＋灯箱的组装 |
+| [`src/client/ImageGenerateResult.tsx`](src/client/ImageGenerateResult.tsx) | 持久 `image_generate` 结果派生、路由标签与子 gallery 持有方 |
 | [`src/MessageImage.tsx`](src/MessageImage.tsx) | 单图尺寸、加载／重试、点击打开；本地提交回显预览直接显示其 object URL |
 | [`src/ImageLightbox.tsx`](src/ImageLightbox.tsx) | 铺在共享遮罩上的文档级模态预览 |
 | [`src/DropOverlay.tsx`](src/DropOverlay.tsx) | 不接收指针事件的拖放提示 portal |

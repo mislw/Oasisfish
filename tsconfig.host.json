@@ -202,6 +202,8 @@
     { "path": "./packages/util/atomic-write" },
     { "path": "./packages/attachment/attachment" },
     { "path": "./packages/attachment/attachment-local" },
+    { "path": "./packages/attachment/image-generation" },
+    { "path": "./packages/attachment/tool-image-generate" },
     { "path": "./packages/client/file-upload/tsconfig.host.json" },
     { "path": "./packages/llm/llm" },
     { "path": "./packages/llm/deepseek-llm-api-extensions" },
