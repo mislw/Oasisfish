@@ -1,0 +1,10 @@
+version: 1
+scenario: native-memory
+profile: headless
+composition: native-memory
+recording: authored
+header:
+  class: native-memory
+  pin: true
+replay:
+  override: true

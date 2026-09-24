@@ -142,6 +142,37 @@ function construct(packageNames: string[]): ClientModuleRegistry {
   return constructWithRoute(packageNames).service
 }
 
+it('uses the root Loader resolver for a client package outside the config tree', () => {
+  const packageName = '@fixture/installed-client'
+  const clientPath = writePackage(packageName)
+  mkdirSync(dirname(clientPath), { recursive: true })
+  writeFileSync(clientPath, 'module.exports = {}\n')
+  const packageJsonPath = join(dirname(dirname(clientPath)), 'package.json')
+  const profile = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-client-profile-')))
+  const ctx = new Context()
+  ctx.baseUrl = pathToFileURL(join(profile, 'cordis.yml')).href
+  ctx.provide('loader', {
+    *entries() {
+      yield {
+        options: { name: packageName }, fiber: {}, disabled: false,
+        parent: { tree: { ctx: { baseUrl: ctx.baseUrl } } },
+      }
+    },
+    resolvePackageJson(specifier: string) {
+      if (specifier !== packageName) throw new Error(`unexpected package ${specifier}`)
+      return packageJsonPath
+    },
+  } as never)
+  ctx.provide('webServer', {
+    port: 0, register: () => () => {}, tapIndex: () => () => {},
+  } as unknown as WebServer)
+  try {
+    expect(new ClientModuleRegistry(ctx).graph().entries.map(entry => entry.id)).toEqual([packageName])
+  } finally {
+    rmSync(profile, { recursive: true, force: true })
+  }
+})
+
 /** Invoke the registered plugin route and capture status, headers, and bytes. */
 async function routeRequest(route: Promise<WebRoute>, url: string, method = 'GET'): Promise<{
   status: number

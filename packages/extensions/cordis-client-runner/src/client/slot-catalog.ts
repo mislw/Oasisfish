@@ -2296,6 +2296,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-agent-preset AgentPresetSection id \'agent-presets\'',
       'client-ui-codex-bridge CodexBridgeSection id \'codex-bridge\'',
       'client-ui-settings-general GeneralSection id \'general\'',
+      'client-ui-settings-memory MemorySection id \'memory\'',
       'client-ui-settings-models ModelsSection id \'models\'',
       'client-ui-settings-plugins PluginsSettingsSection id \'plugins\'',
       'client-ui-settings-unarchive-sessions ArchivedSessionsSection id \'archived-sessions\'',

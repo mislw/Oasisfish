@@ -1,0 +1,16 @@
+{
+  "unit": { "name": "native_memory", "version": 0 },
+  "global": {
+    "enabled": true,
+    "records": [
+      {
+        "id": "memory-snapshot-user",
+        "scope": "user",
+        "content": "Use pnpm for repository tasks.",
+        "createdAt": 1,
+        "updatedAt": 1
+      }
+    ]
+  },
+  "tables": {}
+}

@@ -831,6 +831,12 @@ export class ClientModuleRegistry extends Service {
     const pathLike = loaderName.startsWith('.') || loaderName.startsWith('file:') || isAbsolute(loaderName)
     const expectedPackageName = pathLike ? undefined : exactPackageSpecifier(loaderName)
     if (!pathLike && expectedPackageName === undefined) return undefined
+    const rootLoader = this.ctx.loader as typeof this.ctx.loader & {
+      resolvePackageJson?(specifier: string): string
+    }
+    if (expectedPackageName !== undefined && rootLoader.resolvePackageJson !== undefined) {
+      return { path: rootLoader.resolvePackageJson(expectedPackageName), packageName: expectedPackageName }
+    }
     const internal = this.ctx.loader.internal
     if (internal === undefined || typeof Reflect.get(internal, 'resolveSync') !== 'function') {
       if (expectedPackageName === undefined) {

@@ -39,6 +39,7 @@ import * as ToolSubagentListAgents from '@deepseek-ai/dsh-tool-subagent-control/
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import * as SkillFileSystem from '@deepseek-ai/dsh-skill-filesystem'
 import LocalJobRegistry from '@deepseek-ai/dsh-jobs-local'
+import MemoryService from '@deepseek-ai/dsh-memory'
 import * as ToolAskUser from '@deepseek-ai/dsh-tool-ask-user'
 import * as ToolBash from '@deepseek-ai/dsh-tool-bash'
 import * as ToolPwsh from '@deepseek-ai/dsh-tool-pwsh'
@@ -56,6 +57,7 @@ import * as ToolGoal from '@deepseek-ai/dsh-tool-goal'
 import * as ToolSchedule from '@deepseek-ai/dsh-schedule'
 import Lsp from '@deepseek-ai/dsh-lsp'
 import * as ToolLsp from '@deepseek-ai/dsh-tool-lsp'
+import * as ToolMemory from '@deepseek-ai/dsh-tool-memory'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import SkillSearchRegistry from '@deepseek-ai/dsh-skill-search'
 import * as ToolSkillSearch from '@deepseek-ai/dsh-tool-skill-search'
@@ -476,6 +478,18 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@deepseek-ai/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-memory',
+    dir: 'tool-memory',
+    source: 'packages/memory/tool-memory/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt', 'ctx.agents', 'ctx.memory', 'an owning Agent at call time'],
+    writes: ['tool/call', 'tool/result', 'user/message on the first accepted step'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(MemoryService)
+      await ctx.plugin(ToolMemory)
+    },
   },
   {
     pkg: '@deepseek-ai/dsh-tool-ralph',

@@ -1,0 +1,12 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "text" },
+      { "type": "text-delta", "index": 0, "text": "Use pnpm." },
+      { "type": "block-end", "index": 0, "block": { "type": "text", "text": "Use pnpm." } },
+      { "type": "usage", "usage": { "inputTokens": 10, "outputTokens": 3 } },
+      { "type": "finish", "reason": { "kind": "stop" } }
+    ]
+  }
+]
