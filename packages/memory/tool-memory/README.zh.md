@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在同一 composition 中挂载 memory Service Definition、一个 Provider 和本包。已发布的 base bundle 提供 service 与 tool，Web bundle 提供本地 Provider。
+在同一 composition 中挂载 memory Service Definition、一个 Provider 和本包。已发布的 base bundle 提供 service，Web bundle 提供本地 Provider 与 tool。
 
 ### 何时选择
 

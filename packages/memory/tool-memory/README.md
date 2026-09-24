@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the memory Service Definition, one Provider, and this package in the same composition. The shipped base bundle supplies the service and tool, while the Web bundle supplies the local Provider.
+Mount the memory Service Definition, one Provider, and this package in the same composition. The shipped base bundle supplies the service, while the Web bundle supplies the local Provider and tool.
 
 ### When to choose it
 

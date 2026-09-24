@@ -1,6 +1,8 @@
-# The shipped base bundle owns the memory Service Definition and tool. This
-# scenario adds the local provider so the headless profile loads persisted
+# The shipped base bundle owns the memory Service Definition. This scenario
+# adds the local provider and tool so the headless profile loads persisted
 # memory before its first model request.
 - insert:
     - id: memory-local
       name: '@deepseek-ai/dsh-memory-local'
+    - id: tool-memory
+      name: '@deepseek-ai/dsh-tool-memory'

@@ -50,15 +50,13 @@ describe('dsh-base bundle', () => {
     expect(rows.find(row => row.id === 'memory')).toMatchObject({
       name: '@deepseek-ai/dsh-memory',
     })
-    expect(rows.find(row => row.id === 'tool-memory')).toMatchObject({
-      name: '@deepseek-ai/dsh-tool-memory',
-    })
+    expect(rows.find(row => row.id === 'tool-memory')).toBeUndefined()
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-llm-circuit-breaker')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-memory')
-    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-tool-memory')
+    expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-tool-memory')
   })
 
   it('gates each shell stack by platform with a symmetric disabled expression', () => {

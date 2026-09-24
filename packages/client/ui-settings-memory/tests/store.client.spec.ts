@@ -10,6 +10,26 @@ const USER_RECORD: MemoryRecord = Object.freeze({
   updatedAt: 1,
 })
 
+const PROJECT_A_RECORD: MemoryRecord = Object.freeze({
+  id: MemoryId('project-a'),
+  scope: 'project',
+  projectKey: 'project-a-key',
+  projectLabel: 'project-a',
+  content: 'Project A fact.',
+  createdAt: 2,
+  updatedAt: 2,
+})
+
+const PROJECT_B_RECORD: MemoryRecord = Object.freeze({
+  id: MemoryId('project-b'),
+  scope: 'project',
+  projectKey: 'project-b-key',
+  projectLabel: 'project-b',
+  content: 'Project B fact.',
+  createdAt: 3,
+  updatedAt: 3,
+})
+
 function success<T>(value: T) {
   return Promise.resolve({ ok: true as const, value })
 }
@@ -133,16 +153,10 @@ describe('MemorySettingsStore', () => {
     await expect(first).resolves.toBe(true)
   })
 
-  it('contains transport failures and commits against the last ready snapshot during a reload', async () => {
-    const pendingAdd = deferred<Awaited<ReturnType<MemoryRemote['add']>>>()
-    const pendingLoad = deferred<Awaited<ReturnType<MemoryRemote['list']>>>()
+  it('contains transport failures while retaining the last ready snapshot', async () => {
     const api = remote({
-      add: vi.fn()
-        .mockRejectedValueOnce(new Error('transport unavailable'))
-        .mockImplementationOnce(() => pendingAdd.promise),
-      list: vi.fn()
-        .mockImplementationOnce(() => success({ enabled: true, records: [USER_RECORD] }))
-        .mockImplementationOnce(() => pendingLoad.promise),
+      add: vi.fn().mockRejectedValueOnce(new Error('transport unavailable')),
+      list: vi.fn(() => success({ enabled: true, records: [USER_RECORD] })),
     })
     const controller = new MemorySettingsStore(api)
     await controller.load(undefined)
@@ -151,17 +165,72 @@ describe('MemorySettingsStore', () => {
     expect(controller.store.getSnapshot()).toMatchObject({
       status: 'ready', records: [USER_RECORD], operation: undefined, failure: 'unavailable',
     })
+  })
 
-    const adding = controller.add({ scope: 'user', content: 'stored' }, undefined)
-    const loading = controller.load('/work/project')
-    pendingAdd.resolve({ ok: true, value: { ...USER_RECORD, id: MemoryId('stored'), content: 'stored' } })
-    await expect(adding).resolves.toBe(true)
-    expect(controller.store.getSnapshot()).toMatchObject({ status: 'ready', failure: undefined })
-    expect(controller.store.getSnapshot().records.map(record => record.content))
-      .toEqual(['Prefer concise Chinese responses.', 'stored'])
+  it('ignores a successful project A mutation after project B finishes loading', async () => {
+    const pendingAdd = deferred<Awaited<ReturnType<MemoryRemote['add']>>>()
+    const api = remote({
+      add: vi.fn(() => pendingAdd.promise),
+      list: vi.fn()
+        .mockImplementationOnce(() => success({ enabled: true, records: [PROJECT_A_RECORD] }))
+        .mockImplementationOnce(() => success({ enabled: false, records: [PROJECT_B_RECORD] })),
+    })
+    const controller = new MemorySettingsStore(api)
+    await controller.load('/work/project-a')
 
-    pendingLoad.resolve({ ok: true, value: { enabled: false, records: [] } })
-    await loading
+    const mutation = controller.add({ scope: 'project', content: 'Late A fact.' }, '/work/project-a')
+    await controller.load('/work/project-b')
+    pendingAdd.resolve({ ok: true, value: { ...PROJECT_A_RECORD, id: MemoryId('late-a'), content: 'Late A fact.' } })
+
+    await expect(mutation).resolves.toBe(false)
+    expect(controller.store.getSnapshot()).toEqual({
+      status: 'ready', enabled: false, records: [PROJECT_B_RECORD], operation: undefined, failure: undefined,
+    })
+  })
+
+  it('ignores a rejected project A mutation after project B finishes loading', async () => {
+    const pendingAdd = deferred<Awaited<ReturnType<MemoryRemote['add']>>>()
+    const api = remote({
+      add: vi.fn(() => pendingAdd.promise),
+      list: vi.fn()
+        .mockImplementationOnce(() => success({ enabled: true, records: [PROJECT_A_RECORD] }))
+        .mockImplementationOnce(() => success({ enabled: false, records: [PROJECT_B_RECORD] })),
+    })
+    const controller = new MemorySettingsStore(api)
+    await controller.load('/work/project-a')
+
+    const mutation = controller.add({ scope: 'project', content: 'Rejected A fact.' }, '/work/project-a')
+    await controller.load('/work/project-b')
+    pendingAdd.resolve({
+      ok: false,
+      error: { code: 'remote-error', message: 'project A rejected', details: {} },
+    })
+
+    await expect(mutation).resolves.toBe(false)
+    expect(controller.store.getSnapshot()).toEqual({
+      status: 'ready', enabled: false, records: [PROJECT_B_RECORD], operation: undefined, failure: undefined,
+    })
+  })
+
+  it('ignores a project A transport failure after project B finishes loading', async () => {
+    const pendingAdd = deferred<Awaited<ReturnType<MemoryRemote['add']>>>()
+    const api = remote({
+      add: vi.fn(() => pendingAdd.promise),
+      list: vi.fn()
+        .mockImplementationOnce(() => success({ enabled: true, records: [PROJECT_A_RECORD] }))
+        .mockImplementationOnce(() => success({ enabled: false, records: [PROJECT_B_RECORD] })),
+    })
+    const controller = new MemorySettingsStore(api)
+    await controller.load('/work/project-a')
+
+    const mutation = controller.add({ scope: 'project', content: 'Unavailable A fact.' }, '/work/project-a')
+    await controller.load('/work/project-b')
+    pendingAdd.reject(new Error('project A transport failed'))
+
+    await expect(mutation).resolves.toBe(false)
+    expect(controller.store.getSnapshot()).toEqual({
+      status: 'ready', enabled: false, records: [PROJECT_B_RECORD], operation: undefined, failure: undefined,
+    })
   })
 
   it('updates the local snapshot after successful add, edit, delete, and enable calls', async () => {

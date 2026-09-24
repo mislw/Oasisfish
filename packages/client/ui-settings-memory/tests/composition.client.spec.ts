@@ -30,6 +30,9 @@ describe('memory Settings product composition', () => {
     expect(patch).toContain("name: '@deepseek-ai/dsh-memory-local'")
     expect(readJson('packages/bundle/web-app/package.json').dependencies)
       .toHaveProperty('@deepseek-ai/dsh-memory-local', 'workspace:^')
+    expect(patch).toContain("name: '@deepseek-ai/dsh-tool-memory'")
+    expect(readJson('packages/bundle/web-app/package.json').dependencies)
+      .toHaveProperty('@deepseek-ai/dsh-tool-memory', 'workspace:^')
   })
 
   it('registers the package in the Client project-reference aggregate', () => {

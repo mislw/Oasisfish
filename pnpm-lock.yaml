@@ -1883,9 +1883,6 @@ importers:
       '@deepseek-ai/dsh-tool-jobs':
         specifier: workspace:^
         version: link:../../jobs/tool-jobs
-      '@deepseek-ai/dsh-tool-memory':
-        specifier: workspace:^
-        version: link:../../memory/tool-memory
       '@deepseek-ai/dsh-tool-present':
         specifier: workspace:^
         version: link:../../deliverables/tool-present
@@ -2401,6 +2398,9 @@ importers:
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-tool-memory':
+        specifier: workspace:^
+        version: link:../../memory/tool-memory
       '@deepseek-ai/dsh-tool-subagent':
         specifier: workspace:^
         version: link:../../subagent/tool-subagent

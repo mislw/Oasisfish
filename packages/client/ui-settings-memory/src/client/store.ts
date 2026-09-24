@@ -120,18 +120,20 @@ export class MemorySettingsStore {
   ): Promise<boolean> {
     const current = this.store.getSnapshot()
     if (current.status !== 'ready' || current.operation !== undefined) return false
+    const generation = this.loadToken
     this.store.set({ ...current, operation, failure: undefined })
     try {
       const result = await run()
+      if (generation !== this.loadToken) return false
       const latest = this.store.getSnapshot()
       if (!result.ok) {
         this.store.set({ ...current, operation: undefined, failure: result.error.message })
         return false
       }
-      const ready = latest.status === 'ready' ? latest : current
-      this.store.set({ ...commit(ready, result.value), operation: undefined, failure: undefined })
+      this.store.set({ ...commit(latest, result.value), operation: undefined, failure: undefined })
       return true
     } catch {
+      if (generation !== this.loadToken) return false
       this.store.set({ ...current, operation: undefined, failure: 'unavailable' })
       return false
     }
