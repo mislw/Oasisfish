@@ -53,7 +53,7 @@ The tool derives messages from the executing Agent's non-seeded Session and scan
 
 ### Completion and durable metadata
 
-The tool requires exactly four variation prompts and asks the service for four independent candidates. Partial success is valid. The rendered result contains fixed selection text plus durable image blocks, while presentation metadata records each attachment id, actual provider, actual model, matching variation, and failed count. The tool concludes the turn only after generation succeeds, so no extra conversation-model response follows it.
+The tool requires exactly four variation prompts and asks the service for four independent candidates. Partial success is valid. The rendered result contains fixed selection text plus durable image blocks, while presentation metadata records each attachment id, actual provider, actual model, variation at the original candidate position, and failed count. The tool concludes the turn only after generation succeeds, so no extra conversation-model response follows it.
 
 -----
 

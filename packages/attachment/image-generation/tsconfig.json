@@ -9,6 +9,7 @@
     { "path": "../attachment" },
     { "path": "../../credentials/credentials" },
     { "path": "../../llm/llm" },
-    { "path": "../../settings/settings" }
+    { "path": "../../settings/settings" },
+    { "path": "../../web/web-fetch-http" }
   ]
 }

@@ -3,6 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { AttachmentId, type SaveImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { SettingsProvider, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
+import { publicHttpNetwork } from '../../../web/web-fetch-http/src/network.ts'
 import ImageGenerationService, {
   IMAGE_GENERATION_SETTINGS_NAMESPACE,
   type Config,
@@ -100,6 +101,7 @@ function parsedRequestBody(body: BodyInit | null | undefined): unknown {
 afterEach(async () => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
+  vi.restoreAllMocks()
   await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
 })
 
@@ -134,9 +136,9 @@ describe('ImageGenerationService', () => {
       variations: ['variation 1', 'variation 2', 'variation 3', 'variation 4'],
     })).resolves.toMatchObject({
       images: [
-        { provider: 'primary', attachment: { name: 'generated-1.png' } },
-        { provider: 'backup', attachment: { name: 'generated-2.png' } },
-        { provider: 'primary', attachment: { name: 'generated-3.png' } },
+        { provider: 'primary', candidateIndex: 0, attachment: { name: 'generated-1.png' } },
+        { provider: 'backup', candidateIndex: 1, attachment: { name: 'generated-2.png' } },
+        { provider: 'primary', candidateIndex: 2, attachment: { name: 'generated-3.png' } },
       ],
       failedCount: 1,
     })
@@ -185,7 +187,7 @@ describe('ImageGenerationService', () => {
       prompt: 'inventory', size: '1024x1024', quality: 'medium', signal,
     }))
       .resolves.toEqual({
-        images: [{ provider: 'relay', model: 'gpt-image-1', attachment }], failedCount: 0,
+        images: [{ candidateIndex: 0, provider: 'relay', model: 'gpt-image-1', attachment }], failedCount: 0,
       })
     expect(saveImage).toHaveBeenCalledWith({ data: PNG, mediaType: 'image/png', name: 'generated.png' })
     const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
@@ -206,12 +208,16 @@ describe('ImageGenerationService', () => {
     })
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(imageResponse({ data: [{ url: 'http://cdn.example/generated.jpg' }] }))
-      .mockResolvedValueOnce(new Response(JPEG, { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(publicHttpNetwork, 'resolve').mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
+    const request = vi.spyOn(publicHttpNetwork, 'request').mockResolvedValue({
+      response: new Response(JPEG, { status: 200 }) as never,
+      close: () => Promise.resolve(),
+    })
 
     await expect(ctx.imageGeneration.generate({ prompt: 'portrait' }))
       .resolves.toEqual({
-        images: [{ provider: 'relay', model: 'gpt-image-1', attachment }], failedCount: 0,
+        images: [{ candidateIndex: 0, provider: 'relay', model: 'gpt-image-1', attachment }], failedCount: 0,
       })
     expect(saveImage).toHaveBeenCalledWith({ data: JPEG, mediaType: 'image/jpeg', name: 'generated.jpeg' })
     const [, firstInit] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
@@ -219,7 +225,124 @@ describe('ImageGenerationService', () => {
     expect(parsedRequestBody(firstInit.body)).toEqual({
       model: 'gpt-image-1', prompt: 'portrait', n: 1, response_format: 'b64_json',
     })
-    expect(fetchMock.mock.calls[1]).toEqual(['http://cdn.example/generated.jpg', {}])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledWith(
+      new URL('http://cdn.example/generated.jpg'),
+      [{ address: '8.8.8.8', family: 4 }], {}, expect.any(AbortSignal),
+    )
+  })
+
+  it('refuses a provider-supplied private image URL before downloading', async () => {
+    const { ctx, saveImage } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    const fetchMock = vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ url: 'http://127.0.0.1/private.png' }],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'portrait' })).rejects.toThrow()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(saveImage).not.toHaveBeenCalled()
+  })
+
+  it('does not follow a redirect from a provider-supplied image URL', async () => {
+    const { ctx, saveImage } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    const fetchMock = vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ url: 'https://cdn.example/image.png' }],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+    vi.spyOn(publicHttpNetwork, 'resolve').mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
+    const close = vi.fn(() => Promise.resolve())
+    const request = vi.spyOn(publicHttpNetwork, 'request').mockResolvedValue({
+      response: new Response(null, {
+        status: 302, headers: { location: 'http://127.0.0.1/private.png' },
+      }) as never,
+      close,
+    })
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'portrait' })).rejects.toThrow('HTTP 302')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(saveImage).not.toHaveBeenCalled()
+  })
+
+  it('pins a public image download to its validated address set', async () => {
+    const { ctx, saveImage } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    const fetchMock = vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ url: 'https://cdn.example/image.png' }],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+    const addresses = [{ address: '8.8.8.8', family: 4 as const }]
+    vi.spyOn(publicHttpNetwork, 'resolve').mockResolvedValue(addresses)
+    const close = vi.fn(() => Promise.resolve())
+    const request = vi.spyOn(publicHttpNetwork, 'request').mockResolvedValue({
+      response: new Response(JPEG) as never, close,
+    })
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'portrait' })).resolves.toMatchObject({
+      images: [{ provider: 'relay', model: 'gpt-image-1' }],
+      failedCount: 0,
+    })
+    expect(request).toHaveBeenCalledWith(new URL('https://cdn.example/image.png'), addresses, {}, expect.any(AbortSignal))
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(saveImage).toHaveBeenCalledWith({ data: JPEG, mediaType: 'image/jpeg', name: 'generated.jpeg' })
+  })
+
+  it('redacts a credentialed image URL before public-address resolution', async () => {
+    const { ctx, saveImage } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ url: 'https://secret@cdn.example/image.png?token=private' }],
+    }))))
+    const resolve = vi.spyOn(publicHttpNetwork, 'resolve')
+
+    const error = await ctx.imageGeneration.generate({ prompt: 'portrait' }).catch((reason: unknown) => reason)
+    expect(error).toMatchObject({ code: 'IMAGE_DOWNLOAD_BLOCKED' })
+    expect(JSON.stringify(error)).not.toContain('secret')
+    expect(JSON.stringify(error)).not.toContain('private')
+    expect(resolve).not.toHaveBeenCalled()
+    expect(saveImage).not.toHaveBeenCalled()
+  })
+
+  it('preserves cancellation during image URL resolution and connection', async () => {
+    const providers = { relay: { baseURL: 'https://relay.example/v1' } }
+    const first = await setup({ providers })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ url: 'https://cdn.example/image.png' }],
+    }))))
+    const dnsAbort = new AbortController()
+    const dnsError = new DOMException('dns cancelled', 'AbortError')
+    vi.spyOn(publicHttpNetwork, 'resolve').mockImplementationOnce(async () => {
+      dnsAbort.abort(dnsError)
+      throw dnsError
+    })
+    await expect(first.ctx.imageGeneration.generate({ prompt: 'portrait', signal: dnsAbort.signal }))
+      .rejects.toBe(dnsError)
+
+    const second = await setup({ providers })
+    const connectionAbort = new AbortController()
+    const connectionError = new DOMException('connection cancelled', 'AbortError')
+    vi.spyOn(publicHttpNetwork, 'resolve').mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
+    vi.spyOn(publicHttpNetwork, 'request').mockImplementationOnce(async () => {
+      connectionAbort.abort(connectionError)
+      throw connectionError
+    })
+    await expect(second.ctx.imageGeneration.generate({ prompt: 'portrait', signal: connectionAbort.signal }))
+      .rejects.toBe(connectionError)
+  })
+
+  it('reports a sanitized download failure when the pinned connection fails', async () => {
+    const { ctx } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ url: 'https://cdn.example/image.png?token=private' }],
+    }))))
+    vi.spyOn(publicHttpNetwork, 'resolve').mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
+    vi.spyOn(publicHttpNetwork, 'request').mockRejectedValue(new Error('private transport details'))
+
+    const error = await ctx.imageGeneration.generate({ prompt: 'portrait' }).catch((reason: unknown) => reason)
+    expect(error).toMatchObject({ code: 'IMAGE_DOWNLOAD_FAILED' })
+    expect(String(error)).toBe('ImageGenerationError: image-generation: image download failed')
+    expect(JSON.stringify(error)).not.toContain('private')
   })
 
   it('uses chat completions and decodes a Markdown data URL image', async () => {
@@ -243,7 +366,7 @@ describe('ImageGenerationService', () => {
     await expect(ctx.imageGeneration.generate({
       prompt: 'ink landscape', size: '1536x1024', quality: 'high',
     })).resolves.toEqual({
-      images: [{ provider: 'relay', model: '[EXPRESS]gemini-3.1-flash-image', attachment }], failedCount: 0,
+      images: [{ candidateIndex: 0, provider: 'relay', model: '[EXPRESS]gemini-3.1-flash-image', attachment }], failedCount: 0,
     })
 
     expect(saveImage).toHaveBeenCalledWith({ data: PNG, mediaType: 'image/png', name: 'generated.png' })
@@ -282,7 +405,7 @@ describe('ImageGenerationService', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(ctx.imageGeneration.generate({ prompt: 'fallback landscape' })).resolves.toEqual({
-      images: [{ provider: 'backup', model: 'backup-image', attachment }], failedCount: 0,
+      images: [{ candidateIndex: 0, provider: 'backup', model: 'backup-image', attachment }], failedCount: 0,
     })
     expect(saveImage).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -499,6 +622,33 @@ describe('ImageGenerationService', () => {
     await expect(failed.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow('HTTP 503')
   })
 
+  it('stops reading an oversized streaming response without buffering the entire body', async () => {
+    const { ctx, saveImage } = await setup({
+      providers: { relay: { baseURL: 'https://relay.example/v1' } },
+      config: { maxResponseBytes: 2 },
+    })
+    const response = new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(Uint8Array.from([1, 2, 3]))
+        controller.close()
+      },
+    }))
+    const arrayBuffer = vi.spyOn(response, 'arrayBuffer')
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(response)))
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'portrait' }))
+      .rejects.toThrow('exceeds the configured byte limit')
+    expect(arrayBuffer).not.toHaveBeenCalled()
+    expect(saveImage).not.toHaveBeenCalled()
+  })
+
+  it('treats an empty provider response body as invalid JSON', async () => {
+    const { ctx } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(null, { status: 200 }))))
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'portrait' })).rejects.toThrow(SyntaxError)
+  })
+
   it('keeps credentials and provider response text out of diagnostics', async () => {
     const failed = await setup({
       providers: { relay: { baseURL: 'https://relay.example/v1', apiKeyEnv: 'IMAGE_API_KEY' } },
@@ -575,7 +725,7 @@ describe('ImageGenerationService', () => {
 
     await expect(ctx.imageGeneration.generate({ prompt: 'committed', signal: controller.signal }))
       .resolves.toEqual({
-        images: [{ provider: 'relay', model: 'gpt-image-1', attachment }],
+        images: [{ candidateIndex: 0, provider: 'relay', model: 'gpt-image-1', attachment }],
         failedCount: 0,
       })
   })
@@ -625,9 +775,14 @@ describe('ImageGenerationService', () => {
     await expect(malformedRecord.ctx.imageGeneration.generate({ prompt: 'x' })).rejects.toThrow('did not return an image')
 
     const download = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce(imageResponse({ data: [{ url: 'https://cdn.example/image.png' }] }))
-      .mockResolvedValueOnce(new Response('missing', { status: 404 })))
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ url: 'https://cdn.example/image.png' }],
+    }))))
+    vi.spyOn(publicHttpNetwork, 'resolve').mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
+    vi.spyOn(publicHttpNetwork, 'request').mockResolvedValue({
+      response: new Response('missing', { status: 404 }) as never,
+      close: () => Promise.resolve(),
+    })
     await expect(download.ctx.imageGeneration.generate({ prompt: 'x', signal: new AbortController().signal }))
       .rejects.toThrow('image download failed with HTTP 404')
   })

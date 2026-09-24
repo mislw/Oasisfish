@@ -4889,7 +4889,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GeneratedImage',
-    declaration: 'export interface GeneratedImage {\n    provider: string;\n    model: string;\n    attachment: ImageAttachmentRef;\n}',
+    declaration: 'export interface GeneratedImage {\n    candidateIndex: number;\n    provider: string;\n    model: string;\n    attachment: ImageAttachmentRef;\n}',
   },
   {
     name: 'GeneratedImageBatch',

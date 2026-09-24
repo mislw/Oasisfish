@@ -5,6 +5,7 @@ import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { assertUsableApiKey, HarnessError } from '@deepseek-ai/dsh-llm'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
+import { publicHttpNetwork, validateFetchUrl } from '@deepseek-ai/dsh-web-fetch-http'
 import type {} from '@deepseek-ai/dsh-settings'
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import {
@@ -90,6 +91,8 @@ interface ImageRoute {
 
 /** One generated and durably stored image. */
 export interface GeneratedImage {
+  /** Zero-based position in the requested candidate batch, retained across failures. */
+  candidateIndex: number
   /** Provider route that served the image. */
   provider: string
   /** Provider model id that served the image. */
@@ -127,17 +130,43 @@ export interface GenerateImageRequest {
 /** Structured failure from auxiliary image generation. */
 export class ImageGenerationError extends HarnessError {}
 
-function boundedBytes(response: Response, maxResponseBytes: number): Promise<Uint8Array> {
+type PinnedResponseBody = Awaited<ReturnType<typeof publicHttpNetwork.request>>['response']
+
+async function boundedBytes(response: Response | PinnedResponseBody, maxResponseBytes: number): Promise<Uint8Array> {
   const declared = response.headers.get('content-length')
   if (declared !== null && Number(declared) > maxResponseBytes) {
-    return Promise.reject(new Error('image-generation: provider response exceeds the configured byte limit'))
+    await response.body?.cancel()
+    throw new Error('image-generation: provider response exceeds the configured byte limit')
   }
-  return response.arrayBuffer().then((buffer) => {
-    if (buffer.byteLength > maxResponseBytes) {
-      throw new Error('image-generation: provider response exceeds the configured byte limit')
+  if (response.body === null) return new Uint8Array(0)
+  const reader = response.body.getReader() as ReadableStreamDefaultReader<Uint8Array>
+  const chunks: Uint8Array[] = []
+  let length = 0
+  let done = false
+  try {
+    for (;;) {
+      const next = await reader.read()
+      if (next.done) {
+        done = true
+        break
+      }
+      length += next.value.byteLength
+      if (length > maxResponseBytes) {
+        throw new Error('image-generation: provider response exceeds the configured byte limit')
+      }
+      chunks.push(next.value)
     }
-    return new Uint8Array(buffer)
-  })
+  } finally {
+    if (!done) await reader.cancel()
+    reader.releaseLock()
+  }
+  const bytes = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return bytes
 }
 
 /** Host-owned generated-image capability and OpenAI-compatible provider. */
@@ -251,7 +280,7 @@ export class ImageGenerationService extends Service {
       const attachment = await attachments.saveImage({
         data: selected.data, mediaType, name: `${baseName}.${mediaType.split('/')[1]}`,
       })
-      return { provider: selected.route.provider, model: selected.route.model, attachment }
+      return { candidateIndex: index, provider: selected.route.provider, model: selected.route.model, attachment }
     }))
     if (request.signal?.aborted === true) {
       const rejected = attempts.find((attempt): attempt is PromiseRejectedResult => attempt.status === 'rejected')
@@ -366,11 +395,32 @@ export class ImageGenerationService extends Service {
     if (decoded.kind === 'bytes') {
       data = decoded.data
     } else {
-      const imageResponse = await fetch(decoded.url, request.signal === undefined ? {} : { signal: request.signal })
-      if (!imageResponse.ok) {
-        throw new Error(`image-generation: image download failed with HTTP ${String(imageResponse.status)}`)
+      const signal = request.signal ?? new AbortController().signal
+      let imageUrl: URL
+      let addresses: Awaited<ReturnType<typeof publicHttpNetwork.resolve>>
+      try {
+        imageUrl = validateFetchUrl(decoded.url)
+        addresses = await publicHttpNetwork.resolve(imageUrl.hostname, signal)
+      } catch (error: unknown) {
+        if (signal.aborted) throw error
+        throw new ImageGenerationError('image-generation: image download URL is blocked', 'IMAGE_DOWNLOAD_BLOCKED')
       }
-      data = await boundedBytes(imageResponse, this.maxResponseBytes)
+      let download: Awaited<ReturnType<typeof publicHttpNetwork.request>>
+      try {
+        download = await publicHttpNetwork.request(imageUrl, addresses, {}, signal)
+      } catch (error: unknown) {
+        if (signal.aborted) throw error
+        throw new ImageGenerationError('image-generation: image download failed', 'IMAGE_DOWNLOAD_FAILED')
+      }
+      try {
+        if (!download.response.ok) {
+          await download.response.body?.cancel()
+          throw new Error(`image-generation: image download failed with HTTP ${String(download.response.status)}`)
+        }
+        data = await boundedBytes(download.response, this.maxResponseBytes)
+      } finally {
+        await download.close()
+      }
     }
     return data
   }

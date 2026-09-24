@@ -52,6 +52,7 @@ export function apply(ctx: Context, config: Config): void {
         type: 'object', additionalProperties: false, properties: {
           images: { type: 'array', required: true, items: {
             type: 'object', additionalProperties: false, properties: {
+              candidateIndex: { type: 'integer', required: true },
               provider: { type: 'string', required: true }, model: { type: 'string', required: true },
               attachmentId: { type: 'string', required: true }, mediaType: { type: 'string', required: true },
               bytes: { type: 'integer', required: true }, width: { type: 'integer', required: true },
@@ -76,13 +77,11 @@ export function apply(ctx: Context, config: Config): void {
       },
       presentationMeta(args, value) {
         return {
-          images: value.images.map((image, index) => ({
+          images: value.images.map(image => ({
             attachmentId: image.attachmentId,
             provider: image.provider,
             model: image.model,
-            ...args.variation_prompts[index] === undefined
-              ? {}
-              : { preference: args.variation_prompts[index] },
+            preference: args.variation_prompts[image.candidateIndex] as string,
           })),
           failedCount: value.failedCount,
         }
@@ -106,8 +105,8 @@ export function apply(ctx: Context, config: Config): void {
       })
       exec.concludeTurn()
       return {
-        images: generated.images.map(({ provider, model, attachment: ref }) => ({
-          provider, model, attachmentId: String(ref.attachmentId), mediaType: ref.mediaType,
+        images: generated.images.map(({ candidateIndex, provider, model, attachment: ref }) => ({
+          candidateIndex, provider, model, attachmentId: String(ref.attachmentId), mediaType: ref.mediaType,
           bytes: ref.bytes, width: ref.width, height: ref.height,
           name: ref.name ?? 'generated-image',
         })),

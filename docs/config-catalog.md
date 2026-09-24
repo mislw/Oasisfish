@@ -1140,7 +1140,7 @@ export interface ImageGenerationSettings {
 }
 ```
 
-Source: [`packages/attachment/image-generation/src/index.ts:57`](../packages/attachment/image-generation/src/index.ts)
+Source: [`packages/attachment/image-generation/src/index.ts:58`](../packages/attachment/image-generation/src/index.ts)
 
 <a id="deepseek-aidsh-invariants"></a>
 
@@ -3801,7 +3801,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/web-fetch-http/src/index.ts:32`](../packages/web/web-fetch-http/src/index.ts)
+Source: [`packages/web/web-fetch-http/src/index.ts:34`](../packages/web/web-fetch-http/src/index.ts)
 
 <a id="deepseek-aidsh-web-search-deepseek"></a>
 

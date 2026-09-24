@@ -67,6 +67,8 @@ The reference records intrinsic dimensions and encoded length so clients can lay
 ```ts type-equiv
 /** One generated and durably stored image. */
 interface GeneratedImage {
+  /** Zero-based position in the requested candidate batch, retained across failures. */
+  candidateIndex: number
   /** Provider route that served the image. */
   provider: string
   /** Provider model id that served the image. */

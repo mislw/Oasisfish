@@ -29,7 +29,7 @@ describe('image_generate', () => {
     await ctx.plugin(ToolRuntime)
     const generate = vi.fn(() => Promise.resolve({
       images: Array.from({ length: 4 }, (_, index) => ({
-        provider: 'gpt', model: 'gpt-image-1',
+        candidateIndex: index, provider: 'gpt', model: 'gpt-image-1',
         attachment: {
           attachmentId: AttachmentId(`sha256:test-${String(index + 1)}`),
           mediaType: 'image/png' as const, bytes: 8, width: 1, height: 1,
@@ -87,7 +87,7 @@ describe('image_generate', () => {
     await ctx.plugin(ToolRuntime)
     ctx.provide('imageGeneration', { generate: vi.fn(() => Promise.resolve({
       images: [{
-        provider: 'gpt', model: 'gpt-image-1',
+        candidateIndex: 0, provider: 'gpt', model: 'gpt-image-1',
         attachment: {
           attachmentId: AttachmentId('sha256:partial'), mediaType: 'image/png' as const,
           bytes: 8, width: 1, height: 1, name: 'generated-1.png',
@@ -112,6 +112,43 @@ describe('image_generate', () => {
     if (image?.type !== 'image') throw new Error('expected an image result')
     expect(image.attachment.attachmentId).toBe('sha256:partial')
     expect(result.concludesTurn).toBe(true)
+    await ctx.fiber.dispose()
+  })
+
+  it('labels retained images with their original variation after earlier candidates fail', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    ctx.provide('imageGeneration', { generate: vi.fn(() => Promise.resolve({
+      images: [1, 3].map(index => ({
+        candidateIndex: index,
+        provider: 'gpt', model: 'gpt-image-1',
+        attachment: {
+          attachmentId: AttachmentId(`sha256:partial-${String(index)}`),
+          mediaType: 'image/png' as const, bytes: 8, width: 1, height: 1,
+          name: `generated-${String(index + 1)}.png`,
+        },
+      })),
+      failedCount: 2,
+    })) } as never)
+    await ctx.plugin(tool, { timeoutMs: 180_000 })
+
+    const result = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId('image-gapped'), name: 'image_generate',
+      arguments: {
+        prompt: 'An icon', variation_prompts: ['front view', 'side view', 'soft light', 'dramatic light'],
+      },
+    })
+
+    expect(result.isError).toBe(false)
+    expect(result.meta).toEqual({
+      images: [
+        { attachmentId: 'sha256:partial-1', provider: 'gpt', model: 'gpt-image-1', preference: 'side view' },
+        { attachmentId: 'sha256:partial-3', provider: 'gpt', model: 'gpt-image-1', preference: 'dramatic light' },
+      ],
+      failedCount: 2,
+    })
     await ctx.fiber.dispose()
   })
 
@@ -142,7 +179,7 @@ describe('image_generate', () => {
       content: [{ type: 'text', text: 'Keep the latest image as the reference.' }], source: { kind: 'user' },
     }), { surfaceOp: 'append' })
     const generate = vi.fn(() => Promise.resolve({
-      images: [{ provider: 'gpt', model: 'gpt-image-2', attachment: {
+      images: [{ candidateIndex: 0, provider: 'gpt', model: 'gpt-image-2', attachment: {
         attachmentId: AttachmentId('sha256:generated'), mediaType: 'image/png' as const,
         bytes: 10, width: 10, height: 10, name: 'generated.png',
       } }],
@@ -189,7 +226,7 @@ describe('image_generate', () => {
       origin: 'subagent',
     }, parent.seq)
     const generate = vi.fn(() => Promise.resolve({
-      images: [{ provider: 'gpt', model: 'gpt-image-2', attachment: {
+      images: [{ candidateIndex: 0, provider: 'gpt', model: 'gpt-image-2', attachment: {
         attachmentId: AttachmentId('sha256:new'), mediaType: 'image/png' as const,
         bytes: 8, width: 1, height: 1, name: 'new.png',
       } }],
@@ -216,7 +253,7 @@ describe('image_generate', () => {
     await ctx.plugin(SystemPrompt)
     await ctx.plugin(ToolRuntime)
     const generate = vi.fn(() => Promise.resolve({
-      images: [{ provider: 'gpt', model: 'gpt-image-1', attachment: {
+      images: [{ candidateIndex: 0, provider: 'gpt', model: 'gpt-image-1', attachment: {
         attachmentId: AttachmentId('sha256:test'), mediaType: 'image/png' as const,
         bytes: 8, width: 1, height: 1,
       } }],
@@ -254,7 +291,7 @@ describe('image_generate', () => {
       source: { kind: 'user' },
     }), { surfaceOp: 'append' })
     const generate = vi.fn(() => Promise.resolve({
-      images: [{ provider: 'gpt', model: 'gpt-image-2', attachment: {
+      images: [{ candidateIndex: 0, provider: 'gpt', model: 'gpt-image-2', attachment: {
         attachmentId: AttachmentId('sha256:new'), mediaType: 'image/png' as const,
         bytes: 8, width: 1, height: 1, name: 'new.png',
       } }],

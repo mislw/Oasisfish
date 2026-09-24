@@ -58,15 +58,15 @@ The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-a
 
 ### Generation and fallback
 
-A request may launch several candidates independently. Each candidate sends the shared prompt plus its optional variation to the primary route and tries the configured fallback only after a non-cancellation generation failure. Partial success is retained in candidate order. Cancellation stops fallback; a durable attachment commit failure is returned directly and never starts another provider request.
+A request may launch several candidates independently. Each candidate sends the shared prompt plus its optional variation to the primary route and tries the configured fallback only after a non-cancellation generation failure. Partial success is retained in candidate order, with each image carrying its original zero-based `candidateIndex`. Cancellation stops fallback; a durable attachment commit failure is returned directly and never starts another provider request.
 
 ### Reference images and durable results
 
-An Images API route reads every supplied durable reference through `ctx.attachments` and sends multipart data to its edit path. A successful provider response is decoded, its raster type is verified, and `saveImage` must finish before the candidate appears in the returned batch. Provider and model identity accompany each committed reference. An HTTP image URL is downloaded under the same byte limit; only HTTP and HTTPS URLs are accepted.
+An Images API route reads every supplied durable reference through `ctx.attachments` and sends multipart data to its edit path. A successful provider response is decoded, its raster type is verified, and `saveImage` must finish before the candidate appears in the returned batch. Provider and model identity accompany each committed reference. A returned HTTP(S) image URL must have no embedded credentials and resolve only to public addresses; the download pins the validated addresses, follows no redirects, sends no route credential, and reads under the configured byte limit.
 
 ### What can go wrong
 
-Generation fails when the selected route is missing, has no Base URL or credential, returns an unsupported response, exceeds the byte limit, or produces bytes with an unsupported raster signature. Provider HTTP failures expose a stable error code and status summary only. Exhausting every candidate route rejects the request; mixed candidate outcomes return the committed images and a failed count.
+Generation fails when the selected route is missing, has no Base URL or credential, returns an unsupported response, exceeds the byte limit, or produces bytes with an unsupported raster signature. Blocked image URLs report `IMAGE_DOWNLOAD_BLOCKED`; a failed pinned connection reports `IMAGE_DOWNLOAD_FAILED`, without the URL or transport details. Provider HTTP failures expose a stable error code and status summary only. Exhausting every candidate route rejects the request; mixed candidate outcomes return the committed images and a failed count.
 
 -----
 
