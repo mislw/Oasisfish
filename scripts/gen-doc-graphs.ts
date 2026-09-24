@@ -520,6 +520,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Resolves model-invocable Skills and explicit corpus declarations before routing one search to the first visible supporting provider.',
   },
   {
+    key: 'memory',
+    pkg: 'memory',
+    title: 'Native durable memory seam',
+    mode: 'seam',
+    implementations: ['memory-local'],
+    note: 'Routes global user and cwd-derived project records through one provider; consumer composition is added separately from the storage service.',
+  },
+  {
     key: 'agents',
     pkg: 'agent',
     title: 'Agent service',
