@@ -58,6 +58,8 @@ export interface ImageGenerationSettings {
 export interface Config extends Partial<ImageGenerationSettings> {
   /** Maximum accepted Images API JSON or downloaded image bytes. */
   maxResponseBytes?: number
+  /** Maximum independently generated candidates accepted in one call. */
+  maxCandidates?: number
 }
 
 export const Config: z<Config> = z.object({
@@ -70,6 +72,7 @@ export const Config: z<Config> = z.object({
   fallbackEndpointPath: z.string().default('images/generations'),
   fallbackEditEndpointPath: z.string().default('images/edits'),
   maxResponseBytes: z.number().step(1).min(1).default(25_000_000),
+  maxCandidates: z.number().step(1).min(1).default(4),
 })
 
 interface PiAiProfile {
@@ -119,12 +122,37 @@ export interface GenerateImageRequest {
   variations?: readonly string[]
   /** Optional provider-supported pixel size. */
   size?: string
+  /** Prepared aspect ratio retained for executor capability validation. */
+  aspectRatio?: string
+  /** Whether the executor must request a transparent background. */
+  transparentBackground?: boolean
+  /** Prepared capabilities that this executor must support without silent downgrade. */
+  requiredCapabilities?: readonly string[]
   /** Durable images supplied to the provider as edit references. */
   referenceImages?: readonly ImageAttachmentRef[]
   /** Optional provider-supported output quality. */
   quality?: 'low' | 'medium' | 'high'
   /** Cancellation signal for the provider request, download, and attachment save. */
   signal?: AbortSignal
+}
+
+function validateRequiredCapabilities(request: GenerateImageRequest): void {
+  const references = request.referenceImages ?? []
+  for (const capability of request.requiredCapabilities ?? []) {
+    if (capability === 'exact-text') continue
+    if (capability === 'local-editing' && references.length > 0) continue
+    if (capability === 'multiple-references' && references.length > 1) continue
+    if (capability === 'transparent-background' && request.transparentBackground === true) continue
+    if (capability.startsWith('aspect-ratio:')) {
+      const ratio = capability.slice('aspect-ratio:'.length)
+      const size = /^(\d+)x(\d+)$/u.exec(request.size ?? '')
+      const required = /^(\d+):(\d+)$/u.exec(ratio)
+      if (size !== null && required !== null
+        && Number(size[1]) * Number(required[2]) === Number(size[2]) * Number(required[1])
+        && (request.aspectRatio === undefined || request.aspectRatio === ratio)) continue
+    }
+    throw new Error(`image-generation: unsupported required capability ${JSON.stringify(capability)}`)
+  }
 }
 
 /** Structured failure from auxiliary image generation. */
@@ -175,11 +203,13 @@ export class ImageGenerationService extends Service {
 
   private readonly selection: () => ImageGenerationSettings
   private readonly maxResponseBytes: number
+  private readonly maxCandidates: number
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'imageGeneration')
     const resolved = config as Required<Config>
     this.maxResponseBytes = resolved.maxResponseBytes
+    this.maxCandidates = resolved.maxCandidates
     let current = (): ImageGenerationSettings => ({
       provider: resolved.provider,
       model: resolved.model,
@@ -253,10 +283,12 @@ export class ImageGenerationService extends Service {
       })
     }
     const count = request.count ?? 1
-    if (!Number.isInteger(count) || count < 1) throw new Error('image-generation: count must be a positive integer')
+    if (!Number.isSafeInteger(count) || count < 1) throw new Error('image-generation: count must be a positive integer')
+    if (count > this.maxCandidates) throw new Error(`image-generation: count must not exceed ${String(this.maxCandidates)}`)
     if (request.variations !== undefined && request.variations.length !== count) {
       throw new Error('image-generation: variations must match count')
     }
+    validateRequiredCapabilities(request)
     const attempts = await Promise.allSettled(Array.from({ length: count }, async (_, index) => {
       const variation = request.variations?.[index]
       const candidateRequest = variation === undefined
@@ -334,6 +366,15 @@ export class ImageGenerationService extends Service {
     if (apiKey !== undefined) headers.set('authorization', `Bearer ${apiKey}`)
     const referenceImages = request.referenceImages ?? []
     const chatImageRequest = route.endpointPath.replace(/^\/+|\/+$/gu, '') === 'chat/completions'
+    if (chatImageRequest && request.size !== undefined) {
+      throw new Error('image-generation: chat-completions image generation does not support size')
+    }
+    if (chatImageRequest && request.quality !== undefined) {
+      throw new Error('image-generation: chat-completions image generation does not support quality')
+    }
+    if (chatImageRequest && request.transparentBackground === true) {
+      throw new Error('image-generation: chat-completions image generation does not support transparent backgrounds')
+    }
     if (chatImageRequest && referenceImages.length > 0) {
       throw new Error('image-generation: chat-completions image generation does not support reference images')
     }
@@ -355,6 +396,8 @@ export class ImageGenerationService extends Service {
         response_format: 'b64_json',
         ...request.size === undefined ? {} : { size: request.size },
         ...request.quality === undefined ? {} : { quality: request.quality },
+        ...request.transparentBackground === undefined
+          ? {} : { background: request.transparentBackground ? 'transparent' : 'opaque' },
       })
     } else {
       headers.delete('content-type')
@@ -364,6 +407,9 @@ export class ImageGenerationService extends Service {
       form.set('prompt', request.prompt)
       if (request.size !== undefined) form.set('size', request.size)
       if (request.quality !== undefined) form.set('quality', request.quality)
+      if (request.transparentBackground !== undefined) {
+        form.set('background', request.transparentBackground ? 'transparent' : 'opaque')
+      }
       for (const stored of storedImages) {
         const ref = stored.ref
         form.append('image[]', new File([new Uint8Array(stored.data)], ref.name ?? `reference.${ref.mediaType.split('/')[1]}`, {

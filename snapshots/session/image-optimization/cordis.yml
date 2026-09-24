@@ -1,0 +1,10 @@
+# Authored image-optimization snapshot composition. The shared headless
+# recording layer owns the model and persistence settings; this owner keeps a
+# distinct composition id for the shipped Base capability evidence.
+
+- id: session-title-llm
+  disabled: true
+
+- insert:
+    - id: snapshot-image-input
+      name: '../../../packages/test-support/session-snapshot/tests/fixtures/image-input.ts'

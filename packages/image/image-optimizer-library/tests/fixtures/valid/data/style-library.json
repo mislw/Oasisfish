@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "repository": "https://github.com/freestylefly/awesome-gpt-image-2",
+  "templateDocument": "docs/templates.md",
+  "tagLabels": {
+    "Campaign": { "en": "Campaign", "zh": "商业 Campaign" },
+    "Dashboard": { "en": "Dashboard", "zh": "仪表盘" },
+    "Screenshot": { "en": "Screenshot", "zh": "截图" },
+    "Typography": { "en": "Typography", "zh": "字体" }
+  },
+  "categories": [
+    {
+      "id": "cat-ui",
+      "value": "UI & Interfaces",
+      "anchor": "cat-ui",
+      "templateAnchor": "tpl-ui",
+      "cover": "/images/category-covers/ui.jpg",
+      "title": { "en": "UI & Interfaces", "zh": "UI 与界面" },
+      "description": {
+        "en": "Apps, websites, dashboards, social screenshots, and product interfaces.",
+        "zh": "App、网页、仪表盘、社媒截图与产品界面。"
+      }
+    },
+    {
+      "id": "cat-poster",
+      "value": "Posters & Typography",
+      "anchor": "cat-poster",
+      "templateAnchor": "tpl-poster",
+      "cover": "/images/category-covers/poster.jpg",
+      "title": { "en": "Posters & Typography", "zh": "海报与排版" },
+      "description": {
+        "en": "Event posters, covers, type-driven visuals, and strong layout compositions.",
+        "zh": "活动海报、封面、字体视觉和强排版画面。"
+      }
+    }
+  ],
+  "styles": [
+    {
+      "id": "character",
+      "value": "Character",
+      "title": { "en": "Character", "zh": "角色" },
+      "keywords": ["character", "avatar", "pose", "角色", "人物"]
+    },
+    {
+      "id": "poster",
+      "value": "Poster",
+      "title": { "en": "Poster", "zh": "海报" },
+      "keywords": ["poster", "cover", "typography", "海报", "封面"]
+    },
+    {
+      "id": "ui",
+      "value": "UI",
+      "title": { "en": "UI", "zh": "界面" },
+      "keywords": ["ui", "interface", "dashboard", "界面", "截图"]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "commerce",
+      "value": "Commerce",
+      "title": { "en": "Commerce", "zh": "商业" },
+      "keywords": ["product", "brand", "ad", "campaign", "商品", "商业", "广告"]
+    },
+    {
+      "id": "creative",
+      "value": "Creative",
+      "title": { "en": "Creative", "zh": "创意" },
+      "keywords": []
+    },
+    {
+      "id": "social",
+      "value": "Social",
+      "title": { "en": "Social", "zh": "社媒" },
+      "keywords": ["social", "x ", "wechat", "朋友圈", "社媒"]
+    },
+    {
+      "id": "tech",
+      "value": "Tech",
+      "title": { "en": "Tech", "zh": "科技" },
+      "keywords": ["ai", "rag", "tech", "data", "技术", "数据"]
+    }
+  ],
+  "templates": [
+    {
+      "id": "ui-screenshot-system",
+      "anchor": "tpl-ui",
+      "cover": "/images/case17.jpg",
+      "title": { "en": "UI Screenshot System", "zh": "UI 截图系统" },
+      "description": {
+        "en": "High-fidelity app, web, dashboard, and social interface prompts.",
+        "zh": "生成 App、网页、仪表盘、社媒截图等高保真界面。"
+      },
+      "category": "UI & Interfaces",
+      "styles": ["UI"],
+      "scenes": ["Tech", "Social"],
+      "tags": ["UI", "Dashboard", "Screenshot"],
+      "useWhen": {
+        "en": "Use for app screens, dashboards, social screenshots, and live interface mockups.",
+        "zh": "用于 App 截图、仪表盘、社媒截图和直播界面。"
+      },
+      "guidance": {
+        "en": [
+          "Lock platform, aspect ratio, layout hierarchy, and exact visible text.",
+          "Specify UI chrome such as status bars, tabs, action rows, or comment layers."
+        ],
+        "zh": [
+          "锁定平台、比例、层级和画面文字。",
+          "明确状态栏、Tab、操作区、评论层等 UI 元素。"
+        ]
+      },
+      "pitfalls": {
+        "en": [
+          "Avoid vague platform names and generic app mockups.",
+          "Constrain text readability and platform-specific details."
+        ],
+        "zh": ["避免平台描述过泛。", "约束文字可读性和平台特征。"]
+      },
+      "exampleCases": [4]
+    },
+    {
+      "id": "poster-layout-system",
+      "anchor": "tpl-poster",
+      "cover": "/images/case345.jpg",
+      "title": { "en": "Poster Layout System", "zh": "海报排版系统" },
+      "description": {
+        "en": "Event, product, movie, and social poster compositions.",
+        "zh": "生成活动、产品、电影和社媒传播海报。"
+      },
+      "category": "Posters & Typography",
+      "styles": ["Poster"],
+      "scenes": ["Commerce", "Social"],
+      "tags": ["Poster", "Typography", "Campaign"],
+      "useWhen": {
+        "en": "Use for event posters, movie posters, covers, and social campaign visuals.",
+        "zh": "用于活动海报、电影海报、封面和社媒传播视觉。"
+      },
+      "guidance": {
+        "en": [
+          "Lock subject, headline, layout, palette, and aspect ratio.",
+          "Make the title hierarchy and primary visual clear."
+        ],
+        "zh": ["锁定主体、标题、版式、配色和比例。", "突出标题层级和主视觉。"]
+      },
+      "pitfalls": {
+        "en": [
+          "Avoid mixed moodboards or process sheets when asking for one finished poster.",
+          "Constrain extra text and decorative symbols."
+        ],
+        "zh": ["需要成品海报时，避免生成拼贴展示板。", "约束多余文字和装饰符号。"]
+      },
+      "exampleCases": [10]
+    }
+  ]
+}

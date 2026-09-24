@@ -55,6 +55,8 @@ import * as ToolStrReplaceEditor from '@deepseek-ai/dsh-tool-str-replace-editor'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
 import * as ToolGoal from '@deepseek-ai/dsh-tool-goal'
+import ImageOptimizer from '@deepseek-ai/dsh-image-optimizer'
+import * as ToolImageOptimize from '@deepseek-ai/dsh-tool-image-optimize'
 import * as ToolSchedule from '@deepseek-ai/dsh-schedule'
 import Lsp from '@deepseek-ai/dsh-lsp'
 import * as ToolLsp from '@deepseek-ai/dsh-tool-lsp'
@@ -422,7 +424,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
     pkg: '@deepseek-ai/dsh-tool-image-generate',
     dir: 'tool-image-generate',
     source: 'packages/attachment/tool-image-generate/src/index.ts',
-    requires: ['ctx.tools', 'ctx.imageGeneration'],
+    requires: ['ctx.tools', 'ctx.imageGeneration', 'ctx.imageInputImages at call time for prepared references'],
     writes: ['tool/call', 'durable generated-image attachment', 'tool/result'],
     async mount(ctx) {
       ctx.provide('imageGeneration', {
@@ -431,7 +433,20 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(ToolImageGenerate, { timeoutMs: 180_000 })
     },
     note:
-      'The tool uses a separately configured auxiliary image route and does not change the conversation model route.',
+      'The tool uses a separately configured auxiliary image route and does not change the conversation model route. Prepared reference ordinals resolve through the current-turn image inventory provided by image optimization.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-image-optimize',
+    dir: 'tool-image-optimize',
+    source: 'packages/image/tool-image-optimize/src/index.ts',
+    requires: ['ctx.tools', 'ctx.imageOptimizer', 'a calling Agent with admitted direct-user images'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ImageOptimizer, {})
+      await ctx.plugin(ToolImageOptimize)
+    },
+    note:
+      'The tool resolves one-based positions only against direct-user images admitted for the calling Agent current turn. It returns a prepared specification or structured clarification issues and does not execute an image model.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-terminal',

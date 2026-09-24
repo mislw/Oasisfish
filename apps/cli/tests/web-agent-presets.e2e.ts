@@ -272,7 +272,7 @@ describe('the shipped Web composition', () => {
     }
   })
 
-  it('activates image_generate only when the Oasisfish Desktop service is present', async () => {
+  it('activates image optimization and generation in Oasisfish Desktop', async () => {
     const home = await mkdtemp(join(tmpdir(), 'dsh-oasisfish-image-preset-'))
     const settingsFile = join(home, 'settings.yaml')
     await writeFile(settingsFile, '{}\n')
@@ -285,7 +285,10 @@ describe('the shipped Web composition', () => {
       setup: agentCtx => productCtx.agentPresets.mount(agentCtx, 'standard').then(() => undefined),
     })
     try {
-      expect(toolNames(productCtx, handle.agent)).toContain('image_generate')
+      expect(toolNames(productCtx, handle.agent)).toEqual(expect.arrayContaining([
+        'image_optimize',
+        'image_generate',
+      ]))
     } finally {
       await handle.dispose()
       await productCtx.fiber.dispose()

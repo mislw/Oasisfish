@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-为对话模型提供 `image_generate` 工具，用于创建或编辑四个图片候选。同一个模型轮次把简短请求扩展为一个详细英文 prompt 与四条简短差异。工具可以复用最近一条直接用户消息中的图片，只记录完成持久提交的结果，并且无需另一次模型调用即可结束本轮。成功结果 metadata 会为 Client presenter 保留实际提供方与模型。
+为对话模型提供 `image_generate` 工具，用于创建或编辑持久图片候选。准备模式执行 `image_optimize` 返回的 prompt、选定参考图、输出设置与必需 capability；直接模式把简短请求扩展为一个详细英文 prompt 与恰好四条差异。工具只记录完成持久提交的结果，并且无需另一次模型调用即可结束本轮。成功结果 metadata 会为 Client presenter 保留实际提供方与模型。
 
 ## 目录
 
@@ -47,13 +47,15 @@ kind: "package-reference"
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-tool-image-generate)完整列出了受支持字段及其 JSDoc。
 
-### 参考图授权
+### 执行模式
 
-工具从执行 Agent 的非 seeded Session 派生消息，并向后扫描角色与来源都属于直接用户输入的最近消息。通过 fork 继承、由插件创作或来自其他间接消息的图片会被忽略。模型可以把 `use_reference_images` 设为 `false`；否则选中的参考图会发送给服务，并且未提供质量时，参考图编辑默认使用高质量。
+准备模式只接受一份 ready `image_optimize` 结果中的 executor 字段。它从 `prepared.references` 选择共享的当前 turn 直接用户图像清单中的精确一基位置，在图像生成服务配置上限内使用准备结果的候选数量，把同时提供的正数宽高映射为提供方尺寸，并转发纵横比、透明背景选择与必需 capability。混合准备参数与直接参数会失败，不会覆盖准备规格。
+
+直接模式要求一个经过优化的 prompt 与恰好四条 variation prompt。工具从执行 Agent 的非 seeded Session 派生消息，并向后扫描角色与来源都属于直接用户输入的最近消息。通过 fork 继承、由插件创作或来自其他间接消息的图片会被忽略。模型可以把 `use_reference_images` 设为 `false`；否则所有符合条件的图片都会发送给服务，并且未提供质量时，参考图编辑默认使用高质量。
 
 ### 完成与持久 metadata
 
-工具要求恰好四条候选差异，并请求服务生成四个独立候选。允许部分成功。渲染结果包含固定选择文字与持久图片块，presentation metadata 则记录每个附件 ID、实际提供方、实际模型、原始候选位置对应的差异与失败数量。工具只在生成成功后结束本轮，因此之后不会再产生额外的对话模型回复。
+两种模式都允许部分成功。渲染结果包含固定选择文字与持久图片块，presentation metadata 则记录每个附件 ID、实际提供方、实际模型与失败数量；直接模式还会记录原始候选位置对应的差异。工具只在生成成功后结束本轮，因此之后不会再产生额外的对话模型回复。
 
 -----
 
@@ -63,7 +65,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-插件注册一个由 effect 持有的工具定义。executor 选择获授权的参考图、校验四候选关系、把提供方与存储工作委托给 `ctx.imageGeneration`，然后记录结构化值。工具 runtime 负责结果渲染、持久 presentation metadata、轮次结束、超时与卸载。
+插件注册一个由 effect 持有的工具定义。executor 校验选定模式、解析获授权的参考图、把提供方与存储工作委托给 `ctx.imageGeneration`，然后记录结构化值。工具 runtime 负责结果渲染、持久 presentation metadata、轮次结束、超时与卸载。
 
 | 文件 | 职责 |
 |---|---|
@@ -93,7 +95,7 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-模型会看到生成的 [`image_generate` Schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-image-generate)，并被要求将它用于图片创建或编辑。调用前，同一个模型轮次把请求扩展为一个连贯英文 prompt，同时保留明确文字与参考图约束，并提供恰好四条简短差异。可选参数选择提供方支持的尺寸、质量与参考图复用。不会发生隐藏的第二次提示词优化请求。
+模型会看到生成的 [`image_generate` Schema](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-image-generate)，并被要求将它用于图片创建或编辑。`image_optimize` 返回 ready 规格后，模型只把准备好的 executor 字段复制到 `prepared`。没有该结果时，直接模式把请求扩展为一个连贯英文 prompt，保留明确文字与参考图约束，并提供恰好四条简短差异。不会发生隐藏的第二次提示词优化请求。
 
 #### Token 影响
 
@@ -121,11 +123,12 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-这些限制描述固定候选 workflow 与提供方中立 Schema。
+这些限制描述两种执行模式与提供方中立 Schema。
 
-- **恰好四个候选**——每次调用都要求四条差异；模型不能请求其他数量。
-- **只有当前 Agent 最近一条直接用户图片消息符合条件**——fork 继承图片绝不会成为参考图；一旦存在更新的符合条件图片消息，更早的图片就会被忽略。
-- **缺少提供方专属控制**——蒙版、背景、输出格式与随机种子仍不进入模型可见 Schema。
+- **直接模式始终创建四个候选**——准备模式可以使用其他正数候选数量，但图像生成服务会拒绝超过所配置 `maxCandidates` 的数量。
+- **准备模式引用 optimizer 的当前 turn 清单**——位置按照已接受 step 中准入的直接用户图像，以消息和内容顺序排列；新 turn 会替换该清单。
+- **直接模式只引用最近一条直接用户图像消息**——直接模式可以使用该消息中的全部图像。fork 继承图像与更早图像绝不会成为直接模式参考图。
+- **准备 capability 必须可执行**——服务会拒绝未知要求，不会静默降级；提供方专属蒙版、输出格式、随机种子及其他不支持的控制仍不可用。
 
 <a id="dev-note"></a>
 ### 开发备注

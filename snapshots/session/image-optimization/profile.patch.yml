@@ -1,0 +1,12 @@
+# Keep this snapshot's Skill catalog specific to the packaged image workflow.
+- id: skill-filesystem
+  disabled: true
+
+- id: skill-badge
+  disabled: true
+
+# Stage the packaged asset under the replay workspace so persisted Skill
+# resource guidance uses the snapshot's existing {{cwd}} token.
+- id: skill-image-generation
+  config:
+    assetRoot: !!js dshHomePath('snapshot-image-skill-assets')

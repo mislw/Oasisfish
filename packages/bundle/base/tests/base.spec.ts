@@ -50,12 +50,33 @@ describe('dsh-base bundle', () => {
     expect(rows.find(row => row.id === 'memory')).toMatchObject({
       name: '@deepseek-ai/dsh-memory',
     })
+    expect(rows.find(row => row.id === 'image-optimizer')).toMatchObject({
+      name: '@deepseek-ai/dsh-image-optimizer',
+      config: {
+        maxCases: 3,
+        maxPromptBytes: 16384,
+        maxExactTextEntries: 64,
+      },
+    })
+    expect(rows.find(row => row.id === 'image-optimizer-library')).toMatchObject({
+      name: '@deepseek-ai/dsh-image-optimizer-library',
+    })
+    expect(rows.find(row => row.id === 'skill-image-generation')).toMatchObject({
+      name: '@deepseek-ai/dsh-skill-image-generation',
+    })
+    expect(rows.find(row => row.id === 'tool-image-optimize')).toMatchObject({
+      name: '@deepseek-ai/dsh-tool-image-optimize',
+    })
     expect(rows.find(row => row.id === 'tool-memory')).toBeUndefined()
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-llm-circuit-breaker')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-memory')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-image-optimizer')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-image-optimizer-library')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-skill-image-generation')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-tool-image-optimize')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-tool-memory')
   })
 

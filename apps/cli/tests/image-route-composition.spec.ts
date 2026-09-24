@@ -12,9 +12,16 @@ const patch = (path: string) => loadOverlayPatches('image route composition', jo
 const base = patch('packages/bundle/base/cordis.patch.yml')
 const web = patch('packages/bundle/web-app/cordis.patch.yml')
 const desktop = patch('apps/desktop-host/oasisfish.cordis.patch.yml')
+const presetManifest = JSON.parse(
+  readFileSync(join(root, 'packages/preset/agent-presets/package.json'), 'utf8'),
+) as { dependencies?: Record<string, string> }
 
 function imageService(layers: typeof base[]) {
   return composeEntries(layers).find(row => row.id === 'image-generation')
+}
+
+function imageOptimizeTool(layers: typeof base[]) {
+  return composeEntries(layers).find(row => row.id === 'tool-image-optimize')
 }
 
 describe('auxiliary image route composition', () => {
@@ -28,14 +35,49 @@ describe('auxiliary image route composition', () => {
     })
   })
 
-  it.each(['standard', 'ptc'])('lets the image service dependency activate the tool in the %s preset', (preset) => {
+  it('keeps the shared optimizer services active while Web delegates the tool to presets', () => {
+    const baseEntries = composeEntries([base])
+    expect(baseEntries.find(row => row.id === 'image-optimizer')).toMatchObject({
+      name: '@deepseek-ai/dsh-image-optimizer',
+    })
+    expect(baseEntries.find(row => row.id === 'image-optimizer-library')).toMatchObject({
+      name: '@deepseek-ai/dsh-image-optimizer-library',
+    })
+    expect(baseEntries.find(row => row.id === 'skill-image-generation')).toMatchObject({
+      name: '@deepseek-ai/dsh-skill-image-generation',
+    })
+    expect(imageOptimizeTool([base])).toMatchObject({
+      name: '@deepseek-ai/dsh-tool-image-optimize',
+    })
+    expect(imageOptimizeTool([base, web])?.disabled).toBe(true)
+  })
+
+  it.each(['standard', 'ptc'])('mounts optimization before generation in the %s preset', (preset) => {
     const entries = yaml.load(
       readFileSync(join(SHIPPED_PRESET_ROOT, preset, 'agent.cordis.yml'), 'utf8'),
       { schema: entryListSchema },
-    ) as readonly { id?: string; name?: string; disabled?: unknown }[]
-    expect(entries.find(row => row.id === 'tool-image-generate')).toMatchObject({
+    ) as readonly {
+      id?: string
+      name?: string
+      group?: boolean
+      isolate?: Record<string, boolean>
+      config?: readonly { id?: string; name?: string; disabled?: unknown }[]
+    }[]
+    const imageTools = entries.find(row => row.id === 'image-tools')
+    expect(imageTools).toMatchObject({
+      name: 'cordis:group', group: true, isolate: { imageInputImages: true },
+    })
+    const tools = imageTools?.config ?? []
+    expect(tools.find(row => row.id === 'tool-image-optimize')).toMatchObject({
+      name: '@deepseek-ai/dsh-tool-image-optimize',
+    })
+    expect(tools.find(row => row.id === 'tool-image-optimize')?.disabled).toBeUndefined()
+    expect(tools.find(row => row.id === 'tool-image-generate')).toMatchObject({
       name: '@deepseek-ai/dsh-tool-image-generate',
     })
-    expect(entries.find(row => row.id === 'tool-image-generate')?.disabled).toBeUndefined()
+    expect(tools.find(row => row.id === 'tool-image-generate')?.disabled).toBeUndefined()
+    expect(tools.findIndex(row => row.id === 'tool-image-optimize'))
+      .toBeLessThan(tools.findIndex(row => row.id === 'tool-image-generate'))
+    expect(presetManifest.dependencies).toHaveProperty('@deepseek-ai/dsh-tool-image-optimize')
   })
 })

@@ -58,6 +58,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`web/`](web/README.zh.md) | Web 能力系列：seam、搜索／获取提供方、面向模型的 Web 工具 |
 | [`document/`](document/README.zh.md) | 共享宿主 Office 到 PDF 转换 |
 | [`attachment/`](attachment/README.zh.md) | 持久附件标识、校验、本地内容寻址存储 |
+| [`image/`](image/README.zh.md) | 提供方无关的图片优化包 |
 | [`spill/`](spill/README.zh.md) | spill 能力系列：存储 seam、本地实现、工具结果 spill 策略 |
 | [`todo/`](todo/README.zh.md) | 面向模型的 `todo_write` 工具 |
 | [`plan/`](plan/README.zh.md) | Plan 协作状态，提供直接进入命令与经评审的退出 |

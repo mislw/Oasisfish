@@ -27,7 +27,7 @@ Use `dsh-agent-presets` to give each session the tools, prompt sections, and ski
 
 Mount this package in a composition that should give each agent session its own tools, prompt sections, and skills from a preset file. Every session names a preset — explicitly or through the configured default — and is composed from it; without the package, sessions fall back to whatever the host composition mounts.
 
-The shipped Web `standard`, `ptc`, and `cordis` presets include [explicit file delivery](../../client/ui-deliverables/README.md#explicit-deliveries). The `minimal` preset keeps its fixed two-tool training configuration.
+The shipped Web `standard`, `ptc`, and `cordis` presets include [explicit file delivery](../../client/ui-deliverables/README.md#explicit-deliveries). The `standard` and `ptc` presets also mount image optimization before image generation; both tools share an entry-local `imageInputImages` realm so current-turn ordinals cannot collide across preset mounts, while their Host services still decide whether either tool activates. The `minimal` preset keeps its fixed two-tool training configuration.
 
 ### What a preset gives a session
 

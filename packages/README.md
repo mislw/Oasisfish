@@ -58,6 +58,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`web/`](web/README.md) | Web capability family: seam, search/fetch providers, model-facing web tools |
 | [`document/`](document/README.md) | Shared Host Office-to-PDF conversion |
 | [`attachment/`](attachment/README.md) | Durable attachment identity, validation, local content-addressed storage |
+| [`image/`](image/README.md) | Provider-neutral image optimization packages |
 | [`spill/`](spill/README.md) | Spill capability family: storage seam, local impl, tool-result spill policy |
 | [`todo/`](todo/README.md) | The model-facing `todo_write` tool |
 | [`plan/`](plan/README.md) | Plan collaboration state with a direct entry command and reviewed exit |

@@ -94,10 +94,19 @@
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
 
-- id: tool-image-generate
-  name: '@deepseek-ai/dsh-tool-image-generate'
+# Current-turn image ordinals are per-agent state shared only by these Consumers.
+- id: image-tools
+  name: cordis:group
+  group: true
+  isolate:
+    imageInputImages: true
   config:
-    timeoutMs: 180000
+    - id: tool-image-optimize
+      name: '@deepseek-ai/dsh-tool-image-optimize'
+    - id: tool-image-generate
+      name: '@deepseek-ai/dsh-tool-image-generate'
+      config:
+        timeoutMs: 180000
 
 # ── goals ───────────────────────────────────────────────────────────────────
 

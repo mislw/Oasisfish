@@ -132,17 +132,95 @@
     },
     {
       "name": "image_generate",
-      "description": "Generate or edit an image with the configured default image model. Refine the user request before calling: turn brief wording into a detailed, coherent visual specification while preserving every explicit requirement. Reuse images from the latest direct user message when they are relevant. The conversation model remains unchanged.",
+      "description": "Generate or edit an image with the configured default image model. After image_optimize returns prepared, pass only its prepared prompt, reference positions, output settings, and required capabilities in prepared. Refine the user request before calling in direct mode, using one detailed prompt and four variations. The conversation model remains unchanged.",
       "parameters": {
         "type": "object",
         "properties": {
+          "prepared": {
+            "type": "object",
+            "description": "Executor inputs copied from one prepared image_optimize result. Do not include optimizer evidence or case ids.",
+            "additionalProperties": false,
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "The prepared canonical prompt."
+              },
+              "references": {
+                "type": "array",
+                "description": "Prepared current-input reference positions and semantic metadata.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "inputIndex": {
+                      "type": "integer"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "style",
+                        "layout",
+                        "content",
+                        "edit-target"
+                      ]
+                    },
+                    "priority": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "inputIndex",
+                    "role",
+                    "priority"
+                  ]
+                }
+              },
+              "output": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "aspectRatio": {
+                    "type": "string"
+                  },
+                  "width": {
+                    "type": "integer"
+                  },
+                  "height": {
+                    "type": "integer"
+                  },
+                  "transparentBackground": {
+                    "type": "boolean"
+                  },
+                  "count": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "transparentBackground",
+                  "count"
+                ]
+              },
+              "requiredCapabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "prompt",
+              "references",
+              "output",
+              "requiredCapabilities"
+            ]
+          },
           "prompt": {
             "type": "string",
-            "description": "A generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged."
+            "description": "Legacy direct mode: a generation-ready English prompt refined from the user request. Specify subject, environment, composition, camera, lighting, materials, color, spatial relationships, finish, and relevant exclusions. Preserve quoted visible text and reference-image constraints exactly; do not forward a brief user description unchanged."
           },
           "variation_prompts": {
             "type": "array",
-            "description": "Exactly four concise candidate differences. Vary composition, material, lighting, camera, or graphic structure without changing the shared requirements.",
+            "description": "Legacy direct mode: exactly four concise candidate differences.",
             "items": {
               "type": "string"
             }
@@ -164,11 +242,167 @@
               "high"
             ]
           }
+        }
+      }
+    },
+    {
+      "name": "image_optimize",
+      "description": "Prepare a provider-neutral image generation, edit, or variation specification from the current direct-user image inputs.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "Image task kind.",
+            "enum": [
+              "generate",
+              "edit",
+              "variation"
+            ]
+          },
+          "intent": {
+            "type": "string",
+            "description": "Concrete visual outcome to prepare."
+          },
+          "references": {
+            "type": "array",
+            "description": "Current direct-user image positions and their semantic roles.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "inputIndex": {
+                  "type": "integer",
+                  "description": "One-based current-input image position."
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "style",
+                    "layout",
+                    "content",
+                    "edit-target"
+                  ]
+                },
+                "priority": {
+                  "type": "integer",
+                  "description": "Positive priority; larger values are more important."
+                }
+              },
+              "required": [
+                "inputIndex",
+                "role",
+                "priority"
+              ]
+            }
+          },
+          "exactText": {
+            "type": "array",
+            "description": "Text that the prepared image must reproduce exactly.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "placement": {
+                  "type": "string"
+                },
+                "preserveCase": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "text",
+                "preserveCase"
+              ]
+            }
+          },
+          "output": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "aspectRatio": {
+                "type": "string"
+              },
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "transparentBackground": {
+                "type": "boolean"
+              },
+              "count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "transparentBackground",
+              "count"
+            ]
+          },
+          "preserve": {
+            "type": "array",
+            "description": "Visual facts that must remain unchanged.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "avoid": {
+            "type": "array",
+            "description": "Prohibited visual outcomes.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "locale": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "styleHints": {
+            "type": "array",
+            "description": "Requested visual-style hints.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sceneHints": {
+            "type": "array",
+            "description": "Requested scene and composition hints.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "templateId": {
+            "type": "string"
+          },
+          "caseIds": {
+            "type": "array",
+            "description": "Explicit optimization-library case identifiers.",
+            "items": {
+              "type": "string"
+            }
+          }
         },
         "required": [
-          "prompt",
-          "variation_prompts"
-        ]
+          "operation",
+          "intent",
+          "references",
+          "exactText",
+          "output",
+          "preserve",
+          "avoid",
+          "locale",
+          "styleHints",
+          "sceneHints",
+          "caseIds"
+        ],
+        "additionalProperties": false
       }
     },
     {

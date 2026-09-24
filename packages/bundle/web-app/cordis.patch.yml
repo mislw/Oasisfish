@@ -37,6 +37,11 @@
     # once the web UI owns the choice per session.
     mode: !!js process.env.DSH_TOOLS_MODE
 
+# Agent presets own the model-facing row on Web. The optimizer, image library,
+# and image-generation Skill remain shared Host services from dsh-base.
+- id: tool-image-optimize
+  disabled: true
+
 # ── web-only host rows, the transport layer, and the browser roster ─────────
 
 # `dsh.client` rows are the browser roster the modules node half scans into

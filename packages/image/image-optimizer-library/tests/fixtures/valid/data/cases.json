@@ -1,0 +1,39 @@
+{
+  "repository": "https://github.com/freestylefly/awesome-gpt-image-2",
+  "totalCases": 2,
+  "categories": ["Posters & Typography", "UI & Interfaces"],
+  "styles": ["Character", "Poster", "UI"],
+  "scenes": ["Creative", "Social"],
+  "cases": [
+    {
+      "id": 10,
+      "title": "主题海报版式设计",
+      "image": "/images/case10.jpg",
+      "imageAlt": "生成八十年代宣传画，标语“热烈庆祝GPT-Imag...",
+      "sourceLabel": "小红书号2202716350",
+      "sourceUrl": "",
+      "prompt": "生成八十年代宣传画，标语“热烈庆祝GPT-Image-2全量开放”，人物包含Sam Altman、Dario Amodei、Elon Musk，Dario Amodei 带上红领巾",
+      "promptPreview": "生成八十年代宣传画，标语“热烈庆祝GPT-Image-2全量开放”，人物包含Sam Altman、Dario Amodei、Elon Musk，Dario Amodei 带上红领巾",
+      "category": "Posters & Typography",
+      "styles": ["Poster", "Character"],
+      "scenes": ["Creative"],
+      "featured": false,
+      "githubUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/gallery-part-1.md#case-10"
+    },
+    {
+      "id": 4,
+      "title": "老干妈风味",
+      "image": "/images/case4.jpg",
+      "imageAlt": "老干妈风味",
+      "sourceLabel": "小红书号989137706",
+      "sourceUrl": "",
+      "prompt": "特朗普在抖音直播间卖老干妈，手里举着「老干妈风味」新品，背景还是 SpaceX 那种科技感，左下角弹幕飘着「特斯拉车主：求上链接」。",
+      "promptPreview": "特朗普在抖音直播间卖老干妈，手里举着「老干妈风味」新品，背景还是 SpaceX 那种科技感，左下角弹幕飘着「特斯拉车主：求上链接」。",
+      "category": "UI & Interfaces",
+      "styles": ["UI"],
+      "scenes": ["Social"],
+      "featured": false,
+      "githubUrl": "https://github.com/freestylefly/awesome-gpt-image-2/blob/main/docs/gallery-part-1.md#case-4"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "counts": {
+    "cases": 0,
+    "sources": 1,
+    "tags": 0,
+    "templates": 1
+  },
+  "provider": {
+    "name": "image-optimizer-library",
+    "rank": 100
+  },
+  "resources": {
+    "LICENSE.upstream": {
+      "bytes": 365,
+      "sha256": "b81e279e5dca274829e1df55fb19c5965060bfb2f19a923e3def24eb2ecfed8c"
+    },
+    "cases.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "sources.json": {
+      "bytes": 309,
+      "sha256": "51c52d50c27f05f4406b348556f10804698191094b241218c85cf6135b13e6fb"
+    },
+    "tags.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "templates.json": {
+      "bytes": 716,
+      "sha256": "065b0140cc3cd27b60601685ca178d40d72730c0a3bd73f0ca31bea7d4c7c941"
+    }
+  },
+  "schemaVersion": 1,
+  "snapshot": {
+    "importedUpstreamCases": 0,
+    "importedUpstreamTemplates": 0,
+    "kind": "bootstrap",
+    "note": "No upstream cases or templates were imported because no complete reviewed checkout was available. Run the package sync script to replace this bootstrap snapshot."
+  },
+  "upstream": {
+    "commit": null,
+    "licenseFile": "LICENSE.upstream",
+    "repository": "https://github.com/freestylefly/awesome-gpt-image-2",
+    "reviewedCheckout": false
+  }
+}

@@ -5,6 +5,7 @@
   "references": [
     { "path": "../../../vendor/cordis" }, { "path": "../../../vendor/schemastery" },
     { "path": "../attachment" }, { "path": "../image-generation" },
+    { "path": "../../image/image-optimizer" },
     { "path": "../../core/tools" }
   ]
 }

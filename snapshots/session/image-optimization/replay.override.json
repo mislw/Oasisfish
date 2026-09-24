@@ -1,0 +1,50 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "image-skill", "name": "skill", "arguments": "{\"name\":\"image-generation\"}" } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "image-prepared", "name": "image_optimize", "arguments": "{\"operation\":\"generate\",\"intent\":\"Create a square launch graphic.\",\"references\":[],\"exactText\":[{\"text\":\"LAUNCH\",\"placement\":\"center\",\"preserveCase\":true}],\"output\":{\"width\":1024,\"height\":1024,\"transparentBackground\":false,\"count\":1},\"preserve\":[\"logo geometry\"],\"avoid\":[\"watermark\"],\"locale\":\"en\",\"category\":\"general\",\"styleHints\":[\"editorial\"],\"sceneHints\":[\"studio\"],\"caseIds\":[]}" } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "image-edit-prepared", "name": "image_optimize", "arguments": "{\"operation\":\"edit\",\"intent\":\"Edit the supplied image.\",\"references\":[{\"inputIndex\":1,\"role\":\"edit-target\",\"priority\":1}],\"exactText\":[],\"output\":{\"transparentBackground\":false,\"count\":1},\"preserve\":[\"subject identity\"],\"avoid\":[],\"locale\":\"en\",\"styleHints\":[],\"sceneHints\":[],\"caseIds\":[]}" } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "image-missing-reference", "name": "image_optimize", "arguments": "{\"operation\":\"edit\",\"intent\":\"Edit the supplied image.\",\"references\":[{\"inputIndex\":2,\"role\":\"edit-target\",\"priority\":1}],\"exactText\":[],\"output\":{\"transparentBackground\":false,\"count\":1},\"preserve\":[],\"avoid\":[],\"locale\":\"en\",\"styleHints\":[],\"sceneHints\":[],\"caseIds\":[]}" } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "tool-call" },
+      { "type": "block-end", "index": 0, "block": { "type": "tool-call", "id": "image-clarification", "name": "image_optimize", "arguments": "{\"operation\":\"generate\",\"intent\":\"Create a square launch graphic.\",\"references\":[],\"exactText\":[{\"text\":\"LAUNCH\",\"placement\":\"center\",\"preserveCase\":true},{\"text\":\"launch\",\"placement\":\" center \",\"preserveCase\":true}],\"output\":{\"width\":1024,\"height\":1024,\"transparentBackground\":false,\"count\":1},\"preserve\":[],\"avoid\":[],\"locale\":\"en\",\"styleHints\":[],\"sceneHints\":[],\"caseIds\":[]}" } },
+      { "type": "finish", "reason": { "kind": "tool-calls" } }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      { "type": "block-start", "index": 0, "blockType": "text" },
+      { "type": "block-end", "index": 0, "block": { "type": "text", "text": "The exact text conflicts at center. Should the image say \"LAUNCH\" or \"launch\"?" } },
+      { "type": "finish", "reason": { "kind": "stop" } }
+    ]
+  }
+]

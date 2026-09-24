@@ -57,7 +57,7 @@ kind: "package-reference"
 
 ### 安全规则
 
-- 正式位图生成优先使用内置 `image_gen` 工具；没有允许的后端时，Agent 报告 `IMAGE_GENERATION_UNAVAILABLE`。
+- 正式位图生成先调用 `image_optimize`。结果为 `needs_clarification` 时停止生成；结果为 `prepared` 时，只把其中的 prompt、references、output settings 与 required capabilities 传给 `image_generate`。没有允许的执行器时，Agent 报告 `IMAGE_GENERATION_UNAVAILABLE`。
 - HTML、CSS 或 Chromium 截图不是正式生成的 UI；动态文字、数值、进度、倒计时和点击热区保持为原生控件。
 - 候选控件只有在用户明确确认后才能进入可复用项目控件库。
 - 启动器不会伪造生成图、可编辑图层、Cowart 状态、审核记录、编辑器保存、PIE 结果或相似度分数。
@@ -107,7 +107,7 @@ Host 会加入一个固定段落，把 `[OASIS_UI_WORKFLOW]` 消息标识为受�
 ##### 稳定的启动器指令
 
 ```markdown
-Messages beginning with [OASIS_UI_WORKFLOW] come from the trusted Oasis UI launcher. Before acting, load the oasis-wiki skill with the skill tool. Follow its Game UI Design System, Cowart UI Production, and Oasis UI Agent interaction rules. Work one user-visible stage at a time, keep one pending decision, require a complete UI Tree and real style reference for formal generation, preserve native text/numbers/progress/hit targets, and never modify UGC assets without explicit authorization. The launcher advances only when the user confirms the current stage; an agent response must not claim that the launcher progressed or continue into a later stage. Prefer built-in image_gen; when unavailable, report IMAGE_GENERATION_UNAVAILABLE unless the user explicitly authorizes the documented provider-direct fallback. Never fake image output, generation-result records, editable layers, Cowart state, or approval.
+Messages beginning with [OASIS_UI_WORKFLOW] come from the trusted Oasis UI launcher. Before acting, load the oasis-wiki skill with the skill tool. Follow its Game UI Design System, Cowart UI Production, and Oasis UI Agent interaction rules. Work one user-visible stage at a time, keep one pending decision, require a complete UI Tree and real style reference for formal generation, preserve native text/numbers/progress/hit targets, and never modify UGC assets without explicit authorization. The launcher advances only when the user confirms the current stage; an agent response must not claim that the launcher progressed or continue into a later stage. Call image_optimize before image_generate, stop on needs_clarification, and pass only prepared prompt, references, output settings, and required capabilities to image_generate. When image_generate is unavailable, report IMAGE_GENERATION_UNAVAILABLE. Never fake image output, generation-result records, editable layers, Cowart state, or approval.
 ```
 
 #### Token 影响

@@ -81,6 +81,262 @@ describe('image_generate', () => {
     await ctx.fiber.dispose()
   })
 
+  it('executes a prepared specification with its selected references and output settings', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    const first = {
+      attachmentId: AttachmentId('sha256:prepared-first'), mediaType: 'image/png' as const,
+      bytes: 8, width: 8, height: 8, name: 'first.png',
+    }
+    const second = {
+      attachmentId: AttachmentId('sha256:prepared-second'), mediaType: 'image/jpeg' as const,
+      bytes: 9, width: 9, height: 9, name: 'second.jpg',
+    }
+    const session = Session.create(SessionId('image-prepared'))
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'image', attachment: first }],
+      source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'image', attachment: second }],
+      source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    const generate = vi.fn(() => Promise.resolve({
+      images: [0, 1].map(index => ({
+        candidateIndex: index, provider: 'gpt', model: 'gpt-image-2', attachment: {
+          attachmentId: AttachmentId(`sha256:prepared-${String(index)}`), mediaType: 'image/png' as const,
+          bytes: 10, width: 10, height: 10, name: `prepared-${String(index)}.png`,
+        },
+      })),
+      failedCount: 0,
+    }))
+    ctx.provide('imageGeneration', { generate } as never)
+    ctx.provide('imageInputImages', { references: () => [first, second] } as never)
+    await ctx.plugin(tool, { timeoutMs: 180_000 })
+
+    const signal = new AbortController().signal
+    const result = await ctx.tools.execute({
+      signal, callId: ToolCallId('image-prepared'), name: 'image_generate',
+      arguments: {
+        prepared: {
+          prompt: 'A prepared launch graphic.',
+          references: [{ inputIndex: 2, role: 'edit-target', priority: 1 }],
+          output: {
+            width: 1536, height: 1024, aspectRatio: '3:2',
+            transparentBackground: true, count: 2,
+          },
+          requiredCapabilities: ['local-editing', 'transparent-background', 'aspect-ratio:3:2'],
+        },
+      },
+      agent: { session } as never,
+    })
+
+    expect(generate).toHaveBeenCalledWith({
+      prompt: 'A prepared launch graphic.', count: 2,
+      referenceImages: [second], quality: 'high', size: '1536x1024', aspectRatio: '3:2',
+      transparentBackground: true,
+      requiredCapabilities: ['local-editing', 'transparent-background', 'aspect-ratio:3:2'],
+      signal,
+    })
+    expect(result.isError).toBe(false)
+    expect(result.meta).toEqual({
+      images: [0, 1].map(index => ({
+        attachmentId: `sha256:prepared-${String(index)}`,
+        provider: 'gpt', model: 'gpt-image-2',
+      })),
+      failedCount: 0,
+    })
+    await ctx.fiber.dispose()
+  })
+
+  it('executes a prepared specification without optional references or dimensions', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    const generate = vi.fn(() => Promise.resolve({
+      images: [{
+        candidateIndex: 0, provider: 'gpt', model: 'gpt-image-2', attachment: {
+          attachmentId: AttachmentId('sha256:prepared-minimal'), mediaType: 'image/png' as const,
+          bytes: 10, width: 10, height: 10,
+        },
+      }],
+      failedCount: 0,
+    }))
+    ctx.provide('imageGeneration', { generate } as never)
+    await ctx.plugin(tool, { timeoutMs: 180_000 })
+
+    const signal = new AbortController().signal
+    const result = await ctx.tools.execute({
+      signal, callId: ToolCallId('image-prepared-minimal'), name: 'image_generate',
+      arguments: {
+        prepared: {
+          prompt: 'A prepared icon.', references: [],
+          output: { transparentBackground: false, count: 1 },
+          requiredCapabilities: [],
+        },
+      },
+    })
+
+    expect(generate).toHaveBeenCalledWith({
+      prompt: 'A prepared icon.', count: 1, transparentBackground: false,
+      requiredCapabilities: [], signal,
+    })
+    expect(result.value).toMatchObject({ images: [{ name: 'generated-image' }], failedCount: 0 })
+    await ctx.fiber.dispose()
+  })
+
+  it('requires the current-input capture for prepared references', async () => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    const generate = vi.fn()
+    ctx.provide('imageGeneration', { generate } as never)
+    await ctx.plugin(tool, { timeoutMs: 180_000 })
+    const arguments_ = {
+      prepared: {
+        prompt: 'x', references: [{ inputIndex: 1, role: 'style', priority: 1 }],
+        output: { transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }
+
+    const withoutAgent = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId('image-prepared-without-agent'), name: 'image_generate', arguments: arguments_,
+    })
+    expect(JSON.stringify(withoutAgent.content)).toContain('prepared references require an owning Agent')
+
+    const session = Session.create(SessionId('image-prepared-without-capture'))
+    const withoutCapture = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId('image-prepared-without-capture'), name: 'image_generate', arguments: arguments_,
+      agent: { session } as never,
+    })
+    expect(JSON.stringify(withoutCapture.content)).toContain('prepared references require image_optimize current-input capture')
+    expect(generate).not.toHaveBeenCalled()
+    await ctx.fiber.dispose()
+  })
+
+  it.each([
+    ['non-integer reference position', {
+      prepared: {
+        prompt: 'x', references: [{ inputIndex: Number.MAX_SAFE_INTEGER + 1, role: 'style', priority: 1 }],
+        output: { transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'inputIndex must be a positive safe integer'],
+    ['non-positive reference position', {
+      prepared: {
+        prompt: 'x', references: [{ inputIndex: 0, role: 'style', priority: 1 }],
+        output: { transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'inputIndex must be a positive safe integer'],
+    ['duplicate reference position', {
+      prepared: {
+        prompt: 'x', references: [
+          { inputIndex: 1, role: 'style', priority: 1 },
+          { inputIndex: 1, role: 'content', priority: 2 },
+        ],
+        output: { transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'prepared reference 1 is duplicated'],
+    ['unavailable reference position', {
+      prepared: {
+        prompt: 'x', references: [{ inputIndex: 2, role: 'style', priority: 1 }],
+        output: { transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'prepared reference 2 is unavailable'],
+    ['width without height', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { width: 1, transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'width and height must be supplied together'],
+    ['height without width', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { height: 1, transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'width and height must be supplied together'],
+    ['non-integer width', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { width: Number.MAX_SAFE_INTEGER + 1, height: 1, transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'dimensions must be positive safe integers'],
+    ['non-positive width', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { width: 0, height: 1, transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'dimensions must be positive safe integers'],
+    ['non-integer height', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { width: 1, height: Number.MAX_SAFE_INTEGER + 1, transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'dimensions must be positive safe integers'],
+    ['non-positive height', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { width: 1, height: 0, transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+    }, 'dimensions must be positive safe integers'],
+    ['legacy argument in prepared mode', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { transparentBackground: false, count: 1 }, requiredCapabilities: [],
+      },
+      prompt: 'legacy',
+    }, 'prepared mode does not accept legacy direct arguments'],
+    ['non-integer prepared count', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { transparentBackground: false, count: Number.MAX_SAFE_INTEGER + 1 }, requiredCapabilities: [],
+      },
+    }, 'prepared output count must be a positive safe integer'],
+    ['non-positive prepared count', {
+      prepared: {
+        prompt: 'x', references: [],
+        output: { transparentBackground: false, count: 0 }, requiredCapabilities: [],
+      },
+    }, 'prepared output count must be a positive safe integer'],
+    ['missing direct prompt', {
+      variation_prompts: ['a', 'b', 'c', 'd'],
+    }, 'prompt is required in direct mode'],
+    ['missing direct variations', {
+      prompt: 'x',
+    }, 'variation_prompts must contain exactly four candidates'],
+  ])('rejects %s', async (_name, arguments_, message) => {
+    const ctx = new Context()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    const generate = vi.fn()
+    ctx.provide('imageGeneration', { generate } as never)
+    const input = {
+      attachmentId: AttachmentId('sha256:prepared-only'), mediaType: 'image/png' as const,
+      bytes: 8, width: 8, height: 8, name: 'only.png',
+    }
+    ctx.provide('imageInputImages', { references: () => [input] } as never)
+    await ctx.plugin(tool, { timeoutMs: 180_000 })
+    const session = Session.create(SessionId('image-prepared-invalid'))
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'image', attachment: input }],
+      source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+
+    const result = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId(`image-invalid-${_name}`), name: 'image_generate',
+      arguments: arguments_,
+      agent: { session } as never,
+    })
+
+    expect(result.isError).toBe(true)
+    expect(JSON.stringify(result.content)).toContain(message)
+    expect(generate).not.toHaveBeenCalled()
+    await ctx.fiber.dispose()
+  })
+
   it('keeps successful candidates when one generation fails', async () => {
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)

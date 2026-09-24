@@ -16,8 +16,30 @@ describe('buildOasisUiWorkflowPrompt', () => {
     expect(prompt).toContain('RedCliff profile')
     expect(prompt).toContain('UI Tree')
     expect(prompt).toContain('Generation Package')
-    expect(prompt).toContain('IMAGE_GENERATION_UNAVAILABLE')
+    expect(prompt).toContain('image_optimize')
+    expect(prompt).toContain('needs_clarification')
+    expect(prompt).toContain('prepared')
+    expect(prompt).toContain('image_generate')
+    expect(prompt.indexOf('image_optimize')).toBeLessThan(prompt.indexOf('image_generate'))
     expect(prompt).toContain('未经我明确授权，不修改')
+  })
+
+  it('passes only prepared executor inputs to generation and stops for clarification', () => {
+    const prompt = buildOasisUiStagePrompt({
+      mode: 'desktop',
+      stageIndex: 2,
+      request: {
+        source: 'generate',
+        pageName: '城防塔升级',
+        purpose: '展示升级消耗',
+        references: 'style.png',
+        constraints: '保留动态金币文本',
+      },
+    })
+
+    expect(prompt).toContain('needs_clarification 时停止')
+    expect(prompt).toContain('prepared prompt、references、output settings 和 required capabilities')
+    expect(prompt).toContain('再调用 image_generate')
   })
 
   it('describes the selected mode, current stage, responsibilities, and acceptance output', () => {

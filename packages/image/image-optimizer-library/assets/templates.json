@@ -1,0 +1,31 @@
+[
+  {
+    "avoid": [
+      "unrequested text",
+      "watermarks"
+    ],
+    "composition": [
+      "Use a clear focal hierarchy around the requested subject."
+    ],
+    "exampleCaseIds": [],
+    "guidance": {
+      "en": "Use a clear focal hierarchy and preserve the requested subject.",
+      "zh": "使用清晰的视觉层级并保留请求的主体。"
+    },
+    "id": "general-image",
+    "matchTerms": [],
+    "preserve": [
+      "requested subject identity"
+    ],
+    "requiredCapabilities": [],
+    "scene": [],
+    "sceneTags": [],
+    "sourceId": "dsh-general-image",
+    "titles": {
+      "en": "General image",
+      "zh": "通用图像"
+    },
+    "visualStyle": [],
+    "visualStyleTags": []
+  }
+]

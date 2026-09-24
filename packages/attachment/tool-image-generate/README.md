@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Give the conversation model an `image_generate` tool for creating or editing four image candidates. The same model turn expands a brief request into one detailed English prompt and four concise variations. The tool may reuse images from the latest direct user message, records only durably committed results, and concludes the turn without another model call. Successful result metadata preserves the actual provider and model for the Client presenter.
+Give the conversation model an `image_generate` tool for creating or editing durable image candidates. Prepared mode executes the prompt, selected references, output settings, and required capabilities returned by `image_optimize`; direct mode expands a brief request into one detailed English prompt and exactly four variations. The tool records only durably committed results and concludes the turn without another model call. Successful result metadata preserves the actual provider and model for the Client presenter.
 
 ## Table of Contents
 
@@ -47,13 +47,15 @@ The tool requires one timeout and the image-generation service.
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-tool-image-generate) is the exhaustive source for accepted fields and JSDoc.
 
-### Reference authorization
+### Execution modes
 
-The tool derives messages from the executing Agent's non-seeded Session and scans backward for the latest message whose role and source are both direct user input. Images inherited through a fork, plugin-authored images, and other indirect messages are ignored. The model may set `use_reference_images` to `false`; otherwise the selected references are sent to the service, and reference editing defaults to high quality when no quality is supplied.
+Prepared mode accepts only the executor fields from one ready `image_optimize` result. It selects exact one-based positions from the shared current-turn direct-user image inventory in `prepared.references`, uses the prepared candidate count subject to the image-generation service's configured limit, maps paired positive width and height values to the provider size, and forwards the aspect ratio, transparency choice, and required capabilities. Mixing prepared and direct arguments fails instead of overriding the prepared specification.
+
+Direct mode requires a refined prompt and exactly four variation prompts. The tool derives messages from the executing Agent's non-seeded Session and scans backward for the latest message whose role and source are both direct user input. Images inherited through a fork, plugin-authored images, and other indirect messages are ignored. The model may set `use_reference_images` to `false`; otherwise all eligible images are sent to the service, and reference editing defaults to high quality when no quality is supplied.
 
 ### Completion and durable metadata
 
-The tool requires exactly four variation prompts and asks the service for four independent candidates. Partial success is valid. The rendered result contains fixed selection text plus durable image blocks, while presentation metadata records each attachment id, actual provider, actual model, variation at the original candidate position, and failed count. The tool concludes the turn only after generation succeeds, so no extra conversation-model response follows it.
+Partial success is valid in both modes. The rendered result contains fixed selection text plus durable image blocks, while presentation metadata records each attachment id, actual provider, actual model, and failed count; direct mode also records the variation at the original candidate position. The tool concludes the turn only after generation succeeds, so no extra conversation-model response follows it.
 
 -----
 
@@ -63,7 +65,7 @@ The tool requires exactly four variation prompts and asks the service for four i
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin registers one effect-owned tool definition. Its executor selects authorized references, validates the four-candidate relation, delegates provider and storage work to `ctx.imageGeneration`, then records a structured value. The tool runtime owns result rendering, persisted presentation metadata, turn conclusion, timeout, and disposal.
+The plugin registers one effect-owned tool definition. Its executor validates the selected mode, resolves authorized references, delegates provider and storage work to `ctx.imageGeneration`, then records a structured value. The tool runtime owns result rendering, persisted presentation metadata, turn conclusion, timeout, and disposal.
 
 | File | Role |
 |---|---|
@@ -93,7 +95,7 @@ Read the provider service for route and commit behavior, then the UI presenter f
 
 #### What the model sees
 
-The model sees the generated [`image_generate` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-image-generate) and is instructed to use it for image creation or editing. Before calling, that same model turn expands the request into one coherent English prompt while preserving explicit text and reference constraints, and supplies exactly four short variations. Optional arguments select provider-supported size, quality, and reference reuse. No hidden second prompt-refinement request occurs.
+The model sees the generated [`image_generate` schema](../../../docs/tool-catalog.md#deepseek-aidsh-tool-image-generate) and is instructed to use it for image creation or editing. After `image_optimize` returns a ready specification, the model copies only its prepared executor fields into `prepared`. Without that result, direct mode expands the request into one coherent English prompt, preserves explicit text and reference constraints, and supplies exactly four short variations. No hidden second prompt-refinement request occurs.
 
 #### Token effect
 
@@ -121,11 +123,12 @@ Append-only. The result follows the reusable request prefix and does not invalid
 
 <a id="known-limitations-and-deferred-work"></a>
 
-These limits describe the fixed candidate workflow and provider-neutral schema.
+These limits describe the two execution modes and provider-neutral schema.
 
-- **Exactly four candidates** — every call requires four variations; the model cannot request another count.
-- **Only the latest current-Agent direct-user image message is eligible** — fork-inherited images are never references, and older images are ignored once a newer eligible message with images exists.
-- **Provider-specific controls are absent** — masks, backgrounds, output formats, and seeds remain outside the model-facing schema.
+- **Direct mode always creates four candidates** — prepared mode can use another positive candidate count, but the image-generation service rejects counts above its configured `maxCandidates`.
+- **Prepared references use the optimizer's current-turn inventory** — positions follow admitted direct-user images across accepted steps in message and content order; a new turn replaces the inventory.
+- **Direct references use only the latest direct-user image message** — direct mode may use all images from that message. Fork-inherited and older images are never direct-mode references.
+- **Prepared capabilities must be executable** — the service rejects unknown requirements instead of silently degrading them; provider-specific masks, output formats, seeds, and other unsupported controls remain unavailable.
 
 <a id="dev-note"></a>
 ### Dev Note

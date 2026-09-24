@@ -1,0 +1,11 @@
+version: 1
+scenario: image-optimization
+profile: headless
+composition: image-optimization
+recording: authored
+permission: danger-full-access
+replay:
+  override: true
+header:
+  class: image-optimization
+  pin: true

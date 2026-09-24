@@ -77,6 +77,18 @@
     - id: memory
       name: '@deepseek-ai/dsh-memory'
 
+    # Host-owned image request preparation. The offline Provider contributes
+    # deterministic templates and cases without model or network calls.
+    - id: image-optimizer
+      name: '@deepseek-ai/dsh-image-optimizer'
+      config:
+        maxCases: 3
+        maxPromptBytes: 16384
+        maxExactTextEntries: 64
+
+    - id: image-optimizer-library
+      name: '@deepseek-ai/dsh-image-optimizer-library'
+
     - id: image-generation
       name: '@deepseek-ai/dsh-image-generation'
       disabled: true
@@ -290,6 +302,9 @@
     - id: skill
       name: '@deepseek-ai/dsh-skill'
 
+    - id: skill-image-generation
+      name: '@deepseek-ai/dsh-skill-image-generation'
+
     # Deployments declare reviewed resource roots explicitly; the shared base
     # never scans every loaded Skill as a search corpus.
     - id: skill-search
@@ -309,6 +324,9 @@
 
     - id: tool-skill-search
       name: '@deepseek-ai/dsh-tool-skill-search'
+
+    - id: tool-image-optimize
+      name: '@deepseek-ai/dsh-tool-image-optimize'
 
     - id: commands
       name: '@deepseek-ai/dsh-commands'

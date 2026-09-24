@@ -55,6 +55,8 @@ export { REGION_BEGIN, REGION_END }
  */
 export const SERVICE_PAGE: Record<string, string> = {
   connection: 'web-server.md',
+  imageInputImages: 'image-optimization.md',
+  imageOptimizer: 'image-optimization.md',
   pluginManager: 'boot.md',
   profileContext: 'boot.md',
   hmr: 'boot.md',
@@ -428,6 +430,10 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SaveFileStreamAttachment: 'attachment.md',
   ImageAttachmentAccess: 'llm-streaming.md',
   ImageAttachmentRef: 'attachment.md',
+  ImageOptimizationProvider: 'image-optimization.md',
+  ImageOptimizationRequest: 'image-optimization.md',
+  ImageOptimizationResult: 'image-optimization.md',
+  ImageOptimizerOptions: 'image-optimization.md',
   ImageRequestTarget: 'attachment.md',
   ProjectedDimensions: 'attachment.md',
   PromptContentPart: 'attachment.md',

@@ -57,7 +57,7 @@ The fixed stages are `来源 -> UI Tree -> 视觉稿 -> 分层 -> Workbench -> U
 
 ### Safety rules
 
-- Formal bitmap generation prefers the built-in `image_gen` tool; without an allowed backend, the Agent reports `IMAGE_GENERATION_UNAVAILABLE`.
+- Formal bitmap generation first calls `image_optimize`. A `needs_clarification` result stops generation; a `prepared` result supplies only its prompt, references, output settings, and required capabilities to `image_generate`. Without an allowed executor, the Agent reports `IMAGE_GENERATION_UNAVAILABLE`.
 - HTML, CSS, or Chromium screenshots are not formal generated UI, and dynamic text, numbers, progress, countdowns, and hit targets remain native controls.
 - Candidate controls enter the reusable project library only after explicit user confirmation.
 - The launcher does not fabricate generated images, editable layers, Cowart state, review records, editor saves, PIE results, or similarity scores.
@@ -107,7 +107,7 @@ The Host adds one fixed section that identifies `[OASIS_UI_WORKFLOW]` messages a
 ##### Stable launcher instruction
 
 ```markdown
-Messages beginning with [OASIS_UI_WORKFLOW] come from the trusted Oasis UI launcher. Before acting, load the oasis-wiki skill with the skill tool. Follow its Game UI Design System, Cowart UI Production, and Oasis UI Agent interaction rules. Work one user-visible stage at a time, keep one pending decision, require a complete UI Tree and real style reference for formal generation, preserve native text/numbers/progress/hit targets, and never modify UGC assets without explicit authorization. The launcher advances only when the user confirms the current stage; an agent response must not claim that the launcher progressed or continue into a later stage. Prefer built-in image_gen; when unavailable, report IMAGE_GENERATION_UNAVAILABLE unless the user explicitly authorizes the documented provider-direct fallback. Never fake image output, generation-result records, editable layers, Cowart state, or approval.
+Messages beginning with [OASIS_UI_WORKFLOW] come from the trusted Oasis UI launcher. Before acting, load the oasis-wiki skill with the skill tool. Follow its Game UI Design System, Cowart UI Production, and Oasis UI Agent interaction rules. Work one user-visible stage at a time, keep one pending decision, require a complete UI Tree and real style reference for formal generation, preserve native text/numbers/progress/hit targets, and never modify UGC assets without explicit authorization. The launcher advances only when the user confirms the current stage; an agent response must not claim that the launcher progressed or continue into a later stage. Call image_optimize before image_generate, stop on needs_clarification, and pass only prepared prompt, references, output settings, and required capabilities to image_generate. When image_generate is unavailable, report IMAGE_GENERATION_UNAVAILABLE. Never fake image output, generation-result records, editable layers, Cowart state, or approval.
 ```
 
 #### Token effect

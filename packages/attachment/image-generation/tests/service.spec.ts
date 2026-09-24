@@ -363,9 +363,7 @@ describe('ImageGenerationService', () => {
     })))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(ctx.imageGeneration.generate({
-      prompt: 'ink landscape', size: '1536x1024', quality: 'high',
-    })).resolves.toEqual({
+    await expect(ctx.imageGeneration.generate({ prompt: 'ink landscape' })).resolves.toEqual({
       images: [{ candidateIndex: 0, provider: 'relay', model: '[EXPRESS]gemini-3.1-flash-image', attachment }], failedCount: 0,
     })
 
@@ -378,6 +376,43 @@ describe('ImageGenerationService', () => {
       modalities: ['text', 'image'],
       stream: false,
     })
+  })
+
+  it('rejects a required transparent background on a chat-completions route', async () => {
+    const { ctx } = await setup({
+      config: {
+        provider: 'relay', model: '[EXPRESS]gemini-3.1-flash-image',
+        endpointPath: 'chat/completions',
+      },
+      providers: { relay: { baseURL: 'https://relay.example/v1' } },
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(ctx.imageGeneration.generate({
+      prompt: 'transparent icon', transparentBackground: true,
+      requiredCapabilities: ['transparent-background'],
+    })).rejects.toThrow('chat-completions image generation does not support transparent backgrounds')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['size', { size: '1536x1024', aspectRatio: '3:2', requiredCapabilities: ['aspect-ratio:3:2'] }],
+    ['quality', { quality: 'high' }],
+  ])('rejects an unsupported %s control on a chat-completions route', async (_control, request) => {
+    const { ctx } = await setup({
+      config: {
+        provider: 'relay', model: '[EXPRESS]gemini-3.1-flash-image',
+        endpointPath: 'chat/completions',
+      },
+      providers: { relay: { baseURL: 'https://relay.example/v1' } },
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(ctx.imageGeneration.generate({ prompt: 'controlled image', ...request } as never))
+      .rejects.toThrow(`chat-completions image generation does not support ${_control}`)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('uses one configured fallback route after the primary provider rejects generation', async () => {
@@ -580,8 +615,102 @@ describe('ImageGenerationService', () => {
       .rejects.toThrow('count must be a positive integer')
     await expect(ctx.imageGeneration.generate({ prompt: 'x', count: 1.5 }))
       .rejects.toThrow('count must be a positive integer')
+    await expect(ctx.imageGeneration.generate({ prompt: 'x', count: 5 }))
+      .rejects.toThrow('count must not exceed 4')
     await expect(ctx.imageGeneration.generate({ prompt: 'x', count: 2, variations: ['one'] }))
       .rejects.toThrow('variations must match count')
+  })
+
+  it('rejects a required prepared capability that the executor does not support', async () => {
+    const { ctx } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+
+    await expect(ctx.imageGeneration.generate({
+      prompt: 'x',
+      requiredCapabilities: ['provider-specific-control'],
+    })).rejects.toThrow('unsupported required capability "provider-specific-control"')
+  })
+
+  it.each([
+    ['local-editing', []],
+    ['multiple-references', [{ attachmentId: AttachmentId('sha256:one') }]],
+    ['transparent-background', []],
+    ['aspect-ratio:3:2', []],
+  ])('rejects an unsatisfied prepared capability %s', async (capability, referenceImages) => {
+    const { ctx } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+
+    await expect(ctx.imageGeneration.generate({
+      prompt: 'x',
+      referenceImages: referenceImages as never,
+      ...capability.startsWith('aspect-ratio:') ? { size: '1024x1024' } : {},
+      ...capability.startsWith('aspect-ratio:') ? { aspectRatio: '1:1' } : {},
+      transparentBackground: false,
+      requiredCapabilities: [capability],
+    })).rejects.toThrow(`unsupported required capability ${JSON.stringify(capability)}`)
+  })
+
+  it.each([
+    ['without transported dimensions', { aspectRatio: '3:2' }],
+    ['with contradictory transported dimensions', { aspectRatio: '3:2', size: '1024x1024' }],
+  ])('rejects an aspect-ratio capability %s', async (_case, request) => {
+    const { ctx } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+
+    await expect(ctx.imageGeneration.generate({
+      prompt: 'x', ...request, requiredCapabilities: ['aspect-ratio:3:2'],
+    })).rejects.toThrow('unsupported required capability "aspect-ratio:3:2"')
+  })
+
+  it('accepts the supported prepared capabilities and sends transparent edit background', async () => {
+    const references = [1, 2].map(index => ({
+      attachmentId: AttachmentId(`sha256:reference-${String(index)}`), mediaType: 'image/png' as const,
+      bytes: REFERENCE.byteLength, width: 8, height: 8, name: `reference-${String(index)}.png`,
+    }))
+    const { ctx, readImage } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    readImage.mockImplementation((reference: typeof references[number]) => Promise.resolve({ data: REFERENCE, ref: reference }))
+    const fetchMock = vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ b64_json: Buffer.from(PNG).toString('base64') }],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await ctx.imageGeneration.generate({
+      prompt: 'transparent icon',
+      referenceImages: references,
+      size: '1024x1024',
+      aspectRatio: '1:1',
+      transparentBackground: true,
+      requiredCapabilities: [
+        'exact-text', 'local-editing', 'multiple-references',
+        'transparent-background', 'aspect-ratio:1:1',
+      ],
+    })
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(formEntry(init.body as FormData, 'background')).toBe('transparent')
+  })
+
+  it('sends the selected background to generation and edit requests', async () => {
+    const reference = {
+      attachmentId: AttachmentId('sha256:opaque-reference'), mediaType: 'image/png' as const,
+      bytes: REFERENCE.byteLength, width: 8, height: 8, name: 'opaque-reference.png',
+    }
+    const { ctx, readImage } = await setup({ providers: { relay: { baseURL: 'https://relay.example/v1' } } })
+    readImage.mockResolvedValue({ data: REFERENCE, ref: reference })
+    const fetchMock = vi.fn(() => Promise.resolve(imageResponse({
+      data: [{ b64_json: Buffer.from(PNG).toString('base64') }],
+    })))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await ctx.imageGeneration.generate({ prompt: 'transparent icon', transparentBackground: true })
+    await ctx.imageGeneration.generate({ prompt: 'opaque icon', transparentBackground: false })
+    await ctx.imageGeneration.generate({
+      prompt: 'opaque edit', referenceImages: [reference], transparentBackground: false,
+    })
+
+    const [, transparentInit] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit]
+    expect(parsedRequestBody(transparentInit.body)).toMatchObject({ background: 'transparent' })
+    const [, opaqueInit] = fetchMock.mock.calls[1] as unknown as [URL, RequestInit]
+    expect(parsedRequestBody(opaqueInit.body)).toMatchObject({ background: 'opaque' })
+    const [, editInit] = fetchMock.mock.calls[2] as unknown as [URL, RequestInit]
+    expect(formEntry(editInit.body as FormData, 'background')).toBe('opaque')
   })
 
   it('rejects missing route configuration and dependencies', async () => {

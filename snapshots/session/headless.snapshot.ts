@@ -1066,6 +1066,7 @@ describe('headless recorded-session snapshots', () => {
       const spillRoot = await mkdtemp(join(tmpdir(), 'acp-snap-spill-'))
       const locatorRoot = snapshotSpillRoot(join(scenario.dir, fixtureFiles[0] as string))
       const mcpDemo = scenario.name === 'plugin-manager-mcp' ? await startHttpMcpFixture() : undefined
+      const profilePatch = join(scenario.dir, 'profile.patch.yml')
       let result: Awaited<ReturnType<typeof runLoaderSmoke>>
       try {
         result = await runLoaderSmoke({
@@ -1116,10 +1117,17 @@ describe('headless recorded-session snapshots', () => {
                 materializeProfilePatch(source, cwd, 'headless', join(cwd, patchRoot), index)
               }
             })
-            if (mcpDemo !== undefined) {
+            if (existsSync(profilePatch)) {
               const profileDir = join(cwd, '.dsh/profiles/headless')
               await mkdir(profileDir, { recursive: true })
-              await copyFile(join(scenario.dir, 'profile.patch.yml'), join(profileDir, 'cordis.patch.yml'))
+              await copyFile(profilePatch, join(profileDir, 'cordis.patch.yml'))
+            }
+            if (scenario.name === 'image-optimization') {
+              await cp(
+                join(repoRoot, 'packages/image/skill-image-generation/assets'),
+                join(cwd, '.dsh/snapshot-image-skill-assets'),
+                { recursive: true },
+              )
             }
             await seedWorkspace(scenario, cwd)
             initialWorkspace = await captureWorkspaceSnapshot(cwd, {

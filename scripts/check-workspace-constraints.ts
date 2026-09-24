@@ -184,6 +184,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // also shares its generated FFI code through a hashed runtime chunk.
   '@deepseek-ai/dsh-sandbox-windows-acl': ['lib/runner.js', 'lib/types-*.js'],
   '@deepseek-ai/dsh-skill-badge': ['assets'],
+  '@deepseek-ai/dsh-image-optimizer-library': ['assets'],
+  '@deepseek-ai/dsh-skill-image-generation': ['assets'],
   '@deepseek-ai/dsh-skill-office': ['assets'],
   '@deepseek-ai/dsh-subprocess': ['lib/control.js'],
   // SSH launches a private helper and shares wire definitions and TLS setup

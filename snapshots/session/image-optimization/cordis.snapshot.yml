@@ -1,0 +1,40 @@
+# Keyless replay for the shipped Base image-optimization workflow.
+
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+  disabled: true
+
+- id: plugin-package-inventory-deepseek
+  disabled: true
+
+- id: session-title-llm
+  disabled: true
+
+- id: typert
+  disabled: true
+
+- id: typert-loader
+  disabled: true
+
+- id: typert-gateway
+  disabled: true
+
+- insert:
+    - id: snapshot-image-input
+      name: '../../../packages/test-support/session-snapshot/tests/fixtures/image-input.ts'
+
+- id: session-persistence-jsonl
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: !!js dshHomePath('sessions')
+    compression: none
+
+- insert:
+    - id: llm-replay
+      name: '@deepseek-ai/dsh-llm-replay'
+      config:
+        providers:
+          - id: '{{provider}}'
+            name: Snapshot provider
+            models:
+              - id: '{{model}}'

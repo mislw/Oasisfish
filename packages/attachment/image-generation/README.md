@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Generate one or more image candidates through a configured OpenAI-compatible route and save every successful result as a durable attachment. Each candidate tries the primary route, then one optional fallback after a non-cancellation provider failure. Images API routes support generation and reference-image editing; a `chat/completions` route supports generated Markdown image Data URLs. Provider response text, credentials, prompts, and reference bytes stay out of diagnostics; the service appends no session events.
+Generate one or more image candidates through a configured OpenAI-compatible route and save every successful result as a durable attachment. Each candidate tries the primary route, then one optional fallback after a non-cancellation provider failure. Images API routes support generation, reference-image editing, and explicit transparent or opaque backgrounds; a `chat/completions` route supports generated Markdown image Data URLs. The service rejects required capabilities it cannot execute instead of silently degrading them, and it appends no session events.
 
 ## Table of Contents
 
@@ -53,20 +53,25 @@ Mount the plugin after the packages that provide `ctx.settings` and `ctx.attachm
 | `fallbackEndpointPath` | `images/generations` | Fallback generation path |
 | `fallbackEditEndpointPath` | `images/edits` | Fallback reference-edit path |
 | `maxResponseBytes` | `25000000` | Maximum provider JSON body or downloaded image body |
+| `maxCandidates` | `4` | Maximum independently generated candidates accepted in one call |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-image-generation) is the exhaustive source for every accepted field and its JSDoc.
 
 ### Generation and fallback
 
-A request may launch several candidates independently. Each candidate sends the shared prompt plus its optional variation to the primary route and tries the configured fallback only after a non-cancellation generation failure. Partial success is retained in candidate order, with each image carrying its original zero-based `candidateIndex`. Cancellation stops fallback; a durable attachment commit failure is returned directly and never starts another provider request.
+A request may launch up to `maxCandidates` candidates independently. Each candidate sends the shared prompt plus its optional variation to the primary route and tries the configured fallback only after a non-cancellation generation failure. Partial success is retained in candidate order, with each image carrying its original zero-based `candidateIndex`. Cancellation stops fallback; a durable attachment commit failure is returned directly and never starts another provider request.
 
 ### Reference images and durable results
 
-An Images API route reads every supplied durable reference through `ctx.attachments` and sends multipart data to its edit path. A successful provider response is decoded, its raster type is verified, and `saveImage` must finish before the candidate appears in the returned batch. Provider and model identity accompany each committed reference. A returned HTTP(S) image URL must have no embedded credentials and resolve only to public addresses; the download pins the validated addresses, follows no redirects, sends no route credential, and reads under the configured byte limit.
+An Images API route reads every supplied durable reference through `ctx.attachments` and sends multipart data to its edit path. When the request specifies background transparency, generation and edit requests carry the corresponding `transparent` or `opaque` provider field. A successful provider response is decoded, its raster type is verified, and `saveImage` must finish before the candidate appears in the returned batch. Provider and model identity accompany each committed reference. A returned HTTP(S) image URL must have no embedded credentials and resolve only to public addresses; the download pins the validated addresses, follows no redirects, sends no route credential, and reads under the configured byte limit.
+
+### Required capabilities
+
+The service accepts prepared requirements for exact text, local editing, multiple references, transparent backgrounds, and a matching aspect ratio. Each requirement must agree with the concrete request fields. An aspect-ratio requirement needs transported pixel dimensions with the same ratio; aspect-ratio metadata alone is insufficient. A `chat/completions` route rejects a required transparent background because it cannot transport that control. Any unknown or unsatisfied requirement rejects the operation before provider work, so prepared specifications never lose a required behavior silently.
 
 ### What can go wrong
 
-Generation fails when the selected route is missing, has no Base URL or credential, returns an unsupported response, exceeds the byte limit, or produces bytes with an unsupported raster signature. Blocked image URLs report `IMAGE_DOWNLOAD_BLOCKED`; a failed pinned connection reports `IMAGE_DOWNLOAD_FAILED`, without the URL or transport details. Provider HTTP failures expose a stable error code and status summary only. Exhausting every candidate route rejects the request; mixed candidate outcomes return the committed images and a failed count.
+Generation fails when a required capability is unsupported, or when the selected route is missing, has no Base URL or credential, returns an unsupported response, exceeds the byte limit, or produces bytes with an unsupported raster signature. Blocked image URLs report `IMAGE_DOWNLOAD_BLOCKED`; a failed pinned connection reports `IMAGE_DOWNLOAD_FAILED`, without the URL or transport details. Provider HTTP failures expose a stable error code and status summary only. Exhausting every candidate route rejects the request; mixed candidate outcomes return the committed images and a failed count.
 
 -----
 
@@ -123,9 +128,9 @@ Append-only. The tool result follows the reusable request prefix; later image pr
 
 These limits describe the provider-neutral controls this service currently supports.
 
-- **Reference editing requires an Images API route** — all references are sent to the edit path without a mask; `chat/completions` rejects references, size, and quality controls.
+- **Reference editing and transparent backgrounds require an Images API route** — all references are sent to the edit path without a mask; `chat/completions` rejects references, size, quality, and transparent-background requests.
 - **Routes need an explicit Base URL** — provider catalog entries whose endpoint is implicit are not resolved.
-- **Provider-specific controls are absent** — masks, backgrounds, output formats, seeds, and other proprietary fields are not exposed.
+- **Provider-specific controls are limited** — background transparency is transported, while masks, output formats, seeds, and other proprietary fields are not exposed. Unknown required capabilities fail instead of degrading.
 
 <a id="dev-note"></a>
 ### Dev Note

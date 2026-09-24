@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../attachment/attachment" },
+    { "path": "../../core/agent" },
+    { "path": "../../core/tools" },
+    { "path": "../../llm/llm" },
+    { "path": "../image-optimizer" }
+  ]
+}

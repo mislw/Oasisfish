@@ -1,0 +1,11 @@
+[
+  {
+    "id": "dsh-general-image",
+    "license": "MIT",
+    "origin": "dsh",
+    "redistributablePrompt": true,
+    "rightsNote": "DSH-owned fallback metadata and prompt fragments.",
+    "title": "DeepSeek Harness general image fallback",
+    "url": "https://github.com/deepseek-ai/deepseek-harness"
+  }
+]

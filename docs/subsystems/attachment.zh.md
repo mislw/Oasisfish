@@ -89,6 +89,12 @@ interface GenerateImageRequest {
   variations?: readonly string[]
   /** Optional provider-supported pixel size. */
   size?: string
+  /** Prepared aspect ratio retained for executor capability validation. */
+  aspectRatio?: string
+  /** Whether the executor must request a transparent background. */
+  transparentBackground?: boolean
+  /** Prepared capabilities that this executor must support without silent downgrade. */
+  requiredCapabilities?: readonly string[]
   /** Durable images supplied to the provider as edit references. */
   referenceImages?: readonly ImageAttachmentRef[]
   /** Optional provider-supported output quality. */
