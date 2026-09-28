@@ -7,6 +7,7 @@ import { expect, it } from 'vitest'
 import {
   downloadPrimaryRuntimeAsset,
   prepareModelAssets,
+  prepareNodeRuntime,
   prepareSkillAssets,
   primaryRuntimePayloadDigest,
   smokePrimaryRuntime,
@@ -18,6 +19,30 @@ import lock from '../scripts/primary-runtime-lock.json' with { type: 'json' }
 const libraryWheel = Buffer.from('UEsDBAoAAAAAAASeLl0sYMPjDAAAAAwAAAAJAAAAc2FtcGxlLnB5c2FtcGxlID0gNDIKUEsBAh4DCgAAAAAABJ4uXSxgw+MMAAAADAAAAAkAAAAAAAAAAQAAAKSBAAAAAHNhbXBsZS5weVBLBQYAAAAAAQABADcAAAAzAAAAAAA=', 'base64')
 const relocatedWheel = Buffer.from('UEsDBAoAAAAAAASeLl3x0Nj9FAAAABQAAAAeAAAAc2FtcGxlLTEuMC5kYXRhL3NjcmlwdHMvc2FtcGxlcmVxdWlyZXMgcmVsb2NhdGlvbgpQSwECHgMKAAAAAAAEni5d8dDY/RQAAAAUAAAAHgAAAAAAAAABAAAApIEAAAAAc2FtcGxlLTEuMC5kYXRhL3NjcmlwdHMvc2FtcGxlUEsFBgAAAAABAAEATAAAAFAAAAAAAA==', 'base64')
 const externalLibraryWheel = Buffer.from('UEsDBBQAAAAAAAAAIVyBOE8OHAAAABwAAAAhAAAAc2FtcGxlLTEuMC5kYXRhL3B1cmVsaWIvc2FtcGxlLnB5cmVxdWlyZXMgbGlicmFyeSByZWxvY2F0aW9uClBLAQIUAxQAAAAAAAAAIVyBOE8OHAAAABwAAAAhAAAAAAAAAAAAAACAAQAAAABzYW1wbGUtMS4wLmRhdGEvcHVyZWxpYi9zYW1wbGUucHlQSwUGAAAAAAEAAQBPAAAAWwAAAAAA', 'base64')
+
+it.each([
+  ['win-x64', 'node.exe', 'node_modules/npm', 'npm.cmd', 'npx.cmd'],
+  ['mac-x64', 'bin/node', 'lib/node_modules/npm', 'npm', 'npx'],
+] as const)('materializes npm commands from the locked Node distribution for %s', async (target, executable, npmDirectory, npm, npx) => {
+  const root = await mkdtemp(join(tmpdir(), 'desktop-node-runtime-'))
+  try {
+    const source = join(root, 'source')
+    const destination = join(root, 'destination')
+    const npmSource = join(source, ...npmDirectory.split('/'))
+    await mkdir(join(npmSource, 'bin'), { recursive: true })
+    await mkdir(join(source, ...executable.split('/').slice(0, -1)), { recursive: true })
+    await writeFile(join(source, ...executable.split('/')), 'node')
+    await writeFile(join(source, 'LICENSE'), 'license')
+    await writeFile(join(npmSource, 'package.json'), JSON.stringify({ version: '11.7.0' }))
+    await writeFile(join(npmSource, 'bin', 'npm-cli.js'), 'npm cli')
+    await writeFile(join(npmSource, 'bin', 'npx-cli.js'), 'npx cli')
+    const version = await prepareNodeRuntime(source, destination, target)
+    expect(version).toBe('11.7.0')
+    expect(await readFile(join(destination, 'node_modules', 'npm', 'bin', 'npm-cli.js'), 'utf8')).toBe('npm cli')
+    expect(await readFile(join(destination, 'bin', npm), 'utf8')).toContain('../node_modules/npm/bin/npm-cli.js')
+    expect(await readFile(join(destination, 'bin', npx), 'utf8')).toContain('../node_modules/npm/bin/npx-cli.js')
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
 
 it.each(Object.entries(lock.targets))('records every locked wheel distribution and version for %s', (_target, artifact) => {
   const normalize = (name: string): string => name.toLowerCase().replace(/[-_.]+/gu, '-')
@@ -36,6 +61,15 @@ it('keeps a target payload identity independent of other target archives', () =>
   changed.targets['win-x64'].wheels[0]!.sha256 = 'a'.repeat(64)
   expect(primaryRuntimePayloadDigest('mac-arm64', changed, '11.7.0')).toBe(primaryRuntimePayloadDigest('mac-arm64', lock, '11.7.0'))
   expect(primaryRuntimePayloadDigest('win-x64', changed, '11.7.0')).not.toBe(primaryRuntimePayloadDigest('win-x64', lock, '11.7.0'))
+})
+
+it('uses assembly format 3 for npm-bearing payloads', () => {
+  const { pythonVersion, pythonRelease, nodeVersion, wheels, pythonPackages } = lock
+  const expected = createHash('sha256').update(JSON.stringify({
+    format: 3, target: 'win-x64', pythonVersion, pythonRelease, nodeVersion,
+    artifact: lock.targets['win-x64'], wheels, pythonPackages, pnpm: '11.7.0',
+  })).digest('hex')
+  expect(primaryRuntimePayloadDigest('win-x64', lock, '11.7.0')).toBe(expected)
 })
 
 it('invalidates payload identity for shared wheels, package versions and package-manager changes', () => {

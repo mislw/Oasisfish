@@ -111,6 +111,29 @@ it.skipIf(process.platform === 'linux')('keeps the installed release when the re
   expect((await readPrimaryRuntime(root)).desktopVersion).toBe('1.0.0')
 })
 
+it.skipIf(process.platform === 'linux').each([
+  ['package.json'], ['bin/npm-cli.js'], ['bin/npx-cli.js'],
+  [process.platform === 'win32' ? '../../bin/npm.cmd' : '../../bin/npm'],
+  [process.platform === 'win32' ? '../../bin/npx.cmd' : '../../bin/npx'],
+])('rejects an npm-bearing payload without %s', async (missing) => {
+  const { source, root, manifest } = await fixture()
+  const npmRoot = join(source, 'dependencies', 'node', 'node_modules', 'npm')
+  const npmManifest = { ...manifest, components: { ...manifest.components, npm: '11.7.0' } }
+  const required = [
+    'package.json', 'bin/npm-cli.js', 'bin/npx-cli.js',
+    process.platform === 'win32' ? '../../bin/npm.cmd' : '../../bin/npm',
+    process.platform === 'win32' ? '../../bin/npx.cmd' : '../../bin/npx',
+  ]
+  for (const relative of required) {
+    const path = join(npmRoot, relative)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, 'npm runtime')
+  }
+  await rm(join(npmRoot, missing))
+  await writeFile(join(source, 'runtime.json'), JSON.stringify(npmManifest))
+  await expect(installPrimaryRuntime(source, root)).rejects.toThrow()
+})
+
 it.skipIf(process.platform === 'linux')('refuses linked installation directories without modifying their targets', async () => {
   const { source, root, directory } = await fixture()
   const outside = join(directory, 'outside')

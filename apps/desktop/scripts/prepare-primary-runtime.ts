@@ -3,8 +3,8 @@
 import { execFileSync } from 'node:child_process'
 import { deepStrictEqual } from 'node:assert'
 import { createHash } from 'node:crypto'
-import { createReadStream, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { copyFile, cp, lstat, mkdir, readFile } from 'node:fs/promises'
+import { createReadStream, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmod, copyFile, cp, lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -141,7 +141,7 @@ export function primaryRuntimePayloadDigest(target: keyof typeof lock.targets, r
   // Identity preserves key order within the selected target, wheel records and distribution map, plus wheel-entry order.
   // Bump format when extraction or assembly changes payload bytes without changing locked inputs.
   return createHash('sha256').update(JSON.stringify({
-    format: 2, target, pythonVersion, pythonRelease, nodeVersion,
+    format: 3, target, pythonVersion, pythonRelease, nodeVersion,
     artifact: runtimeLock.targets[target], wheels, pythonPackages, pnpm: pnpmVersion,
   })).digest('hex')
 }
@@ -182,6 +182,46 @@ export async function prepareSkillAssets(source: string, destination: string): P
   }
 }
 
+function nodeCommand(cli: 'npm' | 'npx', windows: boolean): string {
+  const script = `../node_modules/npm/bin/${cli}-cli.js`
+  return windows
+    ? `@echo off\r\n"%~dp0node.exe" "%~dp0${script}" %*\r\n`
+    : `#!/bin/sh\nexec "$(dirname "$0")/node" "$(dirname "$0")/${script}" "$@"\n`
+}
+
+/**
+ * Copy Node and its bundled npm distribution into the relocatable runtime layout.
+ * @param source - Extracted root of one locked Node distribution.
+ * @param destination - Runtime-owned Node directory containing `bin` and `node_modules`.
+ * @param target - Desktop target selecting the native Node executable and command wrappers.
+ * @returns npm version carried by the locked Node distribution.
+ */
+export async function prepareNodeRuntime(
+  source: string, destination: string, target: 'win-x64' | 'mac-arm64' | 'mac-x64',
+): Promise<string> {
+  const windows = target === 'win-x64'
+  const bin = join(destination, 'bin')
+  const npmSource = join(source, ...(windows ? ['node_modules', 'npm'] : ['lib', 'node_modules', 'npm']))
+  const npmManifest = JSON.parse(await readFile(join(npmSource, 'package.json'), 'utf8')) as { version?: unknown }
+  if (typeof npmManifest.version !== 'string' || !/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/u.test(npmManifest.version)) {
+    throw new Error('primary runtime: Node distribution contains invalid npm metadata')
+  }
+  await rm(destination, { recursive: true, force: true })
+  await mkdir(bin, { recursive: true })
+  await mkdir(join(destination, 'node_modules'), { recursive: true })
+  await cp(join(source, ...(windows ? ['node.exe'] : ['bin', 'node'])), join(bin, windows ? 'node.exe' : 'node'))
+  await cp(join(source, 'LICENSE'), join(destination, 'LICENSE'))
+  await cp(npmSource, join(destination, 'node_modules', 'npm'), { recursive: true, dereference: true })
+  await writeFile(join(destination, 'node_modules', 'README.txt'), 'Bundled npm ships with Node; pnpm retains its own runtime directory.\n')
+  for (const cli of ['npm', 'npx'] as const) {
+    const path = join(bin, windows ? `${cli}.cmd` : cli)
+    await writeFile(path, nodeCommand(cli, windows))
+    if (!windows) await chmod(path, 0o755)
+  }
+  if (!windows) await chmod(join(bin, 'node'), 0o755)
+  return npmManifest.version
+}
+
 /**
  * Materialize the selected Desktop target's primary runtime in its build resources.
  * @param options - Signed Windows packaging defers execution until its supervised signing stage.
@@ -205,12 +245,7 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
     if (target === 'win-x64') await extractZip(nodeArchive, { dir: unpackedNode })
     else await extractTar({ file: nodeArchive, cwd: unpackedNode })
     const nodeSource = join(unpackedNode, nodeFilename.replace(/\.(?:zip|tar\.gz)$/u, ''))
-    mkdirSync(join(dependencies, 'node', 'bin'), { recursive: true })
-    mkdirSync(join(dependencies, 'node', 'node_modules'))
-    writeFileSync(join(dependencies, 'node', 'node_modules', 'README.txt'), 'Reserved for bundled Node packages. pnpm uses its default installation directories.\n')
-    cpSync(join(nodeSource, ...(target === 'win-x64' ? ['node.exe'] : ['bin', 'node'])),
-      join(dependencies, 'node', 'bin', target === 'win-x64' ? 'node.exe' : 'node'))
-    cpSync(join(nodeSource, 'LICENSE'), join(dependencies, 'node', 'LICENSE'))
+    const npmVersion = await prepareNodeRuntime(nodeSource, join(dependencies, 'node'), target)
     await extractTar({ file: await pythonArchive(target, paths.downloads), cwd: dependencies })
     const require = createRequire(import.meta.url)
     const pnpmManifest = require.resolve('pnpm')
@@ -224,7 +259,7 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
       payloadDigest: primaryRuntimePayloadDigest(target, lock, pnpm.version),
       pythonPackages: lock.pythonPackages,
       components: {
-        python: lock.pythonVersion, node: lock.nodeVersion, pnpm: pnpm.version,
+        python: lock.pythonVersion, node: lock.nodeVersion, npm: npmVersion, pnpm: pnpm.version,
         numpy: lock.pythonPackages.numpy, pandas: lock.pythonPackages.pandas,
       },
     }
@@ -269,6 +304,9 @@ export function smokePrimaryRuntime(root: string): void {
     manifest.components.python, join(dirname(root), 'office-skills', 'scripts', 'check_office.py')], options)
   execFileSync(entries.python, ['-I', '-B', '-m', 'pip', 'check'], options)
   execFileSync(entries.node, ['-e', `if (process.versions.node !== ${JSON.stringify(manifest.components.node)}) process.exit(1)`], options)
+  const npmBin = join(root, 'dependencies', 'node', 'node_modules', 'npm', 'bin')
+  execFileSync(entries.node, [join(npmBin, 'npm-cli.js'), '--version'], options)
+  execFileSync(entries.node, [join(npmBin, 'npx-cli.js'), '--version'], options)
   execFileSync(entries.node, [entries.pnpm, '--version'], options)
 }
 

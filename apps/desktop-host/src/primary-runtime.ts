@@ -15,6 +15,8 @@ export interface PrimaryRuntimeManifest {
   readonly components: {
     readonly python: string
     readonly node: string
+    /** npm version bundled by the locked Node distribution; absent in older payloads. */
+    readonly npm?: string
     readonly pnpm: string
     readonly numpy: string
     readonly pandas: string
@@ -47,6 +49,8 @@ export async function readPrimaryRuntime(root: string): Promise<PrimaryRuntimeMa
     || !['win32', 'darwin'].includes(String(record.platform)) || !['x64', 'arm64'].includes(String(record.arch))
     || typeof components !== 'object' || components === null
     || !['python', 'node', 'pnpm', 'numpy', 'pandas'].every(key => /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/u.test(String((components as Record<string, unknown>)[key])))
+    || ((components as Record<string, unknown>).npm !== undefined
+      && !/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/u.test(String((components as Record<string, unknown>).npm)))
     || (record.payloadDigest !== undefined && (typeof record.payloadDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(record.payloadDigest)))
     || (packages !== undefined && (typeof packages !== 'object' || packages === null || Array.isArray(packages)
       || !Object.entries(packages).every(([name, version]) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(name)
@@ -95,6 +99,22 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+function requiredRuntimePaths(root: string, manifest: PrimaryRuntimeManifest): string[] {
+  const paths = workspaceDependencyPaths(root, manifest)
+  const required = [paths.python, paths.node, paths.pnpm, paths.pythonPackages, paths.nodePackages]
+  if (manifest.components.npm === undefined) return required
+  const nodeRoot = join(root, 'dependencies', 'node')
+  const npmRoot = join(nodeRoot, 'node_modules', 'npm')
+  const windows = manifest.platform === 'win32'
+  return [...required,
+    join(npmRoot, 'package.json'),
+    join(npmRoot, 'bin', 'npm-cli.js'),
+    join(npmRoot, 'bin', 'npx-cli.js'),
+    join(nodeRoot, 'bin', windows ? 'npm.cmd' : 'npm'),
+    join(nodeRoot, 'bin', windows ? 'npx.cmd' : 'npx'),
+  ]
+}
+
 /**
  * Install the application-owned payload locally, retaining a complete previous tree on copy failure.
  * @param source - Payload carried by the current Desktop installation.
@@ -111,14 +131,13 @@ export async function installPrimaryRuntime(source: string, root: string): Promi
   if (!await exists(root) && await exists(previous)) await rename(previous, root)
   if (await exists(join(root, 'runtime.json')) && JSON.stringify(await readPrimaryRuntime(root)) === JSON.stringify(manifest)) {
     const paths = workspaceDependencyPaths(root, manifest)
-    for (const path of [paths.python, paths.node, paths.pnpm, paths.pythonPackages, paths.nodePackages]) await stat(path)
+    for (const path of requiredRuntimePaths(root, manifest)) await stat(path)
     return paths
   }
   const staging = await mkdtemp(join(dirname(root), '.primary-runtime-'))
   try {
     await cp(source, staging, { recursive: true, dereference: true })
-    const paths = workspaceDependencyPaths(staging, manifest)
-    for (const path of [paths.python, paths.node, paths.pnpm, paths.pythonPackages, paths.nodePackages]) await stat(path)
+    for (const path of requiredRuntimePaths(staging, manifest)) await stat(path)
     await rm(previous, { recursive: true, force: true })
     const replacing = await exists(root)
     if (replacing) await rename(root, previous)

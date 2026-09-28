@@ -115,6 +115,7 @@ export class DesktopHostProcess {
     const entry = join(this.runtimeDir, 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'index.js')
     const primaryRuntime = this.primaryRuntime ?? join(this.runtimeDir, '..', 'runtime', 'primary-runtime')
     const resourceRoot = dirname(primaryRuntime)
+    const primaryNodeBin = join(primaryRuntime, 'dependencies', 'node', 'bin')
     const child = spawn(this.node, [
       '--expose-internals',
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
@@ -126,7 +127,7 @@ export class DesktopHostProcess {
       ...this.packageManager === undefined ? [] : [this.packageManager.pnpm, this.packageManager.nodeBin],
     ], {
       cwd: this.projectDir,
-      env: desktopNodeEnvironment(this.node, undefined, {
+      env: desktopNodeEnvironment(this.node, primaryNodeBin, {
         ...this.environment,
         DSH_BUNDLED_SKILL_DIR: join(resourceRoot, 'bundled-skills'),
         DSH_SKILL_SEARCH_MODEL_DIR: join(resourceRoot, 'models', 'bge-small-zh-v1.5'),
