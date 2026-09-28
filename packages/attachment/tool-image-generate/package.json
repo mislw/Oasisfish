@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-image-generate",
   "description": "Model-facing image_generate tool over the generated-image capability",
-  "version": "1.20260923.1",
+  "version": "1.20260928.1",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/attachment/tool-image-generate" },
   "type": "module",
