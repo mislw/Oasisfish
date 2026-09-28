@@ -856,6 +856,12 @@ describe('hand-declared providers', () => {
     return { ...scripted, onClose }
   }
 
+  it('defaults a new custom provider to image input', () => {
+    mountCard()
+
+    expect(screen.getByRole('checkbox', { name: 'Support image input' })).toBeChecked()
+  })
+
   it('writes the whole profile and the key under the derived reference', async () => {
     const { mutate, set, onClose } = mountCard()
 
