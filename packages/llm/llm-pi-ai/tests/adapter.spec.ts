@@ -89,6 +89,62 @@ describe('PiAiAdapter provider routing', () => {
     expect(server.paths).toEqual(['/chat/completions'])
   })
 
+  it('adds a missing top-level required array to custom OpenAI-compatible tool schemas', async () => {
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = await harness(server.url, { api: 'openai-completions' })
+    const parameters = {
+      type: 'object' as const,
+      properties: {
+        options: {
+          type: 'object' as const,
+          properties: {},
+        },
+        configured: {
+          type: 'object' as const,
+          properties: { value: { type: 'string' as const } },
+          required: ['value'],
+        },
+      },
+      examples: [{ type: 'object' }],
+    }
+
+    await assemble(ctx, {
+      model: 'deepseek-v4-flash',
+      messages: [],
+      tools: [{ name: 'probe', description: 'Probe schema conversion.', parameters }],
+    })
+
+    expect(server.requests[0]).toMatchObject({
+      tools: [{
+        type: 'function',
+        function: {
+          name: 'probe',
+          parameters: {
+            type: 'object',
+            required: [],
+            properties: {
+              options: { type: 'object', properties: {} },
+              configured: {
+                type: 'object',
+                properties: { value: { type: 'string' } },
+                required: ['value'],
+              },
+            },
+            examples: [{ type: 'object' }],
+          },
+        },
+      }],
+    })
+    const sentParameters = (server.requests[0] as {
+      tools: [{ function: { parameters: typeof parameters & { required: string[] } } }]
+    }).tools[0].function.parameters
+    expect(sentParameters.properties.options).not.toHaveProperty('required')
+    expect(sentParameters.examples[0]).not.toHaveProperty('required')
+    expect(parameters).not.toHaveProperty('required')
+    expect(parameters.properties.options).not.toHaveProperty('required')
+    expect(parameters.examples[0]).not.toHaveProperty('required')
+  })
+
   it('keeps prepared model metadata and dispatch on one profile snapshot', async () => {
     const first = await mockServer([{ events: textEvents }])
     const second = await mockServer([])

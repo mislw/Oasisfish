@@ -19,12 +19,44 @@
  * @module dsh-llm-pi-ai/provider
  */
 
-import type { Api, ApiKeyAuth, Model, Provider, ProviderStreams } from '@earendil-works/pi-ai'
+import type {
+  Api,
+  ApiKeyAuth,
+  Context as PiContext,
+  Model,
+  Provider,
+  ProviderStreams,
+  Tool as PiTool,
+} from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy'
 import { catalogProvider, PiAiCatalogError } from './catalog.ts'
 import { createProvider } from './models.ts'
+
+/** Return an OpenAI Chat Completions context accepted by strict gateway validators. */
+function openAICompletionsContext(context: PiContext): PiContext {
+  if (context.tools === undefined) return context
+  let tools: PiTool[] | undefined
+  for (const [index, tool] of context.tools.entries()) {
+    const parameters: unknown = tool.parameters
+    if (parameters === null || typeof parameters !== 'object' || Array.isArray(parameters)) continue
+    if (!('type' in parameters) || parameters.type !== 'object' || Object.hasOwn(parameters, 'required')) continue
+    tools ??= [...context.tools]
+    tools[index] = { ...tool, parameters: { ...parameters, required: [] } as PiTool['parameters'] }
+  }
+  return tools === undefined ? context : { ...context, tools }
+}
+
+/** Build the Chat Completions implementation with gateway-safe tool schemas. */
+function compatibleOpenAICompletionsApi(): ProviderStreams {
+  const api = openAICompletionsApi()
+  return {
+    ...api,
+    stream: (model, context, options) => api.stream(model, openAICompletionsContext(context), options),
+    streamSimple: (model, context, options) => api.streamSimple(model, openAICompletionsContext(context), options),
+  }
+}
 
 /**
  * Wire protocols a configured route may name, mapped to pi-ai's lazily loaded
@@ -45,7 +77,7 @@ import { createProvider } from './models.ts'
  * override is refused.
  */
 const PROTOCOLS: Readonly<Record<string, () => ProviderStreams>> = {
-  'openai-completions': openAICompletionsApi,
+  'openai-completions': compatibleOpenAICompletionsApi,
   'openai-responses': openAIResponsesApi,
   'anthropic-messages': anthropicMessagesApi,
 }
