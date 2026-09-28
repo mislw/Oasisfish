@@ -20,7 +20,7 @@
 
 ## 添加自定义提供方
 
-对于公司网关、自建服务器或已安装目录中不存在的提供方，选择**添加自定义提供方**。提供小写 Provider ID、基础 URL、API 协议、凭据和至少一个模型。**API 协议**必须选网关实际使用的那一种，表单提供三种：`openai-completions` 对应 OpenAI Chat Completions，`openai-responses` 对应 OpenAI Responses API，`anthropic-messages` 对应 Anthropic Messages API。一个提供方只使用一种协议，网关同时提供两种时需要建两个提供方。
+对于公司网关、自建服务器或已安装目录中不存在的提供方，选择**添加自定义提供方**。提供小写 Provider ID、基础 URL、API 协议、凭据和至少一个模型。**支持图片输入**默认开启，使手动录入的模型可以接收附件；如果该路由只接受文本，请关闭它。**API 协议**必须选网关实际使用的那一种，表单提供三种：`openai-completions` 对应 OpenAI Chat Completions，`openai-responses` 对应 OpenAI Responses API，`anthropic-messages` 对应 Anthropic Messages API。一个提供方只使用一种协议，网关同时提供两种时需要建两个提供方。
 
 ![自定义提供方表单：Provider ID、显示名称、API 地址、API 协议、API 密钥](providers-custom-form.zh.png)
 
@@ -48,7 +48,9 @@ Provider ID 是永久的，因为请求、已保存会话、模型默认值和�
 
 ### 图片输入
 
-在**设置 → 模型**中编辑提供方，打开**自定义设置**并展开该模型的**模型选项**。**输入类型**独占容量字段下方的一行。对于支持图片的模型，勾选**图片**并保存。没有继承图片能力的新自定义模型默认勾选**文本**。至少保留一种输入类型；仅图片模型需先勾选图片，再取消文本。
+新建自定义提供方会开启**支持图片输入**并保存 `defaultInput: [text, image]`，因此手动录入的模型默认可以接收附件，除非模型自身覆盖路由设置。没有 `defaultInput` 的已有自定义提供方仍为仅文本；编辑提供方，打开**自定义设置**，开启**支持图片输入**并保存。
+
+如需为某个模型单独设置，请展开其**模型选项**。**输入类型**独占容量字段下方的一行。对于支持图片的模型，勾选**图片**并保存。没有继承图片能力的新自定义模型默认勾选**文本**。至少保留一种输入类型；仅图片模型需先勾选图片，再取消文本。
 
 复选框将 pi-ai 模型的选择保存为 `input`，将直连 DeepSeek 适配器的选择保存为 `inputModalities`。也可以在 `$DSH_HOME/settings.yaml` 中编辑模型；例如，以下自定义 pi-ai 提供方声明了一个纯文本模型和一个视觉模型：
 
