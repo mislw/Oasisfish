@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -133,6 +133,49 @@ describe('Desktop local packaging configuration', () => {
     expect(() => {
       verifyLockfile('patchedDependencies:\n  dsh-plugin-wallpaper-engine@0.7.5: wrong\n')
     }).toThrow(/patch hash/u)
+  })
+
+  it('materializes the selected Sharp native package where the filtered runtime can resolve it', async () => {
+    await withDirectory(async (directory) => {
+      const sourceModules = join(directory, 'source', 'node_modules')
+      const outputModules = join(directory, 'output', 'node_modules')
+      const sharp = join(sourceModules, 'sharp')
+      const windowsPackage = join(sharp, 'node_modules', '@img', 'sharp-win32-x64')
+      const macPackage = join(sharp, 'node_modules', '@img', 'sharp-darwin-arm64')
+      await mkdir(windowsPackage, { recursive: true })
+      await mkdir(macPackage, { recursive: true })
+      await writeFile(join(sharp, 'package.json'), JSON.stringify({
+        name: 'sharp',
+        optionalDependencies: {
+          '@img/sharp-darwin-arm64': '0.35.4',
+          '@img/sharp-win32-x64': '0.35.4',
+        },
+      }))
+      for (const [root, name] of [
+        [windowsPackage, '@img/sharp-win32-x64'],
+        [macPackage, '@img/sharp-darwin-arm64'],
+      ] as const) {
+        await writeFile(join(root, 'package.json'), JSON.stringify({
+          name,
+          version: '0.35.4',
+          exports: { './package': './package.json' },
+        }))
+        await writeFile(join(root, 'native.node'), name)
+      }
+
+      const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
+      const materialize = preparation.materializeSharpRuntimePackages as (
+        source: string,
+        output: string,
+        target: typeof WINDOWS,
+      ) => readonly string[]
+
+      expect(materialize(sourceModules, outputModules, WINDOWS)).toEqual(['@img/sharp-win32-x64'])
+      expect(await readFile(join(outputModules, '@img', 'sharp-win32-x64', 'native.node'), 'utf8'))
+        .toBe('@img/sharp-win32-x64')
+      await expect(readFile(join(outputModules, '@img', 'sharp-darwin-arm64', 'native.node'), 'utf8'))
+        .rejects.toMatchObject({ code: 'ENOENT' })
+    })
   })
 
   it('selects the platform file, preserves literal secrets, and excludes stale ambient release settings', async () => {

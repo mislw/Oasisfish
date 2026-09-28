@@ -4,7 +4,7 @@ import { spawn, execFile } from 'node:child_process'
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import * as yaml from 'js-yaml'
 import { desktopNodeEnvironment } from '../src/node-environment.ts'
 import { createRuntimeProjectMetadata } from '../src/project-manager.ts'
@@ -100,6 +100,39 @@ export function verifyWallpaperEngineRuntimePackages(root: string, releaseVersio
       throw new Error(`desktop runtime: expected ${name}@${version} in application resources`)
     }
   }
+}
+
+/**
+ * Copy Sharp's selected optional native packages to the flattened runtime root.
+ * pnpm links these packages beside Sharp in its virtual store, while the Desktop
+ * runtime omits that store after dereferencing package links.
+ * @param sourceModules - Installed temporary project node_modules directory.
+ * @param outputModules - Flattened Desktop runtime node_modules directory.
+ * @param target - Runtime operating system and architecture.
+ * @returns Native package names copied in deterministic order.
+ */
+export function materializeSharpRuntimePackages(
+  sourceModules: string,
+  outputModules: string,
+  target: { readonly platform: NodeJS.Platform; readonly arch: string },
+): readonly string[] {
+  const sharpManifestPath = join(sourceModules, 'sharp', 'package.json')
+  const manifest = JSON.parse(readFileSync(sharpManifestPath, 'utf8')) as {
+    optionalDependencies?: Readonly<Record<string, string>>
+  }
+  const suffix = `${target.platform}-${target.arch}`
+  const nativePackages = Object.keys(manifest.optionalDependencies ?? {})
+    .filter(name => name === `@img/sharp-${suffix}` || name === `@img/sharp-libvips-${suffix}`)
+    .sort()
+  if (!nativePackages.includes(`@img/sharp-${suffix}`)) {
+    throw new Error(`desktop runtime: Sharp does not declare a native package for ${suffix}`)
+  }
+  const require = createRequire(sharpManifestPath)
+  for (const name of nativePackages) {
+    const packageRoot = dirname(require.resolve(`${name}/package`))
+    cpSync(packageRoot, join(outputModules, ...name.split('/')), { recursive: true, dereference: true })
+  }
+  return nativePackages
 }
 
 function manifestVersion(path: string, subject: string): string {
@@ -278,10 +311,12 @@ async function main(): Promise<void> {
     const officeManifest = JSON.parse(readFileSync(join(modules, '@deepseek-ai/libreoffice-kit/package.json'), 'utf8'))
     const officeEngine = selectOfficeEngine(officeManifest, target)
     mkdirSync(dshOutputRoot, { recursive: true })
-    cpSync(modules, join(dshOutputRoot, 'node_modules'), {
+    const outputModules = join(dshOutputRoot, 'node_modules')
+    cpSync(modules, outputModules, {
       recursive: true, dereference: true,
       filter: source => desktopRuntimeFileExclusion(relative(modules, source), target, officeEngine) === undefined,
     })
+    materializeSharpRuntimePackages(modules, outputModules, target)
     writeFileSync(join(dshOutputRoot, 'package.json'), `${JSON.stringify({
       name: '@deepseek-ai/dsh-desktop-runtime', private: true, version: release.version, type: 'module',
       dependencies: Object.fromEntries(packageSet.packages.map(entry => [entry.name, entry.version])),
