@@ -124,9 +124,81 @@ function desktopRelease(runtimeRoot: string): DesktopRelease {
   })
 }
 
+/**
+ * Build the isolated pnpm invocation used to materialize Desktop runtime dependencies.
+ * @param pnpm - Bundled pnpm entry point.
+ * @param storeRoot - Private content-addressable store for this preparation run.
+ * @param userConfig - Empty private user configuration file.
+ * @param command - pnpm command to execute.
+ * @param args - Command arguments.
+ * @param offline - Whether an operator-owned recovery store must satisfy the install without network access.
+ * @param cacheRoot - Operator-owned metadata cache paired with the recovery store.
+ * @returns Complete pnpm arguments with fixed registry and download settings.
+ */
+export function desktopRuntimePnpmArguments(
+  pnpm: string,
+  storeRoot: string,
+  userConfig: string,
+  command: string,
+  args: readonly string[],
+  offline = false,
+  cacheRoot?: string,
+): readonly string[] {
+  return [
+    '--expose-internals',
+    pnpm,
+    '--config.registry=https://registry.npmjs.org/',
+    `--config.store-dir=${storeRoot}`,
+    '--config.enable-global-virtual-store=false',
+    `--config.userconfig=${userConfig}`,
+    '--fetch-timeout=300000',
+    '--config.prefer-offline=true',
+    ...(offline ? ['--config.offline=true'] : []),
+    ...(cacheRoot === undefined ? [] : [`--config.cache-dir=${cacheRoot}`]),
+    command,
+    ...args,
+  ]
+}
+
+/**
+ * Resolve the pnpm store used by Desktop runtime preparation.
+ * @param buildRoot - Private temporary runtime project.
+ * @param environment - Packaging process environment.
+ * @returns The default private store or an explicit absolute recovery store.
+ */
+export function resolveDesktopRuntimeStoreRoot(
+  buildRoot: string,
+  environment: NodeJS.ProcessEnv = process.env,
+): string {
+  const override = environment.DSH_DESKTOP_RUNTIME_STORE_DIR
+  if (override === undefined) return join(buildRoot, 'store')
+  if (override === '' || !isAbsolute(override)) {
+    throw new Error('desktop runtime: DSH_DESKTOP_RUNTIME_STORE_DIR must be an absolute path')
+  }
+  return override
+}
+
+/**
+ * Resolve the pnpm metadata cache paired with an operator-owned recovery store.
+ * @param environment - Packaging process environment.
+ * @returns The explicit absolute metadata cache, or undefined for normal isolated preparation.
+ */
+export function resolveDesktopRuntimeCacheRoot(
+  environment: NodeJS.ProcessEnv = process.env,
+): string | undefined {
+  const override = environment.DSH_DESKTOP_RUNTIME_CACHE_DIR
+  if (override === undefined) return undefined
+  if (override === '' || !isAbsolute(override)) {
+    throw new Error('desktop runtime: DSH_DESKTOP_RUNTIME_CACHE_DIR must be an absolute path')
+  }
+  return override
+}
+
 function runPnpm(
   buildRoot: string,
   storeRoot: string,
+  offline: boolean,
+  cacheRoot: string | undefined,
   args: readonly string[],
   paths: ReturnType<typeof resolveDesktopTargetBuildPaths>,
 ): Promise<void> {
@@ -139,16 +211,9 @@ function runPnpm(
     const pnpm = join(paths.runtime, 'pnpm', 'bin', 'pnpm.mjs')
     mkdirSync(config, { recursive: true })
     writeFileSync(userConfig, '')
-    const child = spawn(node, [
-      '--expose-internals',
-      pnpm,
-      '--config.registry=https://registry.npmjs.org/',
-      `--config.store-dir=${storeRoot}`,
-      '--config.enable-global-virtual-store=false',
-      `--config.userconfig=${userConfig}`,
-      command,
-      ...commandArgs,
-    ], {
+    const child = spawn(node, desktopRuntimePnpmArguments(
+      pnpm, storeRoot, userConfig, command, commandArgs, offline, cacheRoot,
+    ), {
       cwd: buildRoot,
       env: {
         ...Object.fromEntries(Object.entries(process.env).filter(([name]) => (
@@ -181,7 +246,14 @@ async function main(): Promise<void> {
   const packageSetRoot = paths.packageSet
   const node = join(paths.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
   const buildRoot = mkdtempSync(join(tmpdir(), 'dsh-desktop-runtime-'))
-  const storeRoot = join(buildRoot, 'store')
+  const storeOverride = process.env.DSH_DESKTOP_RUNTIME_STORE_DIR
+  const cacheOverride = process.env.DSH_DESKTOP_RUNTIME_CACHE_DIR
+  if ((storeOverride === undefined) !== (cacheOverride === undefined)) {
+    throw new Error('desktop runtime: DSH_DESKTOP_RUNTIME_STORE_DIR and DSH_DESKTOP_RUNTIME_CACHE_DIR must be set together')
+  }
+  const offline = storeOverride !== undefined
+  const storeRoot = resolveDesktopRuntimeStoreRoot(buildRoot)
+  const cacheRoot = resolveDesktopRuntimeCacheRoot()
   rmSync(dshOutputRoot, { recursive: true, force: true })
   rmSync(pnpmBuildState, { recursive: true, force: true })
   mkdirSync(storeRoot, { recursive: true })
@@ -191,14 +263,14 @@ async function main(): Promise<void> {
     cpSync(join(packageSetRoot, DESKTOP_PACKAGES_DIR), join(buildRoot, DESKTOP_PACKAGES_DIR), { recursive: true })
     createRuntimeProjectMetadata(buildRoot, release)
     prepareWallpaperEngineRuntimePatch(buildRoot)
-    await runPnpm(buildRoot, storeRoot, ['install', '--lockfile-only'], paths)
+    await runPnpm(buildRoot, storeRoot, offline, cacheRoot, ['install', '--lockfile-only'], paths)
     const lockfile = readFileSync(join(buildRoot, 'pnpm-lock.yaml'), 'utf8')
     verifyDesktopCoreLockfile(
       lockfile,
       readDesktopCorePackageSet(buildRoot, release.version),
     )
     verifyWallpaperEngineRuntimeLockfile(lockfile)
-    await runPnpm(buildRoot, storeRoot, ['install', '--prod', '--frozen-lockfile', '--trust-lockfile'], paths)
+    await runPnpm(buildRoot, storeRoot, offline, cacheRoot, ['install', '--prod', '--frozen-lockfile', '--trust-lockfile'], paths)
     const packageSet = readDesktopCorePackageSet(buildRoot, release.version)
     const targetName = resolveDesktopBuildTarget()
     const target = { platform: process.platform, arch: targetName.endsWith('arm64') ? 'arm64' : 'x64' }

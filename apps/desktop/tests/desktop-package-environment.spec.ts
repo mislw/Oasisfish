@@ -30,6 +30,56 @@ describe('Desktop local packaging configuration', () => {
     await expect(import('../scripts/prepare-dsh.ts')).resolves.toBeDefined()
   })
 
+  it('allows slow registry downloads while preparing the isolated runtime', async () => {
+    const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
+    const pnpmArguments = preparation.desktopRuntimePnpmArguments as (
+      pnpm: string,
+      storeRoot: string,
+      userConfig: string,
+      command: string,
+      args: readonly string[],
+      offline?: boolean,
+      cacheRoot?: string,
+    ) => readonly string[]
+
+    expect(pnpmArguments('pnpm.mjs', 'store', 'npmrc', 'install', ['--prod'])).toContain(
+      '--fetch-timeout=300000',
+    )
+    expect(pnpmArguments('pnpm.mjs', 'store', 'npmrc', 'install', ['--prod'])).toContain(
+      '--config.prefer-offline=true',
+    )
+    const recoveryArguments = pnpmArguments(
+      'pnpm.mjs', 'store', 'npmrc', 'install', ['--prod'], true, 'metadata-cache',
+    )
+    expect(recoveryArguments).toContain(
+      '--config.offline=true',
+    )
+    expect(recoveryArguments).toContain('--config.cache-dir=metadata-cache')
+  })
+
+  it('accepts an absolute operator-owned pnpm store for packaging recovery', async () => {
+    const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
+    const resolveStore = preparation.resolveDesktopRuntimeStoreRoot as (
+      buildRoot: string, environment: NodeJS.ProcessEnv,
+    ) => string
+    const resolveCache = preparation.resolveDesktopRuntimeCacheRoot as (
+      environment: NodeJS.ProcessEnv,
+    ) => string | undefined
+    const store = resolve(tmpdir(), 'desktop-runtime-store')
+    const cache = resolve(tmpdir(), 'desktop-runtime-cache')
+
+    const recovery = {
+      DSH_DESKTOP_RUNTIME_STORE_DIR: store,
+      DSH_DESKTOP_RUNTIME_CACHE_DIR: cache,
+    }
+    expect(resolveStore('private-build', recovery)).toBe(store)
+    expect(resolveCache(recovery)).toBe(cache)
+    expect(() => resolveStore('private-build', { DSH_DESKTOP_RUNTIME_STORE_DIR: 'relative-store' })).toThrow(
+      /absolute path/u,
+    )
+    expect(() => resolveCache({ DSH_DESKTOP_RUNTIME_CACHE_DIR: 'relative-cache' })).toThrow(/absolute path/u)
+  })
+
   it('imports runtime preparation without validating an unsupported execution target', async () => {
     vi.stubEnv('DSH_DESKTOP_TARGET_PLATFORM', 'linux')
     vi.stubEnv('DSH_DESKTOP_TARGET_ARCH', 'x64')

@@ -154,7 +154,7 @@ pnpm run package:desktop:win:x64
 
 The macOS arm64 command requires Apple Silicon. The macOS x64 command runs on Intel macOS or Apple Silicon with Rosetta. The Windows x64 command requires Windows x64. Linux is not a supported Desktop release target.
 
-Each target owns its packed package inputs, prepared runtime, package set, dsh tree, pnpm preparation state, unpacked application, update metadata, and final artifacts under `apps/desktop/.desktop-build/targets/<target>/`. The Electron archive cache remains shared under `.desktop-build/downloads` because every archive name includes its version, platform, and architecture and is verified before extraction. A target build never consumes another target's mutable preparation state.
+Each target owns its packed package inputs, prepared runtime, package set, dsh tree, pnpm preparation state, unpacked application, update metadata, and final artifacts under `apps/desktop/.desktop-build/targets/<target>/`. The Electron archive cache remains shared under `.desktop-build/downloads` because every archive name includes its version, platform, and architecture and is verified before extraction. A target build never consumes another target's mutable preparation state. Runtime dependency installation prefers cached metadata and packages and uses a fixed five-minute network request timeout. `DSH_DESKTOP_RUNTIME_STORE_DIR` and `DSH_DESKTOP_RUNTIME_CACHE_DIR` may name an absolute operator-owned pnpm store and metadata cache when recovering a local package run from registry failures; both fields are required together, and the recovery install runs offline and fails if either cache is incomplete. Lockfile, patch, runtime, and final inventory verification remain required.
 
 ### Runtime file selection
 

@@ -155,7 +155,7 @@ pnpm run package:desktop:win:x64
 
 macOS arm64 命令要求 Apple Silicon。macOS x64 命令可以在 Intel macOS 或带 Rosetta 的 Apple Silicon 上运行。Windows x64 命令要求 Windows x64。Linux 不是受支持的 Desktop 发布目标。
 
-每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、dsh 依赖树、pnpm 准备状态、未打包应用、更新元数据和最终产物。Electron 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。
+每个目标都在 `apps/desktop/.desktop-build/targets/<target>/` 下持有自己的打包输入、已准备运行时、包集合、dsh 依赖树、pnpm 准备状态、未打包应用、更新元数据和最终产物。Electron 归档缓存继续由 `.desktop-build/downloads` 共享，因为每个归档文件名都包含版本、平台和架构，并且在解包前经过验证。目标构建绝不读取其他目标的可变准备状态。运行时依赖安装优先读取已缓存的元数据和包，网络请求使用固定的五分钟超时。本地打包因注册表故障中断后，`DSH_DESKTOP_RUNTIME_STORE_DIR` 与 `DSH_DESKTOP_RUNTIME_CACHE_DIR` 可指定操作员持有的绝对 pnpm store 和元数据缓存路径；两项必须同时设置，恢复安装离线运行，并在任一缓存不完整时失败。锁文件、补丁、运行时和最终清单验证仍然必须通过。
 
 ### 运行时文件筛选
 

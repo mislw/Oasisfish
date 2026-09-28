@@ -12,7 +12,7 @@ const OWNED_STAGED_ROOTS = Object.freeze([
 const APPLICATION_APPROVED_FILES = Object.freeze([
   Object.freeze({
     path: 'desktop/oasisfish.cordis.patch.yml',
-    sha256: 'edaee3f9d8e6903aabab144554d2eb87fa7729b198054ce26490a9f3a698f013',
+    sha256: '3045dd4241ed08b2f5585774a6131238cca770677322483f1e6ce76580a664c2',
   }),
 ])
 

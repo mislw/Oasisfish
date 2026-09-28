@@ -73,6 +73,16 @@ describe('Desktop project metadata', () => {
     expect(bundles(projectDir)).toEqual(DESKTOP_PROFILE_DEFAULT_BUNDLES)
   })
 
+  it('allows required native runtime dependency installers', () => {
+    const projectDir = temporaryRoot()
+    seedPackageSet(projectDir)
+    createRuntimeProjectMetadata(projectDir, release())
+
+    const workspace = readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')
+    expect(workspace).toContain('  sharp: true\n')
+    expect(workspace).toContain('  onnxruntime-node: true\n')
+  })
+
   it('keeps the ordinary Web template and CLI profile free of Desktop defaults', () => {
     expect(PROFILE_TEMPLATES.web!.bundles).toEqual([
       '@deepseek-ai/dsh-base',
