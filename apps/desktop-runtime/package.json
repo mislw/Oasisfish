@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop-runtime-pkg",
   "description": "Dependency-only resolver manifest for Oasisfish Desktop product plugins.",
-  "version": "1.20260928.2",
+  "version": "1.20260928.3",
   "private": true,
   "type": "module",
   "dependencies": {

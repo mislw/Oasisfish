@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-skill-image-generation",
   "description": "Bundled workflow for preparing image generation, editing, and variation requests",
-  "version": "1.20260928.2",
+  "version": "1.20260928.3",
   "publishConfig": {
     "access": "public"
   },

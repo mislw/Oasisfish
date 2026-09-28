@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-image-optimizer-library",
   "description": "Offline image optimization template and case library provider",
-  "version": "1.20260928.2",
+  "version": "1.20260928.3",
   "publishConfig": {
     "access": "public"
   },

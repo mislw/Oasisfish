@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-skill-search",
   "description": "Model-facing Skill corpus search tool for the DeepSeek Harness",
-  "version": "1.20260928.2",
+  "version": "1.20260928.3",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
