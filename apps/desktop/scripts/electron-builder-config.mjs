@@ -193,6 +193,8 @@ export function createElectronBuilderConfig(
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       uninstallerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       include: fileURLToPath(new URL('./installer.nsh', import.meta.url)),
+      createDesktopShortcut: 'always',
+      shortcutName: product.productName,
       oneClick: false,
       perMachine: false,
       allowElevation: false,

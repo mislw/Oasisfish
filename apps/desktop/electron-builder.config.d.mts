@@ -40,6 +40,8 @@ export interface DesktopElectronBuilderConfig {
   }
   readonly nsis: {
     readonly include: string
+    readonly createDesktopShortcut: 'always'
+    readonly shortcutName: string
     readonly oneClick: false
     readonly perMachine: false
     readonly allowElevation: false
