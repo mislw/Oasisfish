@@ -117,6 +117,22 @@ describe('PluginManagerPage', () => {
     expect(actions.openInstall).toHaveBeenCalledTimes(1)
   })
 
+  it('offers the community catalog and a market install only when the market is absent', () => {
+    const { actions, set, setLanguage } = renderTab()
+    const catalog = screen.getByRole('link', { name: en.communityCatalog })
+    expect(catalog.getAttribute('href')).toBe('https://awesome-dsh-plugin.com/')
+    expect(catalog.getAttribute('target')).toBe('_blank')
+    expect(catalog.getAttribute('rel')).toContain('noopener')
+    fireEvent.click(screen.getByRole('button', { name: en.installMarket }))
+    expect(actions.openInstall).toHaveBeenCalledWith('dshmarket')
+
+    setLanguage(zh)
+    expect(screen.getByRole('link', { name: zh.communityCatalog }).getAttribute('href')).toBe('https://awesome-dsh-plugin.com/zh/')
+    set({ packages: [pkg({ name: 'dshmarket', enabled: false })] })
+    expect(screen.queryByRole('button', { name: zh.installMarket })).toBeNull()
+    expect(screen.getByRole('link', { name: zh.communityCatalog })).toBeTruthy()
+  })
+
   it('lists the installed bundles as cards, the installation\'s offered ones as official, and tags a problem the Host reports', () => {
     const { actions } = renderTab({
       packages: [

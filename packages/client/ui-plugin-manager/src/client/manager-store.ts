@@ -192,7 +192,8 @@ export interface PluginManagerFace {
   ensure: () => void
   /** Read the Host again. */
   refresh: () => void
-  openInstall: () => void
+  /** Open the install dialog, optionally with a package spec already entered. */
+  openInstall: (spec?: string) => void
   /** Close the dialog; a check in flight is dropped, a Host-owned run has to be cancelled first. */
   closeInstall: () => void
   editInstallSpec: (text: string) => void
@@ -362,8 +363,8 @@ export class PluginManagerController {
       hooks: { pluginManager: this.store, configLedger },
       ensure: () => { if (this.getSnapshot().status === 'idle') void this.load() },
       refresh: () => { void this.load() },
-      openInstall: () => {
-        if (!isInstallPending(this.getSnapshot().install.phase)) this.patch({ install: { ...IDLE_INSTALL, open: true } })
+      openInstall: (spec) => {
+        if (!isInstallPending(this.getSnapshot().install.phase)) this.patch({ install: { ...IDLE_INSTALL, open: true, spec: spec ?? '' } })
       },
       closeInstall: () => {
         if (isInstallPending(this.getSnapshot().install.phase)) return

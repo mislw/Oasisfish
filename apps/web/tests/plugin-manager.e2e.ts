@@ -135,6 +135,13 @@ describe('web e2e: plugin manager', () => {
   it('checks a spec before installing it and words what the check refused', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-plugin-manager-install'))
     const panel = await openPluginsPanel()
+    const catalog = panel.getByRole('link', { name: '社区插件目录' })
+    expect(await catalog.getAttribute('href')).toBe('https://awesome-dsh-plugin.com/zh/')
+    expect(await catalog.getAttribute('target')).toBe('_blank')
+    await panel.getByRole('button', { name: '安装插件市场' }).click()
+    const marketDialog = page.getByRole('dialog', { name: '添加插件' })
+    expect(await marketDialog.getByRole('textbox', { name: '包名或地址' }).inputValue()).toBe('dshmarket')
+    await marketDialog.getByRole('button', { name: '关闭' }).click()
     await panel.getByRole('button', { name: '添加插件', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: '添加插件' })
     await dialog.waitFor({ timeout: 10_000 })

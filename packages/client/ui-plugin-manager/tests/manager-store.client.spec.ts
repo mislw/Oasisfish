@@ -131,6 +131,15 @@ describe('sortPackages', () => {
 })
 
 describe('PluginManagerController', () => {
+  it('prefills the market install without changing the ordinary add-plugin dialog', () => {
+    const { face, state } = bench()
+    face.openInstall('dshmarket')
+    expect(state().install).toMatchObject({ open: true, spec: 'dshmarket', phase: 'idle' })
+    face.closeInstall()
+    face.openInstall()
+    expect(state().install).toMatchObject({ open: true, spec: '', phase: 'idle' })
+  })
+
   it('starts idle, reads the inventory then the bundles and entries on first use, and folds concurrent loads', async () => {
     const gate = deferred<ReturnType<typeof ok<BundleInfo[]>>>()
     const { plugins, inventory, face, state, controller } = bench({

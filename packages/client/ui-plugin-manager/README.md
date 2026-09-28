@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use the **Plugins** entry in the Web sidebar to manage the profile's installed bundles and the official bundles the installation ships switched off. Switch bundles and their rows on and off, install a bundle after the Host has read what the spec names, watch pnpm's output, stop a run, and enable what it added. Uninstalling asks for confirmation. A plugin that registers a configuration page is edited here, on its own page; Settings keeps the read-only inventory.
+Use the **Plugins** entry in the Web sidebar to manage the profile's installed bundles and the official bundles the installation ships switched off. Switch bundles and their rows on and off, install a bundle after the Host has read what the spec names, watch pnpm's output, stop a run, and enable what it added. Browse the community catalog or open the install dialog for the optional third-party plugin market. Uninstalling asks for confirmation. A plugin that registers a configuration page is edited here, on its own page; Settings keeps the read-only inventory.
 
 ## Table of Contents
 
@@ -26,6 +26,8 @@ Use the **Plugins** entry in the Web sidebar to manage the profile's installed b
 ## Use this package
 
 Select **Plugins** in the sidebar. The page reads the inventory and the bundles through `api-remotes` when first opened; a Host without a managed profile shows the page as unavailable. **Official** comes first and lists the bundles the installation ships for switching on — off until switched on, without an uninstall, and tagged **Beta** where the feature is one — followed by the official plugins that registered a configuration page; **Installed** lists the bundles the profile holds. Cards are listed by name, so switching a bundle on or off does not move its card. A dependency without a bundle patch is not a plugin and is not listed unless the profile selects it, in which case it carries a problem tag. Global configuration remains in the Settings **Plugins** section.
+
+**Community catalog** opens the external [Awesome DSH Plugin directory](https://awesome-dsh-plugin.com/) in a new tab, using the current UI language. **Install plugin market** is shown only while `dshmarket` is absent from the profile; it opens the existing install dialog with that package name entered. The Host still checks the package, and installation requires the usual confirmation. No community package is included with or enabled by the default installation; third-party Host code runs with the user's permissions. The same page serves Web and Desktop, each with its own managed profile.
 
 The Agent Teams, Agent Teams Web UI, and Auto Authorization Review packages have localized names and descriptions that follow the UI language. Their detail pages retain the full npm package name; other packages display their short package name and original description.
 

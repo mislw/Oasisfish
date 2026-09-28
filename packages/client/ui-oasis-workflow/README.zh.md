@@ -90,7 +90,7 @@ Host 半侧为受信任的 `[OASIS_UI_WORKFLOW]` 消息加入一段字节稳定�
 <a id="further-exploration"></a>
 ## 进一步探索
 
-- [Web App Bundle](../../bundle/web-app/README.zh.md)——挂载本包的随产品交付组合。
+- [Web App Bundle](../../bundle/web-app/README.zh.md)——将本包作为默认禁用、可按需启用的条目纳入随产品交付组合。
 - [配置目录](../../../docs/config-catalog.zh.md)——生成的注入元数据。
 - [Oasis UI 工作流决策](../../../.agents/notes/implemented/feature/2026-08-16-oasis-ui-user-confirmed-progress.zh.md)——阶段推进与证据设计的理由。
 - [添加 package](../../../docs/cookbook/adding-a-package.zh.md)——package 与模型体验要求。

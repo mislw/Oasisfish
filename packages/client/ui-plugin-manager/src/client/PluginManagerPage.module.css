@@ -19,6 +19,7 @@
 
 .pageHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
@@ -40,9 +41,24 @@
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
+}
+
+.catalogLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-brand-primary);
+  text-decoration: none;
+}
+
+.catalogLink:hover,
+.catalogLink:focus-visible {
+  text-decoration: underline;
 }
 
 .status,

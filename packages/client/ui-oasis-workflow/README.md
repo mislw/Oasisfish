@@ -90,7 +90,7 @@ No invariant companion is published because prompt and slot registrations are fi
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Web App Bundle](../../bundle/web-app/README.md) — the shipped composition that mounts this package.
+- [Web App Bundle](../../bundle/web-app/README.md) — the shipped composition that includes this package as a disabled, opt-in row.
 - [Configuration catalog](../../../docs/config-catalog.md) — generated injection metadata.
 - [Oasis UI workflow decision](../../../.agents/notes/implemented/feature/2026-08-16-oasis-ui-user-confirmed-progress.md) — progression and evidence rationale.
 - [Adding a package](../../../docs/cookbook/adding-a-package.md) — package and Model Experience requirements.

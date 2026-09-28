@@ -1,5 +1,10 @@
 - heading "插件" [level=1]
 - paragraph: 添加和管理插件
+- link "社区插件目录":
+  - /url: https://awesome-dsh-plugin.com/zh/
+  - img
+  - text: 社区插件目录
+- button "安装插件市场"
 - button "刷新"
 - button "添加插件":
   - img

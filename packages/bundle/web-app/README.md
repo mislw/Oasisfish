@@ -44,6 +44,8 @@ Saved model selections override the composition default. Both protocols share `d
 
 Most users never set these; the command-line flags feed the four settings below — `--host`, `--port`, and `--trusted-host` come from the invocation, and `--no-open` turns the browser handoff off for that invocation:
 
+The Oasis **UI 生图** composer launcher is disabled by default. Set `ui-oasis-workflow` to `disabled: false` in the profile patch to show it; the package remains available for opt-in use.
+
 | Field | Default | Meaning |
 |---|---|---|
 | `openBrowser` | `true` | Open the default browser after startup; SSH launches suppress it |

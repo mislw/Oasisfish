@@ -44,6 +44,8 @@ dsh --profile web --no-open --port 8080
 
 大多数用户不需要设置这些；命令行 flag 会提供给下面四个设置——`--host`、`--port` 与 `--trusted-host` 来自本次调用，`--no-open` 仅对本次调用关闭浏览器交接：
 
+Oasis **UI 生图** 输入区按钮默认禁用。在 profile patch 中将 `ui-oasis-workflow` 设为 `disabled: false` 可显示按钮；插件仍可按需启用。
+
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `openBrowser` | `true` | 启动后用默认浏览器打开；SSH 启动会抑制它 |

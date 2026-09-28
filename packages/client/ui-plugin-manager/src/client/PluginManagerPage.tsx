@@ -13,7 +13,7 @@ import { useEffect, useId, useState, type ReactNode } from 'react'
 import type { PluginInstallFailureKind } from '@deepseek-ai/dsh-api-remotes/client'
 import {
   Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16,
-  IconCordisPluginOutline14, IconPluginPinwheelOutline16, IconPlusOutline16, IconRefreshOutline16, IconTrashOutline16,
+  IconCordisPluginOutline14, IconGlobeOutline14, IconPluginPinwheelOutline16, IconPlusOutline16, IconRefreshOutline16, IconTrashOutline16,
   IconWarningOutline16, Input, Modal, StateDot, Switch, Tag, TerminalBlock, Toast,
   type StateDotState, type TerminalBlockLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -863,6 +863,7 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
   const mine = listed.filter(pkg => pkg.installed || !pkg.optional)
   const official = listed.filter(pkg => pkg.optional && !pkg.installed)
   const loaded = state.status === 'ready' || state.status === 'error'
+  const marketInstalled = state.packages.some(pkg => pkg.name === 'dshmarket' && pkg.installed)
   const openPkg = view.kind === 'package' || view.kind === 'row' ? listed.find(pkg => pkg.name === view.name) : undefined
   const openItem = view.kind === 'item' ? ledger.items.find(item => item.id === view.id) : undefined
   const openRow = view.kind === 'row' && openPkg !== undefined ? openPkg.rows.find(row => row.rowId === view.rowId) : undefined
@@ -916,10 +917,17 @@ export function PluginManagerPage(props: PluginManagerPageProps): ReactNode {
               <p className={css.pageIntro}>{t('intro')}</p>
             </div>
             <div className={css.toolbar}>
+              <a className={css.catalogLink} href={t('communityCatalogUrl')} target="_blank" rel="noopener noreferrer">
+                <IconGlobeOutline14 aria-hidden="true" />
+                {t('communityCatalog')}
+              </a>
+              {state.status === 'ready' && !marketInstalled
+                ? <Button variant="outline" size="sm" onClick={() => { props.openInstall('dshmarket') }}>{t('installMarket')}</Button>
+                : null}
               <button type="button" className={css.iconButton} aria-label={t('refresh')} title={t('refresh')} disabled={!loaded} onClick={props.refresh}>
                 <span className={css.iconWrap} aria-hidden="true"><IconRefreshOutline16 /></span>
               </button>
-              <Button variant="primary" size="sm" icon={<IconPlusOutline16 size={13} />} disabled={!loaded} onClick={props.openInstall}>{t('addPlugin')}</Button>
+              <Button variant="primary" size="sm" icon={<IconPlusOutline16 size={13} />} disabled={!loaded} onClick={() => { props.openInstall() }}>{t('addPlugin')}</Button>
             </div>
           </header>
         )
