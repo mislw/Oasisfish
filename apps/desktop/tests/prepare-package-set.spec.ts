@@ -72,6 +72,14 @@ describe('desktop package-set selection', () => {
     })
   })
 
+  it('declares the bundled browser and messaging integrations as Host runtime dependencies', () => {
+    const host = productionPackages().get('@deepseek-ai/dsh-desktop-host')?.manifest
+    expect(host?.dependencies).toMatchObject({
+      '@wxg-prc-cpg/browser-skill-dsh-plugin': '0.3.1',
+      '@xmanrui/dsh-im': '4.32.0',
+    })
+  })
+
   it('includes the wallpaper wrapper and onboarding Client in the production closure', () => {
     expect(selectDesktopPackageClosure(productionPackages()).map(entry => entry.manifest.name)).toEqual(
       expect.arrayContaining([

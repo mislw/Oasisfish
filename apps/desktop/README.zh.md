@@ -72,7 +72,7 @@ macOS 上自定义应用菜单还会声明标准的 File、Window 和应用菜�
 4. 主应用的“插件”页面通过共享[插件管理器](../../packages/boot/plugin-manager/README.zh.md)操作 Desktop profile。包操作使用内置 pnpm 及正常的用户和 profile 配置。
 5. 共享管理器负责安装错误、激活和重启要求。即使 Host 无法启动，原生恢复仍可禁用第三方 bundle。
 
-官方 Desktop 构建使用普通 `web` bundle 列表，并在末尾追加 `@deepseek-ai/dsh-desktop-wallpaper-engine`。新的用户 profile、开发项目和打包运行时项目都使用该列表。对于已有 Desktop profile，`desktop-default-bundles.json` 记录已向该 profile 提供过的每个 Desktop 专用默认 bundle；记录不存在时，启动仅在包装 bundle 缺失时追加一次，然后写入记录。之后用户在“插件”页面移除该包装 bundle，启动不会再次恢复它。
+官方 Desktop 构建使用普通 `web` bundle 列表，并在末尾追加 `@deepseek-ai/dsh-desktop-wallpaper-engine`、`@wxg-prc-cpg/browser-skill-dsh-plugin` 和 `@xmanrui/dsh-im`。签名运行时提供这些包；BrowserSkill 仍要求另行安装 `bsk` CLI 并连接 Chrome 或 Edge 扩展，dsh-im 则要求配置所选消息渠道的凭据。新的用户 profile、开发项目和打包运行时项目都使用完整列表。对于已有 Desktop profile，`desktop-default-bundles.json` 记录已向该 profile 提供过的每个 Desktop 专用默认 bundle；启动会为每个新引入的默认项追加一次，然后写入记录。之后用户在“插件”页面移除默认项，启动不会再次恢复它。
 
 Desktop 在 profile 清理前验证现有提供记录；JSON 格式错误、未知 schema、重复名称或非字符串名称会使 profile 准备失败，且不改写 manifest 或记录。提供操作改变启用列表时，Desktop 先原子发布 `package.json`，再发布状态记录。因此，状态写入失败可能留下已更新的 manifest 和缺失的记录；启动失败并释放事务锁，下次启动会重试，且不会重复追加 bundle。原生恢复仅恢复普通 Web bundle 并保留提供记录，因此会禁用包装 bundle，后续启动也不会重新启用它。
 

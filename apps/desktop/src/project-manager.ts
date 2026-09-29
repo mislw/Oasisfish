@@ -36,13 +36,25 @@ const WEB_PROFILE = PROFILE_TEMPLATES.web as ProfileTemplate
 const DEFAULT_BUNDLE_STATE_FILENAME = 'desktop-default-bundles.json'
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\n'
 
-/** Desktop-only bundle offered in addition to the ordinary Web profile. */
+/** Desktop Wallpaper Engine bundle offered in addition to the ordinary Web profile. */
 export const DESKTOP_WALLPAPER_BUNDLE = '@deepseek-ai/dsh-desktop-wallpaper-engine'
+
+/** BrowserSkill automation bundle included with Oasisfish Desktop. */
+export const DESKTOP_BROWSER_SKILL_BUNDLE = '@wxg-prc-cpg/browser-skill-dsh-plugin'
+
+/** Messaging integration bundle included with Oasisfish Desktop. */
+export const DESKTOP_IM_BUNDLE = '@xmanrui/dsh-im'
+
+const DESKTOP_ONLY_DEFAULT_BUNDLES: readonly string[] = [
+  DESKTOP_WALLPAPER_BUNDLE,
+  DESKTOP_BROWSER_SKILL_BUNDLE,
+  DESKTOP_IM_BUNDLE,
+]
 
 /** Initial bundle list shared by Desktop development, runtime, and user profiles. */
 export const DESKTOP_PROFILE_DEFAULT_BUNDLES: readonly string[] = [
   ...WEB_PROFILE.bundles,
-  DESKTOP_WALLPAPER_BUNDLE,
+  ...DESKTOP_ONLY_DEFAULT_BUNDLES,
 ]
 
 /** Versioned record of application defaults already offered to one Desktop profile. */
@@ -199,7 +211,7 @@ export class DesktopProjectManager {
       migrateProfileSettings(this.paths.profile)
       migrateDesktopProfileLinks(this.paths.profile)
       createPluginProfile(this.paths.profile)
-      await offerDesktopDefaultBundles(this.paths.profile, [DESKTOP_WALLPAPER_BUNDLE])
+      await offerDesktopDefaultBundles(this.paths.profile, DESKTOP_ONLY_DEFAULT_BUNDLES)
     })
   }
 
