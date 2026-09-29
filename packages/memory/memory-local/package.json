@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-memory-local",
   "description": "Local storage-domain provider for bounded durable user and project memory",
-  "version": "1.20260928.3",
+  "version": "1.20260929.1",
   "publishConfig": {
     "access": "public"
   },

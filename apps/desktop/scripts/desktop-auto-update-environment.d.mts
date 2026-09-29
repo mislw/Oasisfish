@@ -1,8 +1,14 @@
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV: 'DSH_DESKTOP_AUTO_UPDATE_ENV'
 
+/** Environment variable that selects one public GitHub repository. */
+export const DESKTOP_GITHUB_REPOSITORY_ENV: 'DSH_DESKTOP_GITHUB_REPOSITORY'
+
 /** Supported Desktop update deployment. */
-export type DesktopAutoUpdateEnvironment = 'test' | 'production'
+export type DesktopAutoUpdateEnvironment = 'test' | 'production' | 'github'
+
+/** Deployment backed by the Desktop Tencent COS uploader. */
+export type DesktopCosUpdateEnvironment = Exclude<DesktopAutoUpdateEnvironment, 'github'>
 
 /** Directory name of one supported Desktop release target. */
 export type DesktopAutoUpdateTarget = 'mac-arm64' | 'mac-x64' | 'win-x64'
@@ -18,6 +24,7 @@ export interface DesktopAutoUpdateConfig {
 
 /** Public updater URL and private COS destination for one upload target. */
 export interface DesktopUploadConfig extends DesktopAutoUpdateConfig {
+  readonly environment: DesktopCosUpdateEnvironment
   readonly bucket: string
   readonly secretIdEnvName: string
   readonly secretKeyEnvName: string
@@ -67,7 +74,7 @@ export function desktopUpdateMetadataFilename(
  * @param platform - Target Node.js platform.
  * @param arch - Target Node.js architecture.
  * @returns Resolved updater configuration.
- * @throws When the test deployment lacks a valid HTTPS origin.
+ * @throws When the selected deployment lacks a valid public update location.
  */
 export function resolveDesktopAutoUpdateConfig(
   env: NodeJS.ProcessEnv,

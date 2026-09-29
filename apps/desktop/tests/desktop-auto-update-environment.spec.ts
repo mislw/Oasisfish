@@ -48,6 +48,26 @@ describe('desktop auto-update environment', () => {
     })
   })
 
+  it('selects a public GitHub Releases feed for Oasisfish packages', () => {
+    expect(resolveDesktopAutoUpdateEnvironment({
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'github',
+    })).toBe('github')
+    expect(resolveDesktopAutoUpdateConfig({
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'github',
+      DSH_DESKTOP_GITHUB_REPOSITORY: 'mislw/Oasisfish',
+    }, 'win32', 'x64')).toEqual({
+      environment: 'github',
+      target: 'win-x64',
+      origin: 'https://github.com',
+      publicUrl: 'https://github.com/mislw/Oasisfish/releases/latest/download/',
+      keyPrefix: 'mislw/Oasisfish',
+    })
+    expect(() => resolveDesktopUploadConfig({
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'github',
+      DSH_DESKTOP_GITHUB_REPOSITORY: 'mislw/Oasisfish',
+    }, 'win32', 'x64')).toThrow(/GitHub Releases/u)
+  })
+
   it('requires the selected deployment origin for packages and bucket only for uploads', () => {
     expect(() => resolveDesktopAutoUpdateConfig({}, 'darwin', 'arm64'))
       .toThrow(/DOWNLOAD_TEST_ORIGIN/u)
@@ -74,7 +94,11 @@ describe('desktop auto-update environment', () => {
   it('rejects unknown deployments and targets', () => {
     expect(() => resolveDesktopAutoUpdateEnvironment({
       DSH_DESKTOP_AUTO_UPDATE_ENV: 'staging',
-    })).toThrow(/test.*production/u)
+    })).toThrow(/test.*production.*github/u)
+    expect(() => resolveDesktopAutoUpdateConfig({
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'github',
+      DSH_DESKTOP_GITHUB_REPOSITORY: 'missing-repository-separator',
+    }, 'win32', 'x64')).toThrow(/DSH_DESKTOP_GITHUB_REPOSITORY/u)
     expect(() => resolveDesktopAutoUpdateTarget('linux', 'x64')).toThrow(/unsupported target/u)
     expect(() => desktopBuildRecordFilename('linux-x64' as 'mac-arm64')).toThrow(/unsupported target/u)
   })

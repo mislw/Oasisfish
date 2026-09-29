@@ -1,9 +1,12 @@
-/** Resolve the Desktop auto-update channel and its Tencent COS destination. */
+/** Resolve Desktop auto-update feeds and the optional Tencent COS destination. */
 
 import { valid } from 'semver'
 
 /** Environment variable that selects the Desktop update deployment. */
 export const DESKTOP_AUTO_UPDATE_ENV = 'DSH_DESKTOP_AUTO_UPDATE_ENV'
+
+/** Environment variable that selects one public GitHub repository. */
+export const DESKTOP_GITHUB_REPOSITORY_ENV = 'DSH_DESKTOP_GITHUB_REPOSITORY'
 
 const UPDATE_ENVIRONMENTS = {
   test: {
@@ -27,12 +30,12 @@ const UPDATE_TARGETS = new Set(['mac-arm64', 'mac-x64', 'win-x64'])
 /**
  * Resolve the update deployment, defaulting local release work to test.
  * @param {NodeJS.ProcessEnv} env - Packaging or upload environment.
- * @returns {'test' | 'production'} Validated deployment name.
+ * @returns {'test' | 'production' | 'github'} Validated deployment name.
  */
 export function resolveDesktopAutoUpdateEnvironment(env) {
   const value = env[DESKTOP_AUTO_UPDATE_ENV]?.trim() || 'test'
-  if (value !== 'test' && value !== 'production') {
-    throw new Error(`desktop auto-update: ${DESKTOP_AUTO_UPDATE_ENV} must be "test" or "production"`)
+  if (value !== 'test' && value !== 'production' && value !== 'github') {
+    throw new Error(`desktop auto-update: ${DESKTOP_AUTO_UPDATE_ENV} must be "test", "production", or "github"`)
   }
   return value
 }
@@ -130,6 +133,19 @@ function httpsOrigin(value, name) {
 export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
   const environment = resolveDesktopAutoUpdateEnvironment(env)
   const target = resolveDesktopAutoUpdateTarget(platform, arch)
+  if (environment === 'github') {
+    const repository = requiredEnvironmentValue(env, DESKTOP_GITHUB_REPOSITORY_ENV)
+    if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(repository)) {
+      throw new Error(`desktop auto-update: ${DESKTOP_GITHUB_REPOSITORY_ENV} must be an owner/repository name`)
+    }
+    return {
+      environment,
+      target,
+      origin: 'https://github.com',
+      publicUrl: `https://github.com/${repository}/releases/latest/download/`,
+      keyPrefix: repository,
+    }
+  }
   const deployment = UPDATE_ENVIRONMENTS[environment]
   let origin = deployment.fixedOrigin
   if (origin === undefined) {
@@ -157,6 +173,9 @@ export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
  */
 export function resolveDesktopUploadConfig(env, platform, arch) {
   const update = resolveDesktopAutoUpdateConfig(env, platform, arch)
+  if (update.environment === 'github') {
+    throw new Error('desktop upload: GitHub Releases publication uses the repository release workflow, not the COS uploader')
+  }
   const deployment = UPDATE_ENVIRONMENTS[update.environment]
   return {
     ...update,

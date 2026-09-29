@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-image-generation",
   "description": "Default generated-image capability over OpenAI-compatible provider routes",
-  "version": "1.20260928.3",
+  "version": "1.20260929.1",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/attachment/image-generation" },
   "type": "module",

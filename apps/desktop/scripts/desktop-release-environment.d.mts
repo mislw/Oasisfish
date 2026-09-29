@@ -1,6 +1,9 @@
 /** Environment variable that supplies the Electron application identifier. */
 export const DESKTOP_APP_ID_ENV: 'DSH_DESKTOP_APP_ID'
 
+/** Environment variable that selects the client identity and matching Host composition. */
+export const DESKTOP_CLIENT_BUILD_PROFILE_ENV: 'DSH_CLIENT_BUILD_PROFILE'
+
 /** Environment variable that supplies electron-builder's macOS certificate qualifier. */
 export const MACOS_SIGNING_IDENTITY_ENV: 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY'
 
@@ -45,6 +48,13 @@ export type MacOSNotarizationEnvironment =
  * @returns Reverse-DNS application identifier.
  */
 export function resolveDesktopAppId(env: NodeJS.ProcessEnv): string
+
+/**
+ * Resolve the client identity persisted into the packaged application.
+ * @param env Packaging environment.
+ * @returns Supported client identity.
+ */
+export function resolveDesktopClientBuildProfile(env: NodeJS.ProcessEnv): 'official' | 'oasisfish'
 
 /**
  * Resolve and validate the public identity expected on a macOS release.

@@ -13,6 +13,17 @@ it.each(['test', 'production'] as const)('selects the %s policy and authenticati
   expect(resolveDesktopPolicyConfig(policy)).toMatchObject(policy)
 })
 
+it('omits the DeepSeek mandatory-update policy for GitHub community releases', () => {
+  const environment = {
+    DSH_DESKTOP_APP_ID: 'com.example.test',
+    DSH_DESKTOP_AUTO_UPDATE_ENV: 'github',
+    DSH_DESKTOP_GITHUB_REPOSITORY: 'mislw/Oasisfish',
+  }
+  expect(resolveDesktopPolicyEnvironment(environment)).toBeUndefined()
+  expect(() => { validateDesktopPackageEnvironment(environment, { platform: 'win32', arch: 'x64' }, { unsigned: true }) })
+    .not.toThrow()
+})
+
 it('requires only the selected origin, defaults to test, and accepts explicit page restrictions', () => {
   const policy = resolveDesktopPolicyEnvironment({
     DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: origins.DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN,

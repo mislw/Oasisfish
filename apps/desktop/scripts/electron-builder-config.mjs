@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import {
   resolveDesktopAppId,
+  resolveDesktopClientBuildProfile,
   resolveDesktopProductIdentity,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
@@ -42,6 +43,7 @@ export function createElectronBuilderConfig(
   preparedRuntime = undefined,
 ) {
   const appId = resolveDesktopAppId(env)
+  const clientBuildProfile = resolveDesktopClientBuildProfile(env)
   const product = resolveDesktopProductIdentity(env)
   const policy = resolveDesktopPolicyEnvironment(env)
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
@@ -75,11 +77,12 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const githubUpdate = env.DSH_DESKTOP_AUTO_UPDATE_ENV?.trim() === 'github'
+  const update = unsigned && !githubUpdate ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   return {
     appId,
-    extraMetadata: { dshDesktopAppId: appId, dshMandatoryUpdatePolicy: policy },
+    extraMetadata: { dshClientBuildProfile: clientBuildProfile, dshDesktopAppId: appId, dshMandatoryUpdatePolicy: policy },
     productName: product.productName,
     artifactName: `${product.artifactPrefix}-\${version}-\${os}-\${arch}.\${ext}`,
     directories: { output: unsigned ? join(buildPaths.root, 'unsigned-artifacts') : buildPaths.artifacts },

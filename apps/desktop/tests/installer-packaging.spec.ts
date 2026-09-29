@@ -17,6 +17,7 @@ describe('installer preparation preserves application dependencies', () => {
     const config = createElectronBuilderConfig({
       DSH_DESKTOP_APP_ID: 'com.example.installer',
       DSH_DESKTOP_PRODUCT_NAME: 'Oasisfish',
+      DSH_CLIENT_BUILD_PROFILE: 'oasisfish',
       DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
       DSH_DESKTOP_TARGET_PLATFORM: 'win32',
       DSH_DESKTOP_TARGET_ARCH: 'x64',
@@ -25,6 +26,40 @@ describe('installer preparation preserves application dependencies', () => {
 
     expect(config.nsis.createDesktopShortcut).toBe('always')
     expect(config.nsis.shortcutName).toBe('Oasisfish')
+    expect(config.extraMetadata.dshClientBuildProfile).toBe('oasisfish')
+  })
+
+  it('packages an explicitly selected GitHub updater into unsigned Oasisfish builds', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_APP_ID: 'com.example.installer',
+      DSH_DESKTOP_PRODUCT_NAME: 'Oasisfish',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1',
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'github',
+      DSH_DESKTOP_GITHUB_REPOSITORY: 'mislw/Oasisfish',
+    }, 'win32', 'x64')
+
+    expect(config.publish).toEqual([{
+      provider: 'generic',
+      url: 'https://github.com/mislw/Oasisfish/releases/latest/download/',
+      channel: 'nightly',
+    }])
+    expect(config.win.forceCodeSigning).toBe(false)
+  })
+
+  it('rejects an unsupported client build profile', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+
+    expect(() => createElectronBuilderConfig({
+      DSH_CLIENT_BUILD_PROFILE: 'custom',
+      DSH_DESKTOP_APP_ID: 'com.example.installer',
+      DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1',
+    }, 'win32', 'x64')).toThrow('DSH_CLIENT_BUILD_PROFILE must be "official" or "oasisfish"')
   })
 
   it.each(['win32', 'darwin'] as const)('rejects a missing production policy before signing on %s', async (platform) => {

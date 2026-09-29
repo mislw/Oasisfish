@@ -9,6 +9,9 @@ export const DESKTOP_PRODUCT_NAME_ENV = 'DSH_DESKTOP_PRODUCT_NAME'
 /** Environment variable that supplies the release artifact filename prefix. */
 export const DESKTOP_ARTIFACT_PREFIX_ENV = 'DSH_DESKTOP_ARTIFACT_PREFIX'
 
+/** Environment variable that selects the client identity and matching Host composition. */
+export const DESKTOP_CLIENT_BUILD_PROFILE_ENV = 'DSH_CLIENT_BUILD_PROFILE'
+
 /** Environment variable that supplies electron-builder's macOS certificate qualifier. */
 export const MACOS_SIGNING_IDENTITY_ENV = 'DSH_DESKTOP_MACOS_SIGNING_IDENTITY'
 
@@ -66,6 +69,21 @@ export function resolveDesktopProductIdentity(env) {
     throw new Error(`desktop release environment: ${DESKTOP_ARTIFACT_PREFIX_ENV} must be a filename prefix without spaces or path separators`)
   }
   return { productName, artifactPrefix }
+}
+
+/**
+ * Resolve the client identity persisted into the packaged application.
+ * @param {NodeJS.ProcessEnv} env Packaging environment.
+ * @returns {'official' | 'oasisfish'} Supported client identity.
+ */
+export function resolveDesktopClientBuildProfile(env) {
+  const profile = env[DESKTOP_CLIENT_BUILD_PROFILE_ENV]?.trim() || 'official'
+  if (profile !== 'official' && profile !== 'oasisfish') {
+    throw new Error(
+      `desktop release environment: ${DESKTOP_CLIENT_BUILD_PROFILE_ENV} must be "official" or "oasisfish"`,
+    )
+  }
+  return profile
 }
 
 /**
