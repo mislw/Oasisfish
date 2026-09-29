@@ -83,6 +83,20 @@ describe('Desktop project metadata', () => {
     expect(workspace).toContain('  onnxruntime-node: true\n')
   })
 
+  it('pins one Sharp version for development and packaged Host projects', () => {
+    const development = temporaryRoot()
+    createDevelopmentProjectMetadata(development, release())
+    const packaged = temporaryRoot()
+    seedPackageSet(packaged)
+    createRuntimeProjectMetadata(packaged, release())
+
+    for (const projectDir of [development, packaged]) {
+      expect(readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')).toContain(
+        '  "sharp": "0.34.5"\n',
+      )
+    }
+  })
+
   it('keeps the ordinary Web template and CLI profile free of Desktop defaults', () => {
     expect(PROFILE_TEMPLATES.web!.bundles).toEqual([
       '@deepseek-ai/dsh-base',

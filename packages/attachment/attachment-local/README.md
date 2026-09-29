@@ -60,7 +60,7 @@ Attach an image and its source limits, media, dimensions, and pixels are checked
 
 ### What can go wrong
 
-An image can be refused when you attach it: unsupported format, over the byte, pixel, or per-side dimension limits, or bytes that do not match their declared type. On a later read, an image that was deleted or corrupted on disk fails with a clear error. An unavailable Sharp native runtime reports `ATTACHMENT_WRITE_FAILED`. Each failure carries a stable code so the client and protocol adapters can explain it in their own words.
+An image can be refused when you attach it: unsupported format, over the byte, pixel, or per-side dimension limits, or bytes that do not match their declared type. On a later read, an image that was deleted or corrupted on disk fails with a clear error. An unavailable or ABI-conflicting Sharp native runtime reports `ATTACHMENT_WRITE_FAILED`; every package loaded in one process must use a compatible Sharp/libvips build. Each failure carries a stable code so the client and protocol adapters can explain it in their own words.
 
 -----
 

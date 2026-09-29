@@ -1,7 +1,7 @@
 /** Materialize the complete production runtime before publishing Desktop resources. */
 
 import { spawn, execFile } from 'node:child_process'
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
@@ -116,6 +116,29 @@ export function materializeSharpRuntimePackages(
   outputModules: string,
   target: { readonly platform: NodeJS.Platform; readonly arch: string },
 ): readonly string[] {
+  const versions = new Set<string>()
+  const visited = new Set<string>()
+  const visitModules = (modules: string): void => {
+    if (!existsSync(modules)) return
+    const realModules = realpathSync(modules)
+    if (visited.has(realModules)) return
+    visited.add(realModules)
+    const sharpManifest = join(modules, 'sharp', 'package.json')
+    if (existsSync(sharpManifest)) versions.add(manifestVersion(sharpManifest, 'Sharp package'))
+    for (const entry of readdirSync(modules, { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue
+      const entryPath = join(modules, entry.name)
+      const packages = entry.name.startsWith('@')
+        ? readdirSync(entryPath).map(name => join(entryPath, name))
+        : [entryPath]
+      for (const packageRoot of packages) visitModules(join(packageRoot, 'node_modules'))
+    }
+  }
+  visitModules(sourceModules)
+  const distinctVersions = [...versions].sort()
+  if (distinctVersions.length > 1) {
+    throw new Error(`desktop runtime: multiple Sharp versions would share one Host process: ${distinctVersions.join(', ')}`)
+  }
   const sharpManifestPath = join(sourceModules, 'sharp', 'package.json')
   const manifest = JSON.parse(readFileSync(sharpManifestPath, 'utf8')) as {
     optionalDependencies?: Readonly<Record<string, string>>

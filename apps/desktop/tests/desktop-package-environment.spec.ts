@@ -146,6 +146,7 @@ describe('Desktop local packaging configuration', () => {
       await mkdir(macPackage, { recursive: true })
       await writeFile(join(sharp, 'package.json'), JSON.stringify({
         name: 'sharp',
+        version: '0.35.4',
         optionalDependencies: {
           '@img/sharp-darwin-arm64': '0.35.4',
           '@img/sharp-win32-x64': '0.35.4',
@@ -175,6 +176,43 @@ describe('Desktop local packaging configuration', () => {
         .toBe('@img/sharp-win32-x64')
       await expect(readFile(join(outputModules, '@img', 'sharp-darwin-arm64', 'native.node'), 'utf8'))
         .rejects.toMatchObject({ code: 'ENOENT' })
+    })
+  })
+
+  it('rejects multiple Sharp versions in one Desktop Host runtime', async () => {
+    await withDirectory(async (directory) => {
+      const sourceModules = join(directory, 'source', 'node_modules')
+      const outputModules = join(directory, 'output', 'node_modules')
+      const rootSharp = join(sourceModules, 'sharp')
+      const transformerSharp = join(sourceModules, '@huggingface', 'transformers', 'node_modules', 'sharp')
+      const nativePackage = join(rootSharp, 'node_modules', '@img', 'sharp-win32-x64')
+      await mkdir(nativePackage, { recursive: true })
+      await mkdir(transformerSharp, { recursive: true })
+      await writeFile(join(rootSharp, 'package.json'), JSON.stringify({
+        name: 'sharp',
+        version: '0.35.3',
+        optionalDependencies: { '@img/sharp-win32-x64': '0.35.3' },
+      }))
+      await writeFile(join(transformerSharp, 'package.json'), JSON.stringify({
+        name: 'sharp',
+        version: '0.34.5',
+      }))
+      await writeFile(join(nativePackage, 'package.json'), JSON.stringify({
+        name: '@img/sharp-win32-x64',
+        version: '0.35.3',
+        exports: { './package': './package.json' },
+      }))
+
+      const preparation = await import('../scripts/prepare-dsh.ts') as Record<string, unknown>
+      const materialize = preparation.materializeSharpRuntimePackages as (
+        source: string,
+        output: string,
+        target: typeof WINDOWS,
+      ) => readonly string[]
+
+      expect(() => materialize(sourceModules, outputModules, WINDOWS)).toThrow(
+        /multiple Sharp versions.*0\.34\.5.*0\.35\.3/u,
+      )
     })
   })
 

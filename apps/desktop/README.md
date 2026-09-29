@@ -223,6 +223,8 @@ The theme follows Windows at startup; `/THEME=light`, `/THEME=dark`, and `/THEME
 
 Windows packaging compiles an x86 Win32/GDI+ helper with Visual C++ Build Tools and a Windows SDK; signed builds sign this helper through the configured Windows signer. The preparation hook leaves production dependency collection to electron-builder on every platform. The [installer decision](../../.agents/notes/implemented/architecture/2026-09-10-windows-native-installer-pages.md) records the NSIS integration and release checks.
 
+The Desktop Host pins `sharp@0.34.5` for every bundled consumer because one process cannot safely load different libvips DLL versions on Windows. Runtime preparation scans the installed dependency tree and stops before packaging when more than one Sharp version remains.
+
 Run `pnpm --dir apps/desktop run test:installer` from the repository root on an interactive Windows x64 desktop to build and exercise a small native test payload through the production installer configuration. Each run uses a unique product identity and sequentially exercises English-only and Chinese-only installer variants, selecting test labels from the displayed welcome button. Both variants install into private directories and uninstall after testing; screenshots and results remain under `.desktop-build/installer-tests/`. The checks include upgrades to registered paths with trailing separators and rejection of drive roots. The optional `--signed` flag uses the Windows EV configuration below to sign test executables and the helper before embedding them; it does not enable an update feed.
 
 ### Windows EV signing
