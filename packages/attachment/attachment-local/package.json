@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-attachment-local",
   "description": "Private content-addressed DSH_HOME attachment storage",
-  "version": "1.20260929.1",
+  "version": "1.20260929.2",
   "publishConfig": {
     "access": "public"
   },

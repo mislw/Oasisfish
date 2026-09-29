@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-tool-memory",
   "description": "Model-facing durable memory management and logged context injection",
-  "version": "1.20260929.1",
+  "version": "1.20260929.2",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "git+https://github.com/deepseek-ai/deepseek-harness.git", "directory": "packages/memory/tool-memory" },
   "type": "module",
