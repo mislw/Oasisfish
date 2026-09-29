@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-image-optimizer",
   "description": "Image optimization service definition and provider-neutral request/result contracts",
-  "version": "1.20260929.2",
+  "version": "1.20260929.3",
   "publishConfig": {
     "access": "public"
   },

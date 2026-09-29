@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-skill-search",
   "description": "Provider-neutral Skill corpus search registry for the DeepSeek Harness",
-  "version": "1.20260929.2",
+  "version": "1.20260929.3",
   "publishConfig": { "access": "public" },
   "repository": {
     "type": "git",
